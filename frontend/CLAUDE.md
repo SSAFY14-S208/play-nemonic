@@ -522,7 +522,12 @@ const adminClient = ky.create({
 | GET | `/gallery` (목록) | `getGalleryList` |
 | GET | `/gallery/{galleryId}` (단건) | `getGallery` |
 | DELETE | `/gallery/{galleryId}` | `deleteGallery` |
-| GET | `/community/{communityId}` | `getCommunity` |
+| GET | `/community/memos` | `getCommunityMemoList` |
+| POST | `/community/memos` | `postCommunityMemo` |
+| GET | `/community/memos/{memoId}` | `getCommunityMemo` |
+| PATCH | `/community/memos/{memoId}` | `patchCommunityMemo` |
+| DELETE | `/community/memos/{memoId}` | `deleteCommunityMemo` |
+| POST | `/community/memos/{memoId}/reports` | `postCommunityMemoReport` |
 
 원칙:
 - 단건/리스트가 같은 GET에서 갈리면 단건은 단수형(`getGallery`), 리스트는 `List` 접미사(`getGalleryList`).
@@ -1146,4 +1151,7 @@ import { useInteractiveObject } from "@/features/interaction-sheet/useInteractiv
 - Semantic token rules can be bypassed only when an ADR in `frontend/docs/decisions/` explicitly accepts the feature as a closed visual mock.
 - The exception is scoped to the accepted feature folder only.
 - Other features must not import closed-system colors or typography as reusable design tokens.
-- Current accepted exception: `features/phone` via `0001-phone-closed-visual-mock.md`.
+- Current accepted exceptions:
+  - `features/phone` via `0001-phone-closed-visual-mock.md`
+  - `features/hub` via `0002-hub-closed-visual-mock.md`
+  - `features/fortune` via `0003-fortune-closed-visual-mock.md`

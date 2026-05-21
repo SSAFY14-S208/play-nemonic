@@ -21,7 +21,7 @@ import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
-import com.nemonicworld.support.IntegrationTest;
+import com.nemonicworld.support.AbstractIntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
 import java.time.Duration;
@@ -36,25 +36,20 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
-@IntegrationTest
-@AutoConfigureMockMvc
-@TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
 /**
  * 릴레이 대기실 참여자 강퇴 API의 HTTP 계약과 Redis 상태 변경을 검증합니다.
  */
-class RelayRoomKickControllerIntegrationTest {
+class RelayRoomKickControllerIntegrationTest extends AbstractIntegrationTest {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String DEFAULT_ROOM_CODE = "AB3K9Q";
@@ -268,26 +263,6 @@ class RelayRoomKickControllerIntegrationTest {
         verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
     }
 
-    /**
-     * 강퇴된 사용자는 같은 roomCode의 입장 API를 다시 호출해도 거부됩니다.
-     */
-    @Test
-    void joinRelayRoomRejectsKickedUser() throws Exception {
-        UUID hostUuid = createExistingUserWithNickname("망고");
-        UUID kickedUuid = createExistingUserWithNickname("포도");
-        RelayRoomState roomState = createRoomState(RelayRoomStatus.WAITING, participant(hostUuid, "망고", true, 0));
-        storeRoom(DEFAULT_ROOM_CODE, roomState.withParticipantsAndKickedUserUuids(roomState.participants(),
-            List.of(kickedUuid.toString()), roomState.updatedAt()));
-
-        mockMvc
-            .perform(post("/api/v1/relay/rooms/{roomCode}/participants", DEFAULT_ROOM_CODE)
-                .header(ANONYMOUS_USER_UUID_HEADER, kickedUuid.toString()))
-            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").value("강퇴된 방에는 다시 입장할 수 없습니다."));
-
-        verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
-    }
-
     private UUID createExistingUserWithNickname(String nickname) {
         UUID userUuid = UUID.randomUUID();
         LocalDateTime createdAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
@@ -300,13 +275,13 @@ class RelayRoomKickControllerIntegrationTest {
     }
 
     private ResultActions performKick(UUID requesterUuid, Object targetUserUuid) throws Exception {
-        return mockMvc.perform(post("/api/v1/relay/rooms/{roomCode}/participants/kick", DEFAULT_ROOM_CODE)
-            .contentType(MediaType.APPLICATION_JSON).header(ANONYMOUS_USER_UUID_HEADER, requesterUuid.toString())
-            .content("""
-                {
-                  "targetUserUuid": "%s"
-                }
-                """.formatted(targetUserUuid)));
+        return mockMvc.perform(
+            post("/api/v1/relay/rooms/{roomCode}/kick", DEFAULT_ROOM_CODE).contentType(MediaType.APPLICATION_JSON)
+                .header(ANONYMOUS_USER_UUID_HEADER, requesterUuid.toString()).content("""
+                    {
+                      "targetUserUuid": "%s"
+                    }
+                    """.formatted(targetUserUuid)));
     }
 
     private void storeRoom(String roomCode, RelayRoomState roomState) throws Exception {

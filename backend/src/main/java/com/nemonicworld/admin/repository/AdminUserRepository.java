@@ -20,8 +20,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class AdminUserRepository {
 
-    private static final String CREATED_ADMIN_ROLE = "admin";
-
     private final JdbcTemplate jdbcTemplate;
 
     public AdminUserRepository(JdbcTemplate jdbcTemplate) {
@@ -88,7 +86,7 @@ public class AdminUserRepository {
         return count != null && count > 0;
     }
 
-    public AdminUser insertAdmin(String loginId, String passwordHash, String nickname, String email,
+    public AdminUser insertAdmin(String loginId, String passwordHash, String nickname, String email, AdminRole role,
         LocalDateTime now) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -111,7 +109,7 @@ public class AdminUserRepository {
             preparedStatement.setString(2, passwordHash);
             preparedStatement.setString(3, nickname);
             preparedStatement.setString(4, email);
-            preparedStatement.setObject(5, CREATED_ADMIN_ROLE, Types.OTHER);
+            preparedStatement.setObject(5, role.getValue(), Types.OTHER);
             preparedStatement.setTimestamp(6, Timestamp.valueOf(now));
             preparedStatement.setTimestamp(7, Timestamp.valueOf(now));
 

@@ -7,10 +7,12 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
@@ -19,6 +21,7 @@ import com.nemonicworld.global.storage.minio.MinioPublicUrlResolver;
 import com.nemonicworld.invite.repository.InviteRepository;
 import com.nemonicworld.relay.dto.request.RelayRoomSettingsRequest;
 import com.nemonicworld.relay.dto.request.RelayRoomSubmissionRequest;
+import com.nemonicworld.relay.dto.response.RelayRoomCreateResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomKickResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomLeaveResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
@@ -30,6 +33,7 @@ import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayArtifactRepository;
+import com.nemonicworld.relay.repository.RelayRoomMutationLockRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
 import com.nemonicworld.relay.service.assignment.RelayHintImageUrlResolver;
@@ -40,7 +44,6 @@ import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
 import com.nemonicworld.relay.service.game.RelayRoomStartUseCase;
 import com.nemonicworld.relay.service.room.RelayRoomConnectionUseCase;
 import com.nemonicworld.relay.service.room.RelayRoomCreateUseCase;
-import com.nemonicworld.relay.service.room.RelayRoomJoinUseCase;
 import com.nemonicworld.relay.service.room.RelayRoomKickUseCase;
 import com.nemonicworld.relay.service.room.RelayRoomLeaveUseCase;
 import com.nemonicworld.relay.service.room.RelayRoomQueryUseCase;
@@ -49,8 +52,12 @@ import com.nemonicworld.relay.service.result.RelayRoomResultQueryUseCase;
 import com.nemonicworld.relay.service.submission.RelayRoomSubmissionUseCase;
 import com.nemonicworld.relay.service.submission.RelaySubmissionStorage;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
+import com.nemonicworld.relay.service.support.RelayRoomParticipantLimit;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
+import com.nemonicworld.relay.service.support.RelayRoomTimeLimitSettings;
 import com.nemonicworld.relay.service.support.RelayRoomViewerFactory;
+import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
+import com.nemonicworld.relay.service.support.RelayRuntimeSettingsSnapshot;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.nio.charset.StandardCharsets;
@@ -98,7 +105,13 @@ class RelayRoomServiceImplTest {
     private RelaySubmissionLockRepository relaySubmissionLockRepository;
 
     @Mock
+    private RelayRoomMutationLockRepository relayRoomMutationLockRepository;
+
+    @Mock
     private RelayInviteMetadataSyncService relayInviteMetadataSyncService;
+
+    @Mock
+    private RelayRuntimeSettingsProvider relayRuntimeSettingsProvider;
 
     private RelayRoomService relayRoomService;
 
@@ -106,23 +119,35 @@ class RelayRoomServiceImplTest {
     void setUp() {
         lenient().when(relaySubmissionLockRepository.acquireSubmissionLock(anyString(), anyInt(),
             any(RelayDrawingPart.class), anyString(), anyString(), any(Duration.class))).thenReturn(true);
-        RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository);
+        lenient()
+            .when(
+                relayRoomMutationLockRepository.acquireRoomMutationLock(anyString(), anyString(), any(Duration.class)))
+            .thenReturn(true);
+        lenient().when(relayRuntimeSettingsProvider.currentParticipantLimit())
+            .thenReturn(RelayRoomParticipantLimit.defaultLimit());
+        lenient().when(relayRuntimeSettingsProvider.currentRoomTimeLimitSettings())
+            .thenReturn(RelayRoomTimeLimitSettings.defaultSettings());
+        lenient().when(relayRuntimeSettingsProvider.currentReconnectGracePeriod())
+            .thenReturn(Duration.ofSeconds(RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS));
+        lenient().when(relayRuntimeSettingsProvider.currentSettingsSnapshot())
+            .thenReturn(defaultRuntimeSettingsSnapshot());
+        RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository,
+            relayRuntimeSettingsProvider);
         RelayRoomViewerFactory relayRoomViewerFactory = new RelayRoomViewerFactory(relayRoomPolicy);
         RelayRoomPartAdvanceService relayRoomPartAdvanceService = new RelayRoomPartAdvanceService();
         relayRoomService = new RelayRoomServiceImpl(
             new RelayRoomCreateUseCase(anonymousUserResolver, roomCodeGenerator, relayRoomRepository, inviteRepository,
-                relayRoomPolicy, relayInviteMetadataSyncService),
-            new RelayRoomQueryUseCase(anonymousUserResolver, relayRoomPolicy, relayRoomViewerFactory),
-            new RelayRoomJoinUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
-                relayRoomViewerFactory, relayInviteMetadataSyncService),
+                relayRoomPolicy, relayInviteMetadataSyncService, relayRuntimeSettingsProvider),
+            new RelayRoomQueryUseCase(anonymousUserResolver, relayRoomPolicy, relayRoomViewerFactory,
+                relayRuntimeSettingsProvider),
             new RelayRoomKickUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayInviteMetadataSyncService),
             new RelayRoomLeaveUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayInviteMetadataSyncService),
             new RelayRoomSettingsUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
-                relayRoomViewerFactory, relayInviteMetadataSyncService),
+                relayRoomViewerFactory, relayInviteMetadataSyncService, relayRuntimeSettingsProvider),
             new RelayRoomStartUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
-                relayRoomViewerFactory, relayInviteMetadataSyncService),
+                relayRoomViewerFactory, relayInviteMetadataSyncService, relayRuntimeSettingsProvider),
             new RelayRoomAssignmentQueryUseCase(anonymousUserResolver, relayRoomPolicy,
                 new RelayHintImageUrlResolver(minioStorageProperties())),
             new RelayRoomResultQueryUseCase(anonymousUserResolver, relayArtifactRepository, relayRoomRepository,
@@ -130,68 +155,39 @@ class RelayRoomServiceImplTest {
                 new MinioPublicUrlResolver(minioStorageProperties())),
             new RelayRoomSubmissionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
                 relayRoomPartAdvanceService, relaySubmissionStorage, relaySubmissionLockRepository,
-                minioStorageProperties(), relayInviteMetadataSyncService, 2000L, 10000L),
+                relayRoomMutationLockRepository, minioStorageProperties(), relayInviteMetadataSyncService, 2000L,
+                10000L, 5000L),
             new RelayRoomManualCloseUseCase(anonymousUserResolver, relayRoomPolicy,
                 new RelayRoomCloseCommand(relayRoomRepository, relayInviteMetadataSyncService)),
             new RelayRoomConnectionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
-                relayRoomViewerFactory, relayInviteMetadataSyncService));
+                relayRoomViewerFactory, relayInviteMetadataSyncService, relayRuntimeSettingsProvider));
     }
 
-    /**
-     * 신규 입장 저장 중 충돌이 나면 최신 방 상태를 다시 읽고 다음 joinOrder로 재시도합니다.
-     */
     @Test
-    void joinRoomRetriesOptimisticSaveConflictWithLatestRoomState() {
+    void createRoomUsesRuntimeTimeLimitSettings() {
         UUID hostUuid = UUID.randomUUID();
-        UUID otherJoinerUuid = UUID.randomUUID();
-        UUID joinerUuid = UUID.randomUUID();
-        AppUser joiner = appUserWithNickname(joinerUuid, "포도");
-        RelayRoomState firstReadRoomState = roomState(participant(hostUuid, "망고", true, 0));
-        RelayRoomState secondReadRoomState = roomState(participant(hostUuid, "망고", true, 0),
-            participant(otherJoinerUuid, "사과", false, 1));
-        given(anonymousUserResolver.resolve(joinerUuid.toString())).willReturn(joiner);
-        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
-        givenRoomStateReads(firstReadRoomState, secondReadRoomState);
-        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
-            .willReturn(false, true);
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.generateUnique(any())).willReturn(ROOM_CODE);
+        given(relayRuntimeSettingsProvider.currentSettingsSnapshot()).willReturn(new RelayRuntimeSettingsSnapshot(
+            new RelayRoomParticipantLimit(3, 8), new RelayRoomTimeLimitSettings(60, java.util.Set.of(45, 60, 90)),
+            Duration.ofSeconds(RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS)));
 
-        RelayRoomStateResponse response = relayRoomService.joinRoom(joinerUuid.toString(), ROOM_CODE);
+        RelayRoomCreateResponse response = relayRoomService.createRoom(hostUuid.toString());
 
-        assertThat(response.participantCount()).isEqualTo(3);
-        assertThat(response.participants()).extracting("userUuid").containsExactly(hostUuid.toString(),
-            otherJoinerUuid.toString(), joinerUuid.toString());
-        assertThat(response.participants().get(2).joinOrder()).isEqualTo(2);
-        assertThat(response.participants().get(2).connected()).isFalse();
+        assertThat(response.timeLimitSeconds()).isEqualTo(60);
+        assertThat(response.timeLimitDefaultSeconds()).isEqualTo(60);
+        assertThat(response.timeLimitAllowedSeconds()).containsExactly(45, 60, 90);
+        assertThat(response.reconnectGraceSeconds()).isEqualTo(10);
+        assertThat(response.minParticipants()).isEqualTo(3);
+        assertThat(response.maxParticipants()).isEqualTo(8);
 
-        ArgumentCaptor<RelayRoomState> expectedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
-        ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
-        verify(relayRoomRepository, times(2)).saveIfUnchanged(expectedStateCaptor.capture(),
-            updatedStateCaptor.capture());
-        assertThat(expectedStateCaptor.getAllValues()).containsExactly(firstReadRoomState, secondReadRoomState);
-        assertThat(updatedStateCaptor.getAllValues().get(0).participantCount()).isEqualTo(2);
-        assertThat(updatedStateCaptor.getAllValues().get(1).participantCount()).isEqualTo(3);
-        assertThat(updatedStateCaptor.getAllValues().get(1).participants().get(2).connected()).isFalse();
-    }
-
-    /**
-     * 짧은 재시도 횟수를 모두 소진하면 충돌 예외로 올려 클라이언트에는 공통 409 응답이 나가게 합니다.
-     */
-    @Test
-    void joinRoomFailsWhenOptimisticSaveConflictsKeepHappening() {
-        UUID hostUuid = UUID.randomUUID();
-        UUID joinerUuid = UUID.randomUUID();
-        AppUser joiner = appUserWithNickname(joinerUuid, "포도");
-        RelayRoomState roomState = roomState(participant(hostUuid, "망고", true, 0));
-        given(anonymousUserResolver.resolve(joinerUuid.toString())).willReturn(joiner);
-        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
-        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
-        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
-            .willReturn(false);
-
-        assertThatThrownBy(() -> relayRoomService.joinRoom(joinerUuid.toString(), ROOM_CODE))
-            .isInstanceOf(ConflictException.class).hasMessage("릴레이 방 상태를 갱신할 수 없습니다.");
-
-        verify(relayRoomRepository, times(3)).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
+        ArgumentCaptor<RelayRoomState> savedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        verify(relayRoomRepository).save(savedStateCaptor.capture());
+        RelayRoomState savedState = savedStateCaptor.getValue();
+        assertThat(savedState.timeLimitSeconds()).isEqualTo(60);
+        assertThat(savedState.minParticipants()).isEqualTo(3);
+        assertThat(savedState.maxParticipants()).isEqualTo(8);
     }
 
     /**
@@ -255,41 +251,6 @@ class RelayRoomServiceImplTest {
             .isInstanceOf(ConflictException.class).hasMessage("릴레이 방 상태를 갱신할 수 없습니다.");
 
         verify(relayRoomRepository, times(3)).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
-    }
-
-    /**
-     * 강퇴된 UUID는 같은 roomCode에 다시 입장할 수 없습니다.
-     */
-    @Test
-    void joinRoomRejectsKickedUser() {
-        UUID hostUuid = UUID.randomUUID();
-        UUID kickedUuid = UUID.randomUUID();
-        AppUser kickedUser = appUserWithNickname(kickedUuid, "포도");
-        RelayRoomState roomState = roomState(participant(hostUuid, "망고", true, 0)).withParticipantsAndKickedUserUuids(
-            List.of(participant(hostUuid, "망고", true, 0)), List.of(kickedUuid.toString()),
-            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
-        given(anonymousUserResolver.resolve(kickedUuid.toString())).willReturn(kickedUser);
-        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
-        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
-
-        assertThatThrownBy(() -> relayRoomService.joinRoom(kickedUuid.toString(), ROOM_CODE))
-            .isInstanceOf(ForbiddenException.class).hasMessage("강퇴된 방에는 다시 입장할 수 없습니다.");
-    }
-
-    @Test
-    void joinRoomRejectsDroppedUser() {
-        UUID hostUuid = UUID.randomUUID();
-        UUID droppedUuid = UUID.randomUUID();
-        AppUser droppedUser = appUserWithNickname(droppedUuid, "포도");
-        RelayRoomState roomState = playingRoomState(RelayDrawingPart.FACE,
-            List.of(assignment(0, RelayDrawingPart.FACE, droppedUuid)), participant(hostUuid, "망고", true, 0),
-            droppedParticipant(droppedUuid, "포도", false, 1));
-        given(anonymousUserResolver.resolve(droppedUuid.toString())).willReturn(droppedUser);
-        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
-        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
-
-        assertThatThrownBy(() -> relayRoomService.joinRoom(droppedUuid.toString(), ROOM_CODE))
-            .isInstanceOf(ConflictException.class).hasMessage("재접속 가능 시간이 만료되어 게임에 다시 참여할 수 없습니다.");
     }
 
     /**
@@ -392,6 +353,42 @@ class RelayRoomServiceImplTest {
         assertThat(updatedStateCaptor.getAllValues().get(1).participants())
             .isEqualTo(secondReadRoomState.participants());
         assertThat(updatedStateCaptor.getAllValues().get(1).createdAt()).isEqualTo(secondReadRoomState.createdAt());
+    }
+
+    @Test
+    void updateRoomSettingsUsesRuntimeAllowedTimeLimits() {
+        UUID hostUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        RelayRoomState roomState = roomState(participant(hostUuid, "망고", true, 0));
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(relayRuntimeSettingsProvider.currentSettingsSnapshot()).willReturn(runtimeSettingsSnapshot(
+            RelayRoomParticipantLimit.defaultLimit(), new RelayRoomTimeLimitSettings(60, java.util.Set.of(45, 60, 90)),
+            Duration.ofSeconds(RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS)));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        RelayRoomStateResponse response = relayRoomService.updateRoomSettings(hostUuid.toString(), ROOM_CODE,
+            new RelayRoomSettingsRequest(90));
+
+        assertThat(response.timeLimitSeconds()).isEqualTo(90);
+        ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        verify(relayRoomRepository).saveIfUnchanged(any(RelayRoomState.class), updatedStateCaptor.capture());
+        assertThat(updatedStateCaptor.getValue().timeLimitSeconds()).isEqualTo(90);
+    }
+
+    @Test
+    void updateRoomSettingsRejectsTimeLimitOutsideRuntimeAllowedValues() {
+        given(relayRuntimeSettingsProvider.currentSettingsSnapshot()).willReturn(runtimeSettingsSnapshot(
+            RelayRoomParticipantLimit.defaultLimit(), new RelayRoomTimeLimitSettings(60, java.util.Set.of(45, 60, 90)),
+            Duration.ofSeconds(RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS)));
+
+        assertThatThrownBy(() -> relayRoomService.updateRoomSettings(UUID.randomUUID().toString(), ROOM_CODE,
+            new RelayRoomSettingsRequest(30))).isInstanceOf(BadRequestException.class)
+            .hasMessage("허용되지 않는 릴레이 제한 시간입니다.");
+
+        verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
     }
 
     /**
@@ -508,6 +505,27 @@ class RelayRoomServiceImplTest {
             .isInstanceOf(ConflictException.class).hasMessage("재접속 가능 시간이 만료되어 게임에 다시 참여할 수 없습니다.");
     }
 
+    @Test
+    void connectRoomUsesRuntimeReconnectGraceForPlayingParticipant() {
+        UUID hostUuid = UUID.randomUUID();
+        AppUser hostUser = appUserWithNickname(hostUuid, "망고");
+        RelayRoomParticipant disconnectedParticipant = participant(hostUuid, "망고", true, 0, false,
+            LocalDateTime.now().minusSeconds(20).truncatedTo(ChronoUnit.SECONDS));
+        RelayRoomState roomState = roomState(RelayRoomStatus.PLAYING, disconnectedParticipant);
+        given(anonymousUserResolver.resolve(hostUuid.toString())).willReturn(hostUser);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(relayRuntimeSettingsProvider.currentSettingsSnapshot())
+            .willReturn(runtimeSettingsSnapshot(RelayRoomParticipantLimit.defaultLimit(),
+                RelayRoomTimeLimitSettings.defaultSettings(), Duration.ofSeconds(30)));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        RelayRoomStateResponse response = relayRoomService.connectRoom(hostUuid.toString(), ROOM_CODE);
+
+        assertThat(response.participants().get(0).connected()).isTrue();
+    }
+
     /**
      * WebSocket 연결 해제 시 기존 participant를 connected=false와 현재 disconnectedAt으로 갱신합니다.
      */
@@ -533,6 +551,30 @@ class RelayRoomServiceImplTest {
         assertThat(storedParticipant.nickname()).isEqualTo("망고");
         assertThat(storedParticipant.host()).isTrue();
         assertThat(storedParticipant.joinOrder()).isZero();
+    }
+
+    @Test
+    void disconnectRoomMarksParticipantDisconnectedEvenAfterFinished() {
+        UUID hostUuid = UUID.randomUUID();
+        RelayRoomState roomState = roomState(RelayRoomStatus.FINISHED, participant(hostUuid, "Mango", true, 0));
+        given(anonymousUserResolver.parseUuid(hostUuid.toString())).willReturn(hostUuid);
+        given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        RelayRoomStateResponse response = relayRoomService.disconnectRoom(hostUuid.toString(), ROOM_CODE);
+
+        assertThat(response.status()).isEqualTo(RelayRoomStatus.FINISHED);
+        assertThat(response.participants().get(0).connected()).isFalse();
+
+        ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        verify(relayRoomRepository).saveIfUnchanged(any(RelayRoomState.class), updatedStateCaptor.capture());
+        RelayRoomState updatedRoomState = updatedStateCaptor.getValue();
+        RelayRoomParticipant storedParticipant = updatedRoomState.participants().get(0);
+        assertThat(updatedRoomState.status()).isEqualTo(RelayRoomStatus.FINISHED);
+        assertThat(storedParticipant.connected()).isFalse();
+        assertThat(storedParticipant.disconnectedAt()).isNotNull();
     }
 
     /**
@@ -715,13 +757,13 @@ class RelayRoomServiceImplTest {
         assertThat(response.submittedCount()).isEqualTo(1);
         assertThat(response.totalCount()).isEqualTo(2);
         assertThat(response.currentPartCompleted()).isFalse();
-        verify(relaySubmissionStorage, times(4)).upload(any(String.class), any());
+        verify(relaySubmissionStorage, times(2)).upload(any(String.class), any());
 
         ArgumentCaptor<RelayRoomState> expectedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
         ArgumentCaptor<RelayRoomState> updatedStateCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
         verify(relayRoomRepository, times(2)).saveIfUnchanged(expectedStateCaptor.capture(),
             updatedStateCaptor.capture());
-        assertThat(expectedStateCaptor.getAllValues()).containsExactly(firstReadRoomState, secondReadRoomState);
+        assertThat(expectedStateCaptor.getAllValues()).containsExactly(secondReadRoomState, secondReadRoomState);
         assertThat(updatedStateCaptor.getAllValues().get(1).assignments().get(0).status())
             .isEqualTo(RelayAssignmentStatus.SUBMITTED);
         assertThat(updatedStateCaptor.getAllValues().get(1).assignments().get(0).objectKey())
@@ -747,7 +789,7 @@ class RelayRoomServiceImplTest {
             submissionRequest(0, RelayDrawingPart.FACE))).isInstanceOf(ConflictException.class);
 
         verify(relayRoomRepository, times(3)).saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class));
-        verify(relaySubmissionStorage, times(6)).upload(any(String.class), any());
+        verify(relaySubmissionStorage, times(2)).upload(any(String.class), any());
     }
 
     @Test
@@ -905,6 +947,17 @@ class RelayRoomServiceImplTest {
 
     private MockMultipartFile pngFile(String name, String originalFileName) {
         return new MockMultipartFile(name, originalFileName, "image/png", "image".getBytes(StandardCharsets.UTF_8));
+    }
+
+    private RelayRuntimeSettingsSnapshot defaultRuntimeSettingsSnapshot() {
+        return runtimeSettingsSnapshot(RelayRoomParticipantLimit.defaultLimit(),
+            RelayRoomTimeLimitSettings.defaultSettings(),
+            Duration.ofSeconds(RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS));
+    }
+
+    private RelayRuntimeSettingsSnapshot runtimeSettingsSnapshot(RelayRoomParticipantLimit participantLimit,
+        RelayRoomTimeLimitSettings timeLimitSettings, Duration reconnectGracePeriod) {
+        return new RelayRuntimeSettingsSnapshot(participantLimit, timeLimitSettings, reconnectGracePeriod);
     }
 
     private MinioStorageProperties minioStorageProperties() {

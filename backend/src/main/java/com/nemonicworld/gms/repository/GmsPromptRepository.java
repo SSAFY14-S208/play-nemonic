@@ -26,7 +26,10 @@ public class GmsPromptRepository {
                created_by,
                created_at,
                updated_at,
-               deleted_at
+               deleted_at,
+               is_active,
+               activated_at,
+               activated_by
         """;
 
     private final JdbcTemplate jdbcTemplate;
@@ -53,13 +56,25 @@ public class GmsPromptRepository {
             """, this::mapPrompt, featureType).stream().findFirst();
     }
 
-    public List<GmsPrompt> findActivePrompts(String keyword, String featureType, int limit, long offset) {
+    public Optional<GmsPrompt> findCurrentByFeatureType(String featureType) {
+        return jdbcTemplate.query(SELECT_COLUMNS + """
+            FROM gms_prompt_template
+            WHERE deleted_at IS NULL
+              AND is_active = TRUE
+              AND LOWER(CAST(feature_type AS VARCHAR)) = ?
+            ORDER BY activated_at DESC, id DESC
+            LIMIT 1
+            """, this::mapPrompt, featureType).stream().findFirst();
+    }
+
+    public List<GmsPrompt> findActivePrompts(String keyword, String featureType, String status, int limit,
+        long offset) {
         StringBuilder sql = new StringBuilder(SELECT_COLUMNS).append("""
             FROM gms_prompt_template
             WHERE deleted_at IS NULL
             """);
         List<Object> params = new ArrayList<>();
-        appendSearchConditions(sql, params, keyword, featureType);
+        appendSearchConditions(sql, params, keyword, featureType, status);
         sql.append("""
             ORDER BY created_at DESC, id DESC
             LIMIT ? OFFSET ?
@@ -70,14 +85,14 @@ public class GmsPromptRepository {
         return jdbcTemplate.query(sql.toString(), this::mapPrompt, params.toArray());
     }
 
-    public long countActivePrompts(String keyword, String featureType) {
+    public long countActivePrompts(String keyword, String featureType, String status) {
         StringBuilder sql = new StringBuilder("""
             SELECT COUNT(*)
             FROM gms_prompt_template
             WHERE deleted_at IS NULL
             """);
         List<Object> params = new ArrayList<>();
-        appendSearchConditions(sql, params, keyword, featureType);
+        appendSearchConditions(sql, params, keyword, featureType, status);
 
         Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, params.toArray());
 
@@ -103,9 +118,12 @@ public class GmsPromptRepository {
                     created_by,
                     created_at,
                     updated_at,
-                    deleted_at
+                    deleted_at,
+                    is_active,
+                    activated_at,
+                    activated_by
                 )
-                VALUES (?, ?, ?, ?, ?, ?, NULL)
+                VALUES (?, ?, ?, ?, ?, ?, NULL, FALSE, NULL, NULL)
                 """, new String[]{"id"});
             preparedStatement.setString(1, command.name());
             preparedStatement.setString(2, command.content());
@@ -125,6 +143,7 @@ public class GmsPromptRepository {
         return jdbcTemplate.update("""
             UPDATE gms_prompt_template
                SET deleted_at = ?,
+                   is_active = FALSE,
                    updated_at = ?
              WHERE id = ?
                AND deleted_at IS NULL
@@ -152,11 +171,90 @@ public class GmsPromptRepository {
         });
     }
 
-    private void appendSearchConditions(StringBuilder sql, List<Object> params, String keyword, String featureType) {
+    public void ensureFeatureStateRow(String featureType, LocalDateTime now) {
+        List<String> rows = jdbcTemplate.queryForList("""
+            SELECT CAST(feature_type AS VARCHAR)
+            FROM gms_prompt_feature_state
+            WHERE LOWER(CAST(feature_type AS VARCHAR)) = ?
+            """, String.class, featureType);
+        if (!rows.isEmpty()) {
+            return;
+        }
+
+        try {
+            jdbcTemplate.update(connection -> {
+                var preparedStatement = connection.prepareStatement("""
+                    INSERT INTO gms_prompt_feature_state (
+                        feature_type,
+                        current_prompt_id,
+                        updated_by,
+                        created_at,
+                        updated_at
+                    )
+                    VALUES (?, NULL, NULL, ?, ?)
+                    """);
+                preparedStatement.setObject(1, featureType, Types.OTHER);
+                preparedStatement.setTimestamp(2, Timestamp.valueOf(now));
+                preparedStatement.setTimestamp(3, Timestamp.valueOf(now));
+
+                return preparedStatement;
+            });
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            // Another transaction created the lock row first.
+        }
+    }
+
+    public void lockFeatureState(String featureType) {
+        jdbcTemplate.queryForList("""
+            SELECT CAST(feature_type AS VARCHAR)
+            FROM gms_prompt_feature_state
+            WHERE LOWER(CAST(feature_type AS VARCHAR)) = ?
+            FOR UPDATE
+            """, String.class, featureType);
+    }
+
+    public int deactivateCurrentByFeatureType(String featureType, LocalDateTime updatedAt) {
+        return jdbcTemplate.update("""
+            UPDATE gms_prompt_template
+               SET is_active = FALSE,
+                   updated_at = ?
+             WHERE deleted_at IS NULL
+               AND is_active = TRUE
+               AND LOWER(CAST(feature_type AS VARCHAR)) = ?
+            """, Timestamp.valueOf(updatedAt), featureType);
+    }
+
+    public int activateById(Long id, LocalDateTime activatedAt, Long activatedBy) {
+        return jdbcTemplate.update("""
+            UPDATE gms_prompt_template
+               SET is_active = TRUE,
+                   activated_at = ?,
+                   activated_by = ?,
+                   updated_at = ?
+             WHERE id = ?
+               AND deleted_at IS NULL
+            """, Timestamp.valueOf(activatedAt), activatedBy, Timestamp.valueOf(activatedAt), id);
+    }
+
+    public void updateFeatureState(String featureType, Long currentPromptId, Long updatedBy, LocalDateTime updatedAt) {
+        jdbcTemplate.update("""
+            UPDATE gms_prompt_feature_state
+               SET current_prompt_id = ?,
+                   updated_by = ?,
+                   updated_at = ?
+             WHERE LOWER(CAST(feature_type AS VARCHAR)) = ?
+            """, currentPromptId, updatedBy, Timestamp.valueOf(updatedAt), featureType);
+    }
+
+    private void appendSearchConditions(StringBuilder sql, List<Object> params, String keyword, String featureType,
+        String status) {
         if (StringUtils.hasText(keyword)) {
-            String keywordPattern = "%" + keyword + "%";
+            String keywordPattern = "%" + escapeLikeKeyword(keyword) + "%";
             sql.append("""
-                  AND (LOWER(prompt_name) LIKE ? OR LOWER(template_text) LIKE ?)
+                  AND (
+                      LOWER(prompt_name) LIKE ? ESCAPE '!'
+                      OR LOWER(template_text) LIKE ? ESCAPE '!'
+                  )
                 """);
             params.add(keywordPattern);
             params.add(keywordPattern);
@@ -168,18 +266,41 @@ public class GmsPromptRepository {
                 """);
             params.add(featureType);
         }
+
+        if (StringUtils.hasText(status)) {
+            if ("active".equals(status)) {
+                sql.append("""
+                      AND is_active = TRUE
+                    """);
+            } else if ("not_active".equals(status)) {
+                sql.append("""
+                      AND is_active = FALSE
+                    """);
+            }
+        }
+    }
+
+    private String escapeLikeKeyword(String keyword) {
+        return keyword.replace("!", "!!").replace("%", "!%").replace("_", "!_");
     }
 
     private GmsPrompt mapPrompt(ResultSet resultSet, int rowNumber) throws SQLException {
         return new GmsPrompt(resultSet.getLong("id"), resultSet.getString("prompt_name"),
             resultSet.getString("template_text"), resultSet.getString("feature_type"), resultSet.getLong("created_by"),
             timestampToLocalDateTime(resultSet, "created_at"), timestampToLocalDateTime(resultSet, "updated_at"),
-            timestampToLocalDateTime(resultSet, "deleted_at"));
+            timestampToLocalDateTime(resultSet, "deleted_at"), resultSet.getBoolean("is_active"),
+            timestampToLocalDateTime(resultSet, "activated_at"), nullableLong(resultSet, "activated_by"));
     }
 
     private LocalDateTime timestampToLocalDateTime(ResultSet resultSet, String columnName) throws SQLException {
         Timestamp timestamp = resultSet.getTimestamp(columnName);
 
         return timestamp == null ? null : timestamp.toLocalDateTime();
+    }
+
+    private Long nullableLong(ResultSet resultSet, String columnName) throws SQLException {
+        long value = resultSet.getLong(columnName);
+
+        return resultSet.wasNull() ? null : value;
     }
 }

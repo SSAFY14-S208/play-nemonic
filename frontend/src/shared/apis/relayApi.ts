@@ -6,6 +6,7 @@ import type {
   RelayRoomKickResponse,
   RelayRoomLeaveResponse,
   RelayRoomMyAssignmentResponse,
+  RelayRoomResultsResponse,
   RelayRoomStateResponse,
   RelayRoomSubmissionResponse,
 } from '@/shared/types'
@@ -20,17 +21,11 @@ export const postRelayRoom = () =>
 export const postRelayRoomStart = (roomCode: string) =>
   apiUnwrap(api.post<ApiResponse<RelayRoomStateResponse>>(`relay/rooms/${roomCode}/start`))
 
-// POST /relay/rooms/{roomCode}/participants — 릴레이 방 입장/복귀
-export const postRelayRoomParticipant = (roomCode: string) =>
-  apiUnwrap(
-    api.post<ApiResponse<RelayRoomStateResponse>>(`relay/rooms/${roomCode}/participants`),
-  )
-
-// POST /relay/rooms/{roomCode}/participants/kick — 릴레이 방 참여자 강퇴
+// POST /relay/rooms/{roomCode}/kick — 릴레이 방 참여자 강퇴
 // targetUserUuid는 강퇴 대상의 UUID(다른 사용자)이므로 body에 그대로 둔다.
 export const postRelayRoomKick = (roomCode: string, targetUserUuid: string) =>
   apiUnwrap(
-    api.post<ApiResponse<RelayRoomKickResponse>>(`relay/rooms/${roomCode}/participants/kick`, {
+    api.post<ApiResponse<RelayRoomKickResponse>>(`relay/rooms/${roomCode}/kick`, {
       targetUserUuid,
     }),
   )
@@ -94,4 +89,11 @@ export const deleteRelayRoomParticipantMe = (roomCode: string) =>
     api.delete<ApiResponse<RelayRoomLeaveResponse>>(
       `relay/rooms/${roomCode}/participants/me`,
     ),
+  )
+
+// GET /relay/rooms/{roomCode}/results — 릴레이 결과 조회
+// RESULT_CREATED 이벤트 수신 후 결과 화면에서 호출.
+export const getRelayRoomResults = (roomCode: string) =>
+  apiUnwrap(
+    api.get<ApiResponse<RelayRoomResultsResponse>>(`relay/rooms/${roomCode}/results`),
   )

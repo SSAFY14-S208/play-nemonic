@@ -16,6 +16,7 @@ import com.nemonicworld.files.entity.FileUpload;
 import com.nemonicworld.files.entity.FileUploadPurpose;
 import com.nemonicworld.files.entity.FileUploadStatus;
 import com.nemonicworld.files.repository.FileUploadRepository;
+import com.nemonicworld.global.logging.StructuredEventLogger;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
@@ -103,12 +104,16 @@ public class FileServiceImpl implements FileService {
         FileUpload fileUpload = FileUpload.createPending(fileId, userUuid, purpose, safeFileName, request.contentType(),
             byteSize, objectKey, expiresAt, now);
         fileUploadRepository.save(fileUpload);
+        logFileEvent("file_presign_requested", userUuid, fileUpload,
+            StructuredEventLogger.metadata("expires_at", expiresAt, "expires_in", expiresIn));
+        logCommunityFileEvent("community_memo_presign_requested", userUuid, fileUpload,
+            StructuredEventLogger.metadata("expires_at", expiresAt, "expires_in", expiresIn));
 
         return new FilePresignResponse(fileId.toString(), presignedUrl, expiresIn);
     }
 
     /**
-     * 업로드 완료된 private 파일을 브라우저에서 잠깐 조회할 수 있는 GET URL을 반환합니다.
+     * 업로드 완료된 비공개 파일을 브라우저에서 잠깐 조회할 수 있는 GET URL을 반환합니다.
      */
     @Override
     @Transactional(readOnly = true)
@@ -166,12 +171,16 @@ public class FileServiceImpl implements FileService {
         }
 
         fileUpload.markUploaded(LocalDateTime.now());
+        logFileEvent("file_upload_confirmed", userUuid, fileUpload,
+            StructuredEventLogger.metadata("stat_object_size", statObjectResponse.size()));
+        logCommunityFileEvent("community_memo_upload_confirmed", userUuid, fileUpload,
+            StructuredEventLogger.metadata("stat_object_size", statObjectResponse.size()));
 
         return new FileConfirmResponse(fileUpload.getId().toString(), FileUploadStatus.UPLOADED.name());
     }
 
     /**
-     * pending 업로드를 취소하고 MinIO object와 DB 메타데이터를 삭제 상태로 정리합니다.
+     * 대기 상태 업로드를 취소하고 MinIO 객체와 DB 메타데이터를 삭제 상태로 정리합니다.
      */
     @Override
     @Transactional
@@ -195,8 +204,36 @@ public class FileServiceImpl implements FileService {
         removeObject(fileUpload.getObjectKey());
 
         fileUpload.markDeleted(LocalDateTime.now());
+        logFileEvent("file_upload_deleted", userUuid, fileUpload,
+            StructuredEventLogger.metadata("delete_scope", "pending_upload"));
+        logCommunityFileEvent("community_memo_upload_deleted", userUuid, fileUpload,
+            StructuredEventLogger.metadata("delete_scope", "pending_upload"));
 
         return new FileDeleteResponse(fileUpload.getId().toString(), FileUploadStatus.DELETED.name());
+    }
+
+    private void logCommunityFileEvent(String eventName, UUID userUuid, FileUpload fileUpload,
+        Map<String, Object> extraMetadata) {
+        if (!fileUpload.hasPurpose(FileUploadPurpose.COMMUNITY)) {
+            return;
+        }
+
+        logFileEvent(eventName, "community_file", userUuid, fileUpload, extraMetadata);
+    }
+
+    private void logFileEvent(String eventName, UUID userUuid, FileUpload fileUpload,
+        Map<String, Object> extraMetadata) {
+        logFileEvent(eventName, "file_upload", userUuid, fileUpload, extraMetadata);
+    }
+
+    private void logFileEvent(String eventName, String contentType, UUID userUuid, FileUpload fileUpload,
+        Map<String, Object> extraMetadata) {
+        Map<String, Object> metadata = StructuredEventLogger.metadata("file_id", fileUpload.getId(), "purpose",
+            fileUpload.getPurpose(), "status", fileUpload.getStatus(), "object_key_hash",
+            StructuredEventLogger.sha256Prefix(fileUpload.getObjectKey()), "content_type", fileUpload.getContentType(),
+            "byte_size", fileUpload.getByteSize());
+        metadata.putAll(extraMetadata == null ? Map.of() : extraMetadata);
+        StructuredEventLogger.apiBusiness(eventName, contentType, userUuid.toString(), metadata);
     }
 
     private UUID parseFileId(String value) {
@@ -227,7 +264,7 @@ public class FileServiceImpl implements FileService {
     }
 
     /**
-     * object key에 그대로 포함해도 되는 파일명인지 확인합니다.
+     * 객체 키에 그대로 포함해도 되는 파일명인지 확인합니다.
      */
     private String validateAndGetSafeFileName(String fileName) {
         if (!StringUtils.hasText(fileName)) {
@@ -279,7 +316,7 @@ public class FileServiceImpl implements FileService {
     }
 
     /**
-     * 운영자가 추적하기 쉽고 충돌이 나지 않도록 날짜와 fileId를 포함한 MinIO object key를 만듭니다.
+     * 운영자가 추적하기 쉽고 충돌이 나지 않도록 날짜와 fileId를 포함한 MinIO 객체 키를 만듭니다.
      */
     private String createObjectKey(FileUploadPurpose purpose, UUID fileId, String safeFileName) {
         if (purpose == FileUploadPurpose.PHONE) {
@@ -308,7 +345,7 @@ public class FileServiceImpl implements FileService {
     }
 
     /**
-     * private 파일을 직접 조회할 수 있는 만료 시간 제한 URL을 생성합니다.
+     * 비공개 파일을 직접 조회할 수 있는 만료 시간 제한 URL을 생성합니다.
      */
     private String createGetPresignedUrl(String objectKey, int expiresIn) {
         try {
@@ -322,7 +359,7 @@ public class FileServiceImpl implements FileService {
     }
 
     /**
-     * 공개 MinIO 주소가 /minio 같은 path prefix를 포함하면 presigned URL 반환값에만 prefix를 붙입니다.
+     * 공개 MinIO 주소가 /minio 같은 경로 접두사를 포함하면 사전 서명 URL 반환값에만 접두사를 붙입니다.
      */
     private String applyPublicPathPrefix(String presignedUrl) {
         URI publicUri = URI.create(properties.publicUrl());

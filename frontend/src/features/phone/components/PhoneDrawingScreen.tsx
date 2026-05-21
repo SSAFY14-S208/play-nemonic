@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import {
   phoneDrawingRedo,
   phoneDrawingToolEraser,
@@ -18,6 +18,7 @@ import {
 } from '../constants'
 import { usePhoneDrawing } from '../hooks'
 import { usePhoneStore } from '../phoneStore'
+import type { PhoneDrawingAction } from '../types'
 import {
   DrawingActionButtonRow,
   DrawingBackIcon,
@@ -27,7 +28,6 @@ import {
 } from './drawing-screen'
 
 export function PhoneDrawingScreen() {
-  const addDrawingArtifact = usePhoneStore((state) => state.addDrawingArtifact)
   const goHome = usePhoneStore((state) => state.goHome)
 
   const {
@@ -37,6 +37,7 @@ export function PhoneDrawingScreen() {
     createArtifact,
     draw,
     endDrawing,
+    isSaving,
     lines,
     redoLines,
     redoDrawing,
@@ -46,13 +47,20 @@ export function PhoneDrawingScreen() {
     stageRef,
     startDrawing,
     undoDrawing,
-  } = usePhoneDrawing(addDrawingArtifact)
+  } = usePhoneDrawing()
 
   const [isToolControlOpen, setIsToolControlOpen] = useState(true)
   const isPenActive = activeTool === 'pen'
   const isEraserActive = activeTool === 'eraser'
   const canUndoDrawing = lines.length > 0
   const canRedoDrawing = redoLines.length > 0
+
+  const handleCreateArtifact = useCallback(
+    async (action: PhoneDrawingAction) => {
+      await createArtifact(action)
+    },
+    [createArtifact],
+  )
 
   const toolButtons = [
     {
@@ -208,7 +216,10 @@ export function PhoneDrawingScreen() {
         </div>
       </main>
 
-      <DrawingActionButtonRow onCreateArtifact={createArtifact} />
+      <DrawingActionButtonRow
+        onCreateArtifact={handleCreateArtifact}
+        isSaving={isSaving}
+      />
     </div>
   )
 }

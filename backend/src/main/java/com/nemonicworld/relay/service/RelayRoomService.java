@@ -27,11 +27,6 @@ public interface RelayRoomService {
     RelayRoomStateResponse getRoomState(String userUuidValue, String roomCodeValue);
 
     /**
-     * 기존 익명 사용자를 릴레이 방에 새로 입장시키거나 기존 참여자의 재접속 복귀를 처리합니다.
-     */
-    RelayRoomStateResponse joinRoom(String userUuidValue, String roomCodeValue);
-
-    /**
      * 기존 익명 사용자인 방장이 대기 중 릴레이 방의 일반 참여자를 강퇴합니다.
      */
     RelayRoomKickResponse kickParticipant(String userUuidValue, String roomCodeValue, String targetUserUuidValue);
@@ -74,6 +69,8 @@ public interface RelayRoomService {
      * WebSocket 연결 성공 시 기존 릴레이 참여자를 연결 상태로 갱신합니다.
      */
     RelayRoomStateResponse connectRoom(String userUuidValue, String roomCodeValue);
+
+    RelayRoomStateResponse connectRoom(String userUuidValue, String roomCodeValue, String sessionId);
 
     /**
      * WebSocket 연결 해제 시 기존 릴레이 참여자를 연결 해제 상태로 갱신합니다.

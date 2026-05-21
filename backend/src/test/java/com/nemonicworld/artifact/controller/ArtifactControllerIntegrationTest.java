@@ -1,13 +1,21 @@
 package com.nemonicworld.artifact.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.nemonicworld.artifact.service.download.ArtifactDownloadFile;
+import com.nemonicworld.artifact.service.download.ArtifactDownloadService;
+import com.nemonicworld.artifact.service.share.ArtifactShareService;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
-import com.nemonicworld.support.IntegrationTest;
+import com.nemonicworld.share.dto.response.ShareCreateResponse;
+import com.nemonicworld.support.AbstractIntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
 import java.time.LocalDateTime;
@@ -16,18 +24,15 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@IntegrationTest
-@AutoConfigureMockMvc
-@TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
 /**
  * artifact ID 기반 산출물 이미지 URL 조회 API를 통합 검증합니다.
  */
-class ArtifactControllerIntegrationTest {
+class ArtifactControllerIntegrationTest extends AbstractIntegrationTest {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String MINIO_PUBLIC_URL = "http://localhost:9000/nemonic-local/";
@@ -40,6 +45,12 @@ class ArtifactControllerIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @MockitoBean
+    private ArtifactDownloadService artifactDownloadService;
+
+    @MockitoBean
+    private ArtifactShareService artifactShareService;
 
     @BeforeEach
     void prepareArtifactTables() {
@@ -98,7 +109,37 @@ class ArtifactControllerIntegrationTest {
                 phone_image_url VARCHAR(200) NULL
             )
             """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS community_memo (
+                id UUID PRIMARY KEY,
+                user_id UUID NOT NULL,
+                artifact_id UUID NULL,
+                position_x DOUBLE PRECISION NOT NULL DEFAULT 0,
+                position_y DOUBLE PRECISION NOT NULL DEFAULT 0,
+                z_index INT NOT NULL DEFAULT 0,
+                rotation_deg REAL NOT NULL DEFAULT 0,
+                decoration VARCHAR(1000) NULL DEFAULT '{}',
+                body_image_url VARCHAR(1000) NULL,
+                thumbnail_image_url VARCHAR(1000) NULL,
+                attached_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                report_count INT NOT NULL DEFAULT 0,
+                is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
+                hidden_reason VARCHAR(32) NULL,
+                hidden_at TIMESTAMP NULL,
+                moderation_status VARCHAR(32) NOT NULL DEFAULT 'pending',
+                ocr_text VARCHAR(1000) NULL,
+                ocr_categories VARCHAR(1000) NULL,
+                moderation_checked_at TIMESTAMP NULL,
+                reviewed_by BIGINT NULL,
+                reviewed_at TIMESTAMP NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                deleted_at TIMESTAMP NULL,
+                deleted_reason VARCHAR(32) NULL
+            )
+            """);
 
+        jdbcTemplate.update("DELETE FROM community_memo");
         jdbcTemplate.update("DELETE FROM fortune_artifact");
         jdbcTemplate.update("DELETE FROM relay_drawing_artifact");
         jdbcTemplate.update("DELETE FROM flipbook_artifact");
@@ -223,6 +264,52 @@ class ArtifactControllerIntegrationTest {
 
         assertThat(userRepository.existsById(missingUserUuid)).isFalse();
         assertThat(userRepository.count()).isZero();
+    }
+
+    /**
+     * 다운로드 API는 QR 합성본 파일 바이트와 attachment 파일명을 그대로 내려줍니다.
+     */
+    @Test
+    void downloadArtifactReturnsQrComposedFile() throws Exception {
+        UUID userUuid = UUID.randomUUID();
+        UUID artifactId = UUID.randomUUID();
+        byte[] fileBytes = new byte[]{1, 2, 3, 4};
+
+        when(artifactDownloadService.prepareDownloadFile(userUuid.toString(), artifactId.toString()))
+            .thenReturn(new ArtifactDownloadFile(fileBytes, "nemonic-result.jpg", "image/jpeg"));
+
+        mockMvc
+            .perform(get("/api/v1/artifacts/{artifactId}/download", artifactId).header(ANONYMOUS_USER_UUID_HEADER,
+                userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(header().string(HttpHeaders.CONTENT_TYPE, "image/jpeg"))
+            .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, containsString("nemonic-result.jpg")))
+            .andExpect(result -> assertThat(result.getResponse().getContentAsByteArray()).containsExactly(fileBytes));
+    }
+
+    /**
+     * artifact 공유 API는 QR 합성 이미지 URL과 플랫폼별 공유 URL을 JSON으로 반환합니다.
+     */
+    @Test
+    void createArtifactShareReturnsQrImageUrlAndShareUrls() throws Exception {
+        UUID userUuid = UUID.randomUUID();
+        UUID artifactId = UUID.randomUUID();
+        ShareCreateResponse response = new ShareCreateResponse("signed-share-token",
+            "https://minio.example.com/nemonic/artifact-downloads/result-qr-v4.jpg", "https://nemonic.example.com",
+            "https://nemonic.example.com?utm_source=kakao", "https://nemonic.example.com?utm_source=instagram");
+
+        when(artifactShareService.createArtifactShare(userUuid.toString(), artifactId.toString())).thenReturn(response);
+
+        mockMvc
+            .perform(post("/api/v1/artifacts/{artifactId}/share", artifactId).header(ANONYMOUS_USER_UUID_HEADER,
+                userUuid.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("산출물 공유 정보 생성 성공"))
+            .andExpect(jsonPath("$.data.shareToken").value("signed-share-token"))
+            .andExpect(jsonPath("$.data.imageUrl")
+                .value("https://minio.example.com/nemonic/artifact-downloads/result-qr-v4.jpg"))
+            .andExpect(jsonPath("$.data.siteUrl").value("https://nemonic.example.com"))
+            .andExpect(jsonPath("$.data.kakaoUrl").value("https://nemonic.example.com?utm_source=kakao"))
+            .andExpect(jsonPath("$.data.instagramUrl").value("https://nemonic.example.com?utm_source=instagram"));
     }
 
     private UUID createExistingUser() {

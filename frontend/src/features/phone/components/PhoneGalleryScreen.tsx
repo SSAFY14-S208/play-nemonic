@@ -1,7 +1,8 @@
 'use client'
 
 import Image from 'next/image'
-import { ArrowLeft, ChevronDown, ImageIcon, Search } from 'lucide-react'
+import { useEffect } from 'react'
+import { ArrowLeft, ImageIcon } from 'lucide-react'
 import { cn } from '@/shared/libs'
 import {
   PHONE_COLORS,
@@ -94,7 +95,7 @@ function PhoneGalleryCard({
         />
         {item.badgeLabel && (
           <span
-            className="caption-b absolute right-1.5 top-1.5 rounded-[0.28rem] bg-white/90 px-1.5 py-0.5"
+            className="phone-caption-b absolute right-1 top-1 rounded-[0.2rem] bg-white/90 px-1 py-0.5"
             style={{ color: itemStyle.color }}
           >
             {item.badgeLabel}
@@ -102,15 +103,25 @@ function PhoneGalleryCard({
         )}
       </div>
 
-      <div className="mt-2 min-w-0 px-0.5">
-        <h3 className="caption-b line-clamp-1 text-fg-primary">
+      <div className="mt-1.5 min-w-0 px-0.5">
+        <h3 className="phone-caption-b line-clamp-1 text-fg-primary">
           {item.title}
         </h3>
-        <p className="caption-r mt-0.5 text-fg-secondary">
+        <p className="phone-caption-r mt-0.5 text-fg-secondary">
           {item.createdAtLabel}
         </p>
       </div>
     </button>
+  )
+}
+
+function PhoneGalleryCardSkeleton() {
+  return (
+    <div className="min-w-0">
+      <div className="aspect-square animate-pulse rounded-[0.55rem] bg-white/70" />
+      <div className="mt-2 h-3 w-3/4 animate-pulse rounded bg-white/70" />
+      <div className="mt-1 h-2.5 w-1/2 animate-pulse rounded bg-white/70" />
+    </div>
   )
 }
 
@@ -122,6 +133,18 @@ export function PhoneGalleryScreen() {
   const selectedGalleryItemId = usePhoneStore(
     (state) => state.selectedGalleryItemId,
   )
+  const galleryStatus = usePhoneStore((state) => state.galleryStatus)
+  const galleryError = usePhoneStore((state) => state.galleryError)
+  const galleryHasNext = usePhoneStore((state) => state.galleryHasNext)
+  const galleryTotal = usePhoneStore((state) => state.galleryTotal)
+  const galleryLoadingMore = usePhoneStore((state) => state.galleryLoadingMore)
+  const loadGallery = usePhoneStore((state) => state.loadGallery)
+  const loadMoreGallery = usePhoneStore((state) => state.loadMoreGallery)
+
+  useEffect(() => {
+    void loadGallery({ force: true })
+  }, [loadGallery])
+
   const {
     activeFilterKey,
     filteredGalleryItems,
@@ -129,50 +152,38 @@ export function PhoneGalleryScreen() {
     setActiveFilterKey,
   } = usePhoneGallery(galleryItems, selectedGalleryItemId)
 
+  const isInitialLoading = galleryStatus === 'loading' && galleryItems.length === 0
+  const isErrored = galleryStatus === 'error'
+  const isEmpty =
+    galleryStatus === 'success' && filteredGalleryItems.length === 0
+
   return (
     <div
-      className="relative flex h-full flex-col pt-[3.35rem] text-fg-primary"
+      className="relative flex h-full flex-col overflow-hidden pt-8 text-fg-primary"
       style={{ background: PHONE_COLORS.galleryBackground }}
     >
-      <header className="shrink-0 px-5 pb-3">
-        <div className="flex h-12 items-center justify-between">
+      <header className="shrink-0 px-3 pb-2">
+        <div className="flex h-9 items-center justify-between">
           <button
             type="button"
             aria-label="뒤로 돌아가기"
             onClick={goHome}
-            className="grid size-11 place-items-center rounded-full text-fg-primary transition hover:bg-white focus-visible:outline focus-visible:outline-3 focus-visible:outline-primary-2"
+            className="grid size-8 place-items-center rounded-full text-fg-primary transition hover:bg-white focus-visible:outline focus-visible:outline-3 focus-visible:outline-primary-2"
           >
-            <ArrowLeft className="size-5" />
+            <ArrowLeft className="size-4" />
           </button>
-          <h2 className="h3-b">내 갤러리</h2>
-          <button
-            type="button"
-            aria-label="갤러리 검색"
-            className="grid size-11 place-items-center rounded-full text-fg-secondary transition hover:bg-white"
-          >
-            <Search className="size-5" />
-          </button>
+          <h2 className="phone-h3-b">내 갤러리</h2>
+          <span className="size-8" aria-hidden />
         </div>
       </header>
 
-      <section className="shrink-0 px-5 pb-3">
-        <div className="mb-3 flex items-end justify-between gap-3">
-          <div>
-            <p className="caption-m text-fg-secondary">저장된 네모닉</p>
-            <p className="h4-b mt-0.5 text-fg-primary">
-              총 {galleryItems.length}개
-            </p>
-          </div>
-          <button
-            type="button"
-            className="caption-b flex h-8 items-center gap-1 rounded-[0.45rem] border border-border-default bg-white px-3 text-fg-secondary"
-          >
-            최신순
-            <ChevronDown className="size-3.5" />
-          </button>
+      <section className="shrink-0 px-3 pb-2">
+        <div className="mb-2">
+          <p className="phone-caption-m text-fg-secondary">저장된 네모닉</p>
+          <p className="phone-h4-b mt-0.5 text-fg-primary">총 {galleryTotal}개</p>
         </div>
 
-        <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
           {PHONE_GALLERY_FILTERS.map(({ key, label }) => {
             const isActive = activeFilterKey === key
             const filterStyle =
@@ -184,7 +195,7 @@ export function PhoneGalleryScreen() {
                 type="button"
                 onClick={() => setActiveFilterKey(key)}
                 className={cn(
-                  'caption-b flex h-8 shrink-0 items-center gap-1.5 rounded-[0.45rem] border px-3 transition',
+                  'phone-caption-b flex h-6 shrink-0 items-center gap-1 rounded-[0.35rem] border px-2 transition',
                   isActive
                     ? 'border-fg-primary bg-fg-primary text-fg-inverse'
                     : 'border-border-default bg-white text-fg-secondary hover:bg-surface-subtle',
@@ -208,24 +219,66 @@ export function PhoneGalleryScreen() {
         </div>
       </section>
 
-      <main className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-5 pb-8">
-        {filteredGalleryItems.length === 0 ? (
+      <main className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-3 pb-6">
+        {isInitialLoading ? (
+          <div className="grid grid-cols-3 gap-x-2 gap-y-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <PhoneGalleryCardSkeleton key={`skeleton-${index}`} />
+            ))}
+          </div>
+        ) : isErrored ? (
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+            <p className="phone-h4-b text-fg-primary">
+              갤러리를 불러올 수 없어요
+            </p>
+            {galleryError && (
+              <p className="phone-caption-r text-fg-secondary">{galleryError}</p>
+            )}
+            <button
+              type="button"
+              onClick={() => void loadGallery({ force: true })}
+              className="phone-body-b mt-1 inline-flex h-7 items-center justify-center rounded-[0.35rem] bg-fg-primary px-3 text-fg-inverse"
+            >
+              다시 시도
+            </button>
+          </div>
+        ) : isEmpty ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
-            <p className="h4-b text-fg-primary">아직 저장된 카드가 없어요</p>
-            <p className="body-r mt-2 text-fg-secondary">
+            <p className="phone-h4-b text-fg-primary">아직 저장된 카드가 없어요</p>
+            <p className="phone-body-r mt-1.5 text-fg-secondary">
               네모닉 그림판에서 하나 만들어 볼까요?
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-x-2.5 gap-y-4">
-            {filteredGalleryItems.map((item) => (
-              <PhoneGalleryCard
-                key={item.id}
-                item={item}
-                onSelectItem={selectGalleryItem}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-3 gap-x-2 gap-y-3">
+              {filteredGalleryItems.map((item) => (
+                <PhoneGalleryCard
+                  key={item.id}
+                  item={item}
+                  onSelectItem={selectGalleryItem}
+                />
+              ))}
+            </div>
+            {activeFilterKey === 'all' && galleryHasNext && (
+              <div className="mt-3 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => void loadMoreGallery()}
+                  disabled={galleryLoadingMore}
+                  className="phone-body-b inline-flex h-7 items-center justify-center gap-1.5 rounded-[0.35rem] border border-border-default bg-white px-3 text-fg-primary transition hover:bg-surface-subtle disabled:opacity-60"
+                >
+                  {galleryLoadingMore && (
+                    <span
+                      aria-hidden
+                      className="size-2.5 animate-spin rounded-full border-2 border-fg-secondary/40 border-t-fg-primary"
+                    />
+                  )}
+                  더 보기
+                </button>
+              </div>
+            )}
+          </>
         )}
       </main>
 

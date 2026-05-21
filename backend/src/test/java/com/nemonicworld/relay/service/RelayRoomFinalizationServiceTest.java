@@ -4,13 +4,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.redis.RelayRoomAssignment;
@@ -18,7 +22,11 @@ import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayArtifactRepository;
+import com.nemonicworld.relay.repository.RelayFinalizationAttemptRepository;
+import com.nemonicworld.relay.repository.RelayFinalizationRetryRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.service.close.RelayRoomCloseCommand;
+import com.nemonicworld.relay.service.finalization.RelayFinalizationAttempt;
 import com.nemonicworld.relay.service.finalization.RelayFinalizationArtifactResult;
 import com.nemonicworld.relay.service.finalization.RelayResultComposer;
 import com.nemonicworld.relay.service.finalization.RelayResultStorage;
@@ -63,13 +71,20 @@ class RelayRoomFinalizationServiceTest {
     @Mock
     private RelayInviteMetadataSyncService relayInviteMetadataSyncService;
 
+    @Mock
+    private RelayFinalizationRetryRepository relayFinalizationRetryRepository;
+
+    @Mock
+    private RelayFinalizationAttemptRepository relayFinalizationAttemptRepository;
+
     private RelayRoomFinalizationService service;
 
     @BeforeEach
     void setUp() {
         service = new RelayRoomFinalizationService(relayRoomRepository, relayArtifactRepository, relayResultStorage,
             new RelayResultComposer(4, 3, 4), relayRoomEventPublisher, new ObjectMapper().findAndRegisterModules(),
-            relayInviteMetadataSyncService, 50, 60);
+            relayInviteMetadataSyncService, relayFinalizationRetryRepository, relayFinalizationAttemptRepository,
+            new RelayRoomCloseCommand(relayRoomRepository, relayInviteMetadataSyncService), 50, 60, 24, 1000, 60);
     }
 
     @Test
@@ -78,7 +93,8 @@ class RelayRoomFinalizationServiceTest {
         UUID participantB = UUID.randomUUID();
         UUID participantC = UUID.randomUUID();
         RelayRoomState roomState = finalizingRoom(participantA, participantB, participantC);
-        given(relayRoomRepository.acquireFinalizationLock(ROOM_CODE, Duration.ofSeconds(60))).willReturn(true);
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
         given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
         given(relayResultStorage.download(anyString())).willAnswer(invocation -> pngForKey(invocation.getArgument(0)));
@@ -112,7 +128,164 @@ class RelayRoomFinalizationServiceTest {
         verify(relayRoomRepository).saveIfUnchanged(any(RelayRoomState.class), updatedRoomCaptor.capture());
         assertThat(updatedRoomCaptor.getValue().status()).isEqualTo(RelayRoomStatus.FINISHED);
         assertThat(updatedRoomCaptor.getValue().assignments()).isEqualTo(roomState.assignments());
+        verify(relayFinalizationRetryRepository).clearFailureCount(ROOM_CODE);
         verify(relayRoomEventPublisher).publishResultCreated(any(RelayRoomFinalizationResult.class));
+        verify(relayFinalizationAttemptRepository).clear(eq(ROOM_CODE), anyString());
+    }
+
+    @Test
+    void processFinalizingRoomTracksAttemptObjectKeysAndClearsAttempt() {
+        UUID participantA = UUID.randomUUID();
+        RelayRoomState roomState = finalizingRoom(participantA);
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
+        given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
+        given(relayResultStorage.download(anyString())).willAnswer(invocation -> pngForKey(invocation.getArgument(0)));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        service.processFinalizingRoom(ROOM_CODE);
+
+        ArgumentCaptor<RelayFinalizationAttempt> attemptCaptor = ArgumentCaptor
+            .forClass(RelayFinalizationAttempt.class);
+        verify(relayFinalizationAttemptRepository, times(3)).save(attemptCaptor.capture(), eq(Duration.ofHours(24)));
+        assertThat(attemptCaptor.getAllValues().get(0).objectKeys()).isEmpty();
+        assertThat(attemptCaptor.getAllValues().get(1).objectKeys()).hasSize(1);
+        assertThat(attemptCaptor.getAllValues().get(2).objectKeys()).hasSize(2);
+        verify(relayFinalizationAttemptRepository).clear(eq(ROOM_CODE), eq(attemptCaptor.getValue().attemptId()));
+    }
+
+    @Test
+    void processFinalizingRoomDeletesUploadedResultObjectsWhenDbSaveFails() {
+        UUID participantA = UUID.randomUUID();
+        RelayRoomState roomState = finalizingRoom(participantA);
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
+        given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
+        given(relayResultStorage.download(anyString())).willAnswer(invocation -> pngForKey(invocation.getArgument(0)));
+        willThrow(new InternalServerException("db")).given(relayArtifactRepository).saveRelayDrawingResults(anyString(),
+            any(), any(), any(LocalDateTime.class));
+
+        assertThatThrownBy(() -> service.processFinalizingRoom(ROOM_CODE)).isInstanceOf(InternalServerException.class);
+
+        ArgumentCaptor<String> uploadedObjectKeyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(relayResultStorage, times(2)).upload(uploadedObjectKeyCaptor.capture(), any(), eq("image/png"));
+        ArgumentCaptor<String> deletedObjectKeyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(relayResultStorage, times(2)).delete(deletedObjectKeyCaptor.capture());
+        assertThat(deletedObjectKeyCaptor.getAllValues())
+            .containsExactlyInAnyOrderElementsOf(uploadedObjectKeyCaptor.getAllValues());
+        verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
+        verify(relayRoomEventPublisher, never()).publishResultCreated(any(RelayRoomFinalizationResult.class));
+    }
+
+    @Test
+    void processFinalizingRoomKeepsOriginalExceptionWhenOrphanCleanupFails() {
+        UUID participantA = UUID.randomUUID();
+        RelayRoomState roomState = finalizingRoom(participantA);
+        InternalServerException dbError = new InternalServerException("db");
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
+        given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
+        given(relayResultStorage.download(anyString())).willAnswer(invocation -> pngForKey(invocation.getArgument(0)));
+        willThrow(dbError).given(relayArtifactRepository).saveRelayDrawingResults(anyString(), any(), any(),
+            any(LocalDateTime.class));
+        willThrow(new InternalServerException("delete")).given(relayResultStorage).delete(anyString());
+
+        assertThatThrownBy(() -> service.processFinalizingRoom(ROOM_CODE)).isSameAs(dbError);
+
+        verify(relayResultStorage, times(2)).delete(anyString());
+        verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
+    }
+
+    @Test
+    void processFinalizingRoomKeepsSavedArtifactsWhenRedisSaveConflictsAfterDbSave() {
+        UUID participantA = UUID.randomUUID();
+        RelayRoomState roomState = finalizingRoom(participantA);
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
+        given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
+        given(relayResultStorage.download(anyString())).willAnswer(invocation -> pngForKey(invocation.getArgument(0)));
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(false);
+
+        assertThatThrownBy(() -> service.processFinalizingRoom(ROOM_CODE)).isInstanceOf(ConflictException.class);
+
+        verify(relayArtifactRepository).saveRelayDrawingResults(eq(ROOM_CODE), any(), any(), any(LocalDateTime.class));
+        verify(relayResultStorage, never()).delete(anyString());
+        verify(relayRoomEventPublisher, never()).publishResultCreated(any(RelayRoomFinalizationResult.class));
+    }
+
+    @Test
+    void processFinalizingRoomsSkipsRecentlyFinalizingRooms() {
+        RelayRoomFinalizationService delayedService = new RelayRoomFinalizationService(relayRoomRepository,
+            relayArtifactRepository, relayResultStorage, new RelayResultComposer(4, 3, 4), relayRoomEventPublisher,
+            new ObjectMapper().findAndRegisterModules(), relayInviteMetadataSyncService,
+            relayFinalizationRetryRepository, relayFinalizationAttemptRepository,
+            new RelayRoomCloseCommand(relayRoomRepository, relayInviteMetadataSyncService), 50, 60, 24, 60_000, 60);
+        RelayRoomState baseRoom = finalizingRoom(UUID.randomUUID());
+        RelayRoomState recentRoom = baseRoom.withAssignments(baseRoom.assignments(),
+            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
+        given(relayRoomRepository.findFinalizingRooms(50)).willReturn(List.of(recentRoom));
+
+        var result = delayedService.processFinalizingRooms();
+
+        assertThat(result.scannedRoomCount()).isEqualTo(1);
+        assertThat(result.processedRoomCount()).isZero();
+        assertThat(result.resultCount()).isZero();
+        verify(relayRoomRepository, never()).acquireFinalizationLock(anyString(), anyString(), any(Duration.class));
+        verifyNoInteractions(relayArtifactRepository, relayResultStorage, relayRoomEventPublisher);
+    }
+
+    @Test
+    void processFinalizingRoomsKeepsRoomFinalizingBeforeMaxRetryCount() {
+        UUID participantA = UUID.randomUUID();
+        RelayRoomState roomState = finalizingRoom(participantA);
+        given(relayRoomRepository.findFinalizingRooms(50)).willReturn(List.of(roomState));
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
+        given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
+        given(relayResultStorage.download(anyString())).willThrow(new InternalServerException("boom"));
+        given(relayFinalizationRetryRepository.incrementFailureCount(eq(ROOM_CODE), eq(Duration.ofHours(24))))
+            .willReturn(59);
+
+        var result = service.processFinalizingRooms();
+
+        assertThat(result.scannedRoomCount()).isEqualTo(1);
+        assertThat(result.processedRoomCount()).isZero();
+        assertThat(result.resultCount()).isZero();
+        verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
+        verify(relayRoomEventPublisher, never()).publishRoomClosed(anyString(), any(LocalDateTime.class), any());
+    }
+
+    @Test
+    void processFinalizingRoomsClosesRoomWhenMaxRetryCountIsReached() {
+        UUID participantA = UUID.randomUUID();
+        RelayRoomState roomState = finalizingRoom(participantA);
+        given(relayRoomRepository.findFinalizingRooms(50)).willReturn(List.of(roomState));
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState),
+            java.util.Optional.of(roomState));
+        given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
+        given(relayResultStorage.download(anyString())).willThrow(new InternalServerException("boom"));
+        given(relayFinalizationRetryRepository.incrementFailureCount(eq(ROOM_CODE), eq(Duration.ofHours(24))))
+            .willReturn(60);
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        service.processFinalizingRooms();
+
+        ArgumentCaptor<RelayRoomState> updatedRoomCaptor = ArgumentCaptor.forClass(RelayRoomState.class);
+        verify(relayRoomRepository).saveIfUnchanged(eq(roomState), updatedRoomCaptor.capture());
+        assertThat(updatedRoomCaptor.getValue().status()).isEqualTo(RelayRoomStatus.CLOSED);
+        verify(relayRoomEventPublisher).publishRoomClosed(eq(ROOM_CODE), any(LocalDateTime.class),
+            eq("finalization_failed"));
+        verify(relayInviteMetadataSyncService).syncWithRoomState(updatedRoomCaptor.getValue());
     }
 
     @Test
@@ -121,7 +294,8 @@ class RelayRoomFinalizationServiceTest {
         UUID droppedUuid = UUID.randomUUID();
         RelayRoomState roomState = finalizingRoom(participantA, droppedUuid).withParticipants(
             List.of(participant(participantA, true, 0), droppedParticipant(droppedUuid, false, 1)), NOW);
-        given(relayRoomRepository.acquireFinalizationLock(ROOM_CODE, Duration.ofSeconds(60))).willReturn(true);
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
         given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
         given(relayResultStorage.download(anyString())).willAnswer(invocation -> pngForKey(invocation.getArgument(0)));
@@ -152,7 +326,8 @@ class RelayRoomFinalizationServiceTest {
             assignment(1, RelayDrawingPart.LEGS, participantB, RelayAssignmentStatus.SUBMITTED,
                 "relay/tmp/AB3K9Q/1/legs.png", false, false)),
             NOW);
-        given(relayRoomRepository.acquireFinalizationLock(ROOM_CODE, Duration.ofSeconds(60))).willReturn(true);
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
         given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
         given(relayResultStorage.download(anyString())).willAnswer(invocation -> pngForKey(invocation.getArgument(0)));
@@ -177,11 +352,12 @@ class RelayRoomFinalizationServiceTest {
             assignment(0, RelayDrawingPart.LEGS, participantA, RelayAssignmentStatus.SUBMITTED,
                 "relay/tmp/AB3K9Q/0/legs.png", false, false)),
             NOW);
-        given(relayRoomRepository.acquireFinalizationLock(ROOM_CODE, Duration.ofSeconds(60))).willReturn(true);
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
         given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
 
-        assertThatThrownBy(() -> service.processFinalizingRoom(ROOM_CODE)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> service.processFinalizingRoom(ROOM_CODE)).isInstanceOf(InternalServerException.class);
 
         verify(relayArtifactRepository, never()).saveRelayDrawingResults(anyString(), any(), any(), any());
         verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
@@ -195,7 +371,8 @@ class RelayRoomFinalizationServiceTest {
         RelayRoomState roomState = finalizingRoom(participantA, participantB);
         List<RelayFinalizationArtifactResult> existingArtifacts = List.of(artifact(0, UUID.randomUUID()),
             artifact(1, UUID.randomUUID()));
-        given(relayRoomRepository.acquireFinalizationLock(ROOM_CODE, Duration.ofSeconds(60))).willReturn(true);
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
         given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(existingArtifacts);
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
@@ -216,7 +393,8 @@ class RelayRoomFinalizationServiceTest {
         RelayRoomState roomState = finalizingRoom(participantA, participantB);
         List<RelayFinalizationArtifactResult> existingArtifacts = List.of(artifact(0, UUID.randomUUID()),
             artifact(1, UUID.randomUUID()));
-        given(relayRoomRepository.acquireFinalizationLock(ROOM_CODE, Duration.ofSeconds(60))).willReturn(true);
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
         given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(existingArtifacts);
         given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
@@ -231,13 +409,70 @@ class RelayRoomFinalizationServiceTest {
 
     @Test
     void processFinalizingRoomDoesNothingWhenLockIsNotAcquired() {
-        given(relayRoomRepository.acquireFinalizationLock(ROOM_CODE, Duration.ofSeconds(60))).willReturn(false);
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(false);
 
         RelayRoomFinalizationResult result = service.processFinalizingRoom(ROOM_CODE);
 
         assertThat(result.processed()).isFalse();
         verify(relayRoomRepository, never()).findByRoomCode(anyString());
+        verifyNoInteractions(relayFinalizationAttemptRepository);
         verifyNoInteractions(relayArtifactRepository, relayResultStorage, relayRoomEventPublisher);
+    }
+
+    @Test
+    void triggerFinalizationProcessesFinalizingRoomImmediately() {
+        UUID participantA = UUID.randomUUID();
+        RelayRoomState roomState = finalizingRoom(participantA);
+        List<RelayFinalizationArtifactResult> existingArtifacts = List.of(artifact(0, UUID.randomUUID()));
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
+        given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(existingArtifacts);
+        given(relayRoomRepository.saveIfUnchanged(any(RelayRoomState.class), any(RelayRoomState.class)))
+            .willReturn(true);
+
+        RelayRoomFinalizationResult result = service.triggerFinalization(ROOM_CODE);
+
+        assertThat(result.processed()).isTrue();
+        assertThat(result.artifacts()).isEqualTo(existingArtifacts);
+        verify(relayFinalizationRetryRepository).clearFailureCount(ROOM_CODE);
+        verify(relayRoomEventPublisher).publishResultCreated(any(RelayRoomFinalizationResult.class));
+    }
+
+    @Test
+    void triggerFinalizationReturnsNoOpWhenLockIsNotAcquired() {
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(false);
+
+        RelayRoomFinalizationResult result = service.triggerFinalization(ROOM_CODE);
+
+        assertThat(result.processed()).isFalse();
+        verify(relayRoomRepository, never()).findByRoomCode(anyString());
+        verify(relayFinalizationRetryRepository, never()).incrementFailureCount(anyString(), any(Duration.class));
+        verifyNoInteractions(relayFinalizationAttemptRepository);
+        verifyNoInteractions(relayArtifactRepository, relayResultStorage, relayRoomEventPublisher);
+    }
+
+    @Test
+    void triggerFinalizationRecordsFailureWithoutThrowing() {
+        UUID participantA = UUID.randomUUID();
+        RelayRoomState roomState = finalizingRoom(participantA);
+        given(relayRoomRepository.acquireFinalizationLock(eq(ROOM_CODE), anyString(), eq(Duration.ofSeconds(60))))
+            .willReturn(true);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(java.util.Optional.of(roomState));
+        given(relayArtifactRepository.findRelayArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
+        given(relayResultStorage.download(anyString())).willThrow(new InternalServerException("boom"));
+        given(relayFinalizationRetryRepository.incrementFailureCount(eq(ROOM_CODE), eq(Duration.ofHours(24))))
+            .willReturn(1);
+
+        RelayRoomFinalizationResult result = service.triggerFinalization(ROOM_CODE);
+
+        assertThat(result.processed()).isFalse();
+        verify(relayFinalizationRetryRepository).incrementFailureCount(eq(ROOM_CODE), eq(Duration.ofHours(24)));
+        verify(relayRoomRepository, never()).saveIfUnchanged(any(), any());
+        verify(relayRoomEventPublisher, never()).publishResultCreated(any(RelayRoomFinalizationResult.class));
+        verify(relayRoomEventPublisher, never()).publishRoomClosed(anyString(), any(LocalDateTime.class), any());
     }
 
     private RelayRoomState finalizingRoom(UUID... participants) {

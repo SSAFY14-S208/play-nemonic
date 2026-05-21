@@ -2,9 +2,8 @@ package com.nemonicworld.flipbook.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyString;
+import static com.nemonicworld.support.FlipbookRuntimeSettingsTestSupport.defaultFlipbookRoomPolicy;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.ForbiddenException;
@@ -19,27 +18,20 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookArtifactRepository;
 import com.nemonicworld.flipbook.repository.FlipbookResultArtifactRow;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
-import com.nemonicworld.flipbook.service.result.FlipbookGifComposer;
-import com.nemonicworld.flipbook.service.result.FlipbookResultArtifactResult;
-import com.nemonicworld.flipbook.service.result.FlipbookResultStorage;
-import com.nemonicworld.flipbook.service.result.FlipbookThumbnailComposer;
+import com.nemonicworld.flipbook.service.result.FlipbookRoomResultQueryUseCase;
+import com.nemonicworld.flipbook.service.support.FlipbookRoomPolicy;
 import com.nemonicworld.global.storage.minio.MinioPublicUrlResolver;
 import com.nemonicworld.global.storage.minio.MinioStorageProperties;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
-import java.awt.Color;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import javax.imageio.ImageIO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -65,18 +57,15 @@ class FlipbookRoomResultQueryUseCaseTest {
     @Mock
     private RoomCodeGenerator roomCodeGenerator;
 
-    @Mock
-    private FlipbookResultStorage flipbookResultStorage;
-
     private FlipbookRoomResultQueryUseCase useCase;
 
     @BeforeEach
     void setUp() {
-        FlipbookRoomPolicy flipbookRoomPolicy = new FlipbookRoomPolicy(roomCodeGenerator, flipbookRoomRepository);
+        FlipbookRoomPolicy flipbookRoomPolicy = defaultFlipbookRoomPolicy(roomCodeGenerator, flipbookRoomRepository);
         MinioPublicUrlResolver minioPublicUrlResolver = new MinioPublicUrlResolver(minioStorageProperties());
         useCase = new FlipbookRoomResultQueryUseCase(anonymousUserResolver, flipbookArtifactRepository,
-            flipbookRoomRepository, flipbookRoomPolicy, flipbookResultStorage, new FlipbookGifComposer(200),
-            new ObjectMapper().findAndRegisterModules(), new FlipbookThumbnailComposer(512), minioPublicUrlResolver);
+            flipbookRoomRepository, flipbookRoomPolicy, new ObjectMapper().findAndRegisterModules(),
+            minioPublicUrlResolver);
     }
 
     @Test
@@ -116,43 +105,22 @@ class FlipbookRoomResultQueryUseCaseTest {
         assertThat(response.results()).isEmpty();
     }
 
-    @SuppressWarnings("unchecked")
     @Test
-    void getResultsCreatesGifArtifactsAndGalleryRowsWhenRoomIsFinished() throws Exception {
+    void getResultsReturnsReadyFalseWhenFinishedRoomHasNoArtifacts() {
         FlipbookRoomState finishedRoomState = finishedRoomState();
-        FlipbookResultArtifactRow createdRow = resultRow(0);
         given(anonymousUserResolver.resolve(VIEWER_UUID.toString())).willReturn(appUser(VIEWER_UUID));
         given(roomCodeGenerator.isValid(ROOM_CODE)).willReturn(true);
         given(flipbookArtifactRepository.findActiveFlipbookResultsByRoomCodeAndUserUuid(ROOM_CODE, VIEWER_UUID))
-            .willReturn(List.of()).willReturn(List.of(createdRow));
+            .willReturn(List.of());
         given(flipbookArtifactRepository.countFlipbookResultsByRoomCode(ROOM_CODE)).willReturn(0L);
         given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(finishedRoomState));
-        given(flipbookArtifactRepository.findFlipbookArtifactsBySourceRoomId(ROOM_CODE)).willReturn(List.of());
-        given(flipbookResultStorage.download(anyString())).willReturn(pngBytes(Color.RED))
-            .willReturn(pngBytes(Color.BLUE));
 
         FlipbookRoomResultsResponse response = useCase.getResults(VIEWER_UUID.toString(), ROOM_CODE);
 
-        assertThat(response.ready()).isTrue();
-        assertThat(response.resultCount()).isEqualTo(1);
-
-        ArgumentCaptor<List<FlipbookResultArtifactResult>> artifactsCaptor = ArgumentCaptor.forClass(List.class);
-        ArgumentCaptor<List<String>> participantUuidsCaptor = ArgumentCaptor.forClass(List.class);
-        verify(flipbookArtifactRepository).saveFlipbookResults(anyString(), artifactsCaptor.capture(),
-            participantUuidsCaptor.capture(), org.mockito.ArgumentMatchers.any(LocalDateTime.class));
-        assertThat(artifactsCaptor.getValue()).hasSize(1);
-        assertThat(artifactsCaptor.getValue().get(0).gifObjectKey()).startsWith("flipbook/results/")
-            .endsWith("/result.gif");
-        assertThat(artifactsCaptor.getValue().get(0).firstImageObjectKey()).isEqualTo("uploads/flipbook/frame-0.png");
-        assertThat(artifactsCaptor.getValue().get(0).thumbnailObjectKey()).startsWith("flipbook/results/")
-            .endsWith("/thumbnail.png");
-        assertThat(participantUuidsCaptor.getValue()).containsExactlyInAnyOrder(VIEWER_UUID.toString(),
-            PARTICIPANT_UUID.toString());
-        assertThat(participantUuidsCaptor.getValue()).doesNotContain(DROPPED_UUID.toString());
-        verify(flipbookResultStorage).upload(anyString(), org.mockito.ArgumentMatchers.any(byte[].class),
-            org.mockito.ArgumentMatchers.eq("image/gif"));
-        verify(flipbookResultStorage).upload(anyString(), org.mockito.ArgumentMatchers.any(byte[].class),
-            org.mockito.ArgumentMatchers.eq("image/png"));
+        assertThat(response.ready()).isFalse();
+        assertThat(response.roomStatus()).isEqualTo(FlipbookRoomStatus.FINISHED);
+        assertThat(response.resultCount()).isZero();
+        assertThat(response.results()).isEmpty();
     }
 
     @Test
@@ -251,22 +219,6 @@ class FlipbookRoomResultQueryUseCaseTest {
     private FlipbookRoomParticipant participant(UUID userUuid, String nickname, boolean host, boolean dropped) {
         return new FlipbookRoomParticipant(userUuid.toString(), nickname, host, host ? 0 : 1, true, null,
             NOW.minusMinutes(3), dropped, dropped ? NOW.minusSeconds(30) : null);
-    }
-
-    private byte[] pngBytes(Color color) throws Exception {
-        BufferedImage image = new BufferedImage(2, 2, BufferedImage.TYPE_INT_RGB);
-        java.awt.Graphics2D graphics = image.createGraphics();
-        try {
-            graphics.setColor(color);
-            graphics.fillRect(0, 0, 2, 2);
-        } finally {
-            graphics.dispose();
-        }
-
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        ImageIO.write(image, "png", outputStream);
-
-        return outputStream.toByteArray();
     }
 
     private MinioStorageProperties minioStorageProperties() {

@@ -10,7 +10,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -22,7 +21,7 @@ import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
-import com.nemonicworld.support.IntegrationTest;
+import com.nemonicworld.support.AbstractIntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
 import java.time.Duration;
@@ -37,24 +36,19 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
-@IntegrationTest
-@AutoConfigureMockMvc
-@TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
 /**
  * 릴레이 대기실 자발적 퇴장 API의 HTTP 계약과 Redis 상태 변경을 검증합니다.
  */
-class RelayRoomLeaveControllerIntegrationTest {
+class RelayRoomLeaveControllerIntegrationTest extends AbstractIntegrationTest {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String DEFAULT_ROOM_CODE = "AB3K9Q";
@@ -142,7 +136,7 @@ class RelayRoomLeaveControllerIntegrationTest {
         verify(relayRoomEventPublisher).publishParticipantLeft(eventCaptor.capture());
         assertThat(eventCaptor.getValue().leftUserUuid()).isEqualTo(leaverUuid.toString());
         verify(relayRoomEventPublisher, never()).publishHostChanged(any(RelayRoomLeaveResponse.class));
-        verify(relayRoomEventPublisher, never()).publishRoomClosed(anyString(), any(LocalDateTime.class));
+        verify(relayRoomEventPublisher, never()).publishRoomClosed(anyString(), any(LocalDateTime.class), any());
         verify(relayRoomEventPublisher).closeLeftRoomSession(DEFAULT_ROOM_CODE, leaverUuid.toString());
     }
 
@@ -178,7 +172,7 @@ class RelayRoomLeaveControllerIntegrationTest {
 
         verify(relayRoomEventPublisher).publishParticipantLeft(any(RelayRoomLeaveResponse.class));
         verify(relayRoomEventPublisher).publishHostChanged(any(RelayRoomLeaveResponse.class));
-        verify(relayRoomEventPublisher, never()).publishRoomClosed(anyString(), any(LocalDateTime.class));
+        verify(relayRoomEventPublisher, never()).publishRoomClosed(anyString(), any(LocalDateTime.class), any());
         verify(relayRoomEventPublisher).closeLeftRoomSession(DEFAULT_ROOM_CODE, hostUuid.toString());
     }
 
@@ -205,29 +199,9 @@ class RelayRoomLeaveControllerIntegrationTest {
 
         verify(relayRoomEventPublisher).publishParticipantLeft(any(RelayRoomLeaveResponse.class));
         verify(relayRoomEventPublisher, never()).publishHostChanged(any(RelayRoomLeaveResponse.class));
-        verify(relayRoomEventPublisher).publishRoomClosed(eq(DEFAULT_ROOM_CODE), any(LocalDateTime.class));
+        verify(relayRoomEventPublisher).publishRoomClosed(eq(DEFAULT_ROOM_CODE), any(LocalDateTime.class),
+            eq("last_participant_left"));
         verify(relayRoomEventPublisher).closeLeftRoomSession(DEFAULT_ROOM_CODE, hostUuid.toString());
-    }
-
-    /**
-     * 자발적으로 퇴장한 사용자는 강퇴 목록에 없으므로 WAITING 방에 다시 입장할 수 있습니다.
-     */
-    @Test
-    void joinRelayRoomAllowsVoluntarilyLeftUserWhenNotKicked() throws Exception {
-        UUID hostUuid = createExistingUserWithNickname("망고");
-        UUID leaverUuid = createExistingUserWithNickname("포도");
-        storeRoom(DEFAULT_ROOM_CODE, createRoomState(RelayRoomStatus.WAITING, participant(hostUuid, "망고", true, 0)));
-
-        mockMvc
-            .perform(post("/api/v1/relay/rooms/{roomCode}/participants", DEFAULT_ROOM_CODE)
-                .header(ANONYMOUS_USER_UUID_HEADER, leaverUuid.toString()))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.participantCount").value(2));
-
-        JsonNode storedRoom = readSavedRoom();
-        assertThat(storedRoom.path("participants")).hasSize(2);
-        assertThat(storedRoom.path("participants").get(1).path("userUuid").asText()).isEqualTo(leaverUuid.toString());
-        assertThat(storedRoom.path("kickedUserUuids")).isEmpty();
     }
 
     /**

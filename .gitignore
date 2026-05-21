@@ -1,5 +1,6 @@
 .idea/
 .claude/
+.worktrees/
 *.iml
 .DS_Store
 .env
@@ -26,3 +27,11 @@ release*.tar.gz
 # SSH 키
 *.ppk
 id_rsa*
+.next-dev-*.log
+frontend/tmp-*.log
+frontend/tmp-*.png
+frontend/output/
+frontend/public/models/isometric-girl-room-mouse-atlas.glb
+
+# Python 캐시 (blender 스크립트)
+__pycache__/

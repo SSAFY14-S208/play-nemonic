@@ -5,6 +5,7 @@ import com.nemonicworld.relay.dto.response.RelayRoomCloseResponse;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import static com.nemonicworld.relay.logging.RelayRoomEventLogger.metadata;
 
 /**
  * 방장이 결과 확인이 끝난 릴레이 방을 즉시 종료합니다.
@@ -52,6 +54,9 @@ public class RelayRoomManualCloseUseCase {
             relayRoomPolicy.validateManualClosableRoom(roomState);
             RelayRoomCloseResult closeResult = relayRoomCloseCommand.closeFinishedRoomIfUnchanged(roomState, closedAt);
             if (closeResult.closed()) {
+                RelayRoomEventLogger.apiBusiness("relay_room_closed",
+                    metadata("room_id", closeResult.roomCode(), "close_reason", "host_manual", "room_status_before",
+                        roomState.status(), "participant_count", roomState.participantCount()));
                 return RelayRoomCloseResponse.closed(closeResult);
             }
         }

@@ -1,61 +1,140 @@
-import type { SVGProps } from 'react'
+import { useId, type SVGProps } from 'react'
 
 import { cn } from '@/shared/libs'
 
 interface PostItNoteProps extends SVGProps<SVGSVGElement> {
   title?: string
+  motion?: 'none' | 'hover' | 'active'
+  selected?: boolean
+  shape?: 'soft' | 'square'
 }
 
-export function PostItNote({ className, title, ...props }: PostItNoteProps) {
+const POST_IT_SHAPES = {
+  soft: {
+    viewBox: '0 0 543 459',
+    paperPath:
+      'M25.5 428.7C134.8 436.4 258.7 438.1 511.8 423.2C521.4 306.7 525.8 163.4 512.6 18.8C390.8 9.9 257.1 8.3 18.6 24.4C8.9 152.8 11.2 290.1 25.5 428.7Z',
+    topEdgePath:
+      'M18.6 24.4C257.1 8.3 390.8 9.9 512.6 18.8L512.7 19.5C391 10.6 257.4 9.1 18.9 25.1L18.6 24.4Z',
+    sideBendPath: 'M492.3 52.6C505.7 161.3 504.8 292.4 492.2 390.4',
+    bottomEdgePath: 'M58.4 404.6C164 411.8 289.6 412.9 483.6 401.2',
+    highlightPath: 'M48.8 48.9C160 38.6 319.7 37.8 486.2 30.5',
+    shadowFilter: { x: '0', y: '0.460938', width: '542.837', height: '458.121' },
+    sheen: { x1: '50.5493', y1: '0.0809972', x2: '334.244', y2: '441.707' },
+    selection: { x1: '18', y1: '24', x2: '512', y2: '428' },
+  },
+  square: {
+    viewBox: '0 0 512 512',
+    paperPath: 'M28 28H484V484H28V28Z',
+    topEdgePath: 'M28 28H484V38H28V28Z',
+    sideBendPath: 'M484 58V456',
+    bottomEdgePath: 'M48 476H464',
+    highlightPath: 'M56 58H456',
+    shadowFilter: { x: '-18', y: '-14', width: '548', height: '548' },
+    sheen: { x1: '42', y1: '24', x2: '406', y2: '489' },
+    selection: { x1: '28', y1: '28', x2: '484', y2: '484' },
+  },
+} as const
+
+export function PostItNote({
+  className,
+  title,
+  motion = 'none',
+  selected = false,
+  shape = 'soft',
+  ...props
+}: PostItNoteProps) {
+  const uniqueId = useId().replace(/:/g, '')
+  const shadowId = `${uniqueId}-post-it-shadow`
+  const surfaceSheenId = `${uniqueId}-post-it-surface-sheen`
+  const selectionGlowId = `${uniqueId}-post-it-selection-glow`
+  const shapeConfig = POST_IT_SHAPES[shape]
+
   return (
     <svg
-      viewBox="0 0 543 459"
+      viewBox={shapeConfig.viewBox}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       role={title ? 'img' : undefined}
       aria-hidden={title ? undefined : true}
-      className={cn('pointer-events-none', className)}
+      data-post-it-motion={motion === 'none' ? undefined : motion}
+      className={cn('post-it-note pointer-events-none', className)}
       {...props}
     >
       {title && <title>{title}</title>}
-      <g filter="url(#post_it_shadow)">
+      <g className="post-it-note-shadow" filter={`url(#${shadowId})`}>
         <path
-          d="M22.4618 442.582C148.796 439.701 196.333 434.89 257.263 426.074C315.491 417.662 466.722 379.434 505.122 344.432C539.97 312.743 532.313 119.986 522.916 0.460938C522.916 0.460938 259.889 9.67959 172.176 12.7045C115.613 14.6634 61.9344 18.1204 6.62839 22.6433C3.2788 69.3309 3.1306 116.124 6.18446 162.824C10.3648 232.742 22.4618 442.582 22.4618 442.582Z"
+          d={shapeConfig.paperPath}
+          fill="currentColor"
+          fillOpacity="0.18"
+        />
+      </g>
+      <g className="post-it-note-paper">
+        <path
+          d={shapeConfig.paperPath}
           fill="currentColor"
         />
         <path
-          d="M22.4618 442.582C148.796 439.701 196.333 434.89 257.263 426.074C315.491 417.662 466.722 379.434 505.122 344.432C539.97 312.743 532.313 119.986 522.916 0.460938C522.916 0.460938 259.889 9.67959 172.176 12.7045C115.613 14.6634 61.9344 18.1204 6.62839 22.6433C3.2788 69.3309 3.1306 116.124 6.18446 162.824C10.3648 232.742 22.4618 442.582 22.4618 442.582Z"
-          fill="url(#post_it_surface_sheen)"
-          fillOpacity="0.16"
+          d={shapeConfig.paperPath}
+          fill={`url(#${surfaceSheenId})`}
+          fillOpacity="0.18"
         />
+        <path
+          d={shapeConfig.topEdgePath}
+          fill="currentColor"
+          fillOpacity="0.78"
+        />
+        <path
+          d={shapeConfig.sideBendPath}
+          stroke="currentColor"
+          strokeOpacity="0.12"
+          strokeWidth="8"
+          strokeLinecap="round"
+        />
+        <path
+          d={shapeConfig.bottomEdgePath}
+          stroke="currentColor"
+          strokeOpacity="0.1"
+          strokeWidth="8"
+          strokeLinecap="round"
+        />
+        <path
+          d={shapeConfig.highlightPath}
+          stroke="white"
+          strokeOpacity="0.16"
+          strokeWidth="11"
+          strokeLinecap="round"
+        />
+        {selected && (
+          <g className="post-it-note-selection">
+            <path
+              d={shapeConfig.paperPath}
+              fill="none"
+              stroke={`url(#${selectionGlowId})`}
+              strokeWidth="24"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.95"
+            />
+            <path
+              d={shapeConfig.paperPath}
+              fill="none"
+              stroke="white"
+              strokeWidth="7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.72"
+            />
+          </g>
+        )}
       </g>
-      <path
-        d="M6.99829 22.1536C62.4892 17.6307 115.354 14.2025 171.917 12.2723C259.593 9.39151 523.36 0 523.36 0C523.36 0 523.36 0.288082 523.36 0.460932C510.93 0.893056 258.15 9.76601 172.62 12.7045C116.056 14.6634 62.3782 18.1204 7.07228 22.6433L6.99829 22.1536Z"
-        fill="currentColor"
-        fillOpacity="0.75"
-      />
-      <path
-        d="M405.793 389.344C448.706 375.66 487.18 359.815 504.234 344.461C539.119 312.771 531.425 120.015 522.065 0.489746L523.064 0C532.461 119.526 540.155 312.8 505.307 344.432C488.253 359.902 449.15 375.89 405.83 389.632L405.793 389.344Z"
-        fill="currentColor"
-        fillOpacity="0.58"
-      />
-      <path
-        d="M415.449 386.751C358.441 405.736 291.852 421.091 257.263 426.074C316.823 414.292 370.538 386.895 412.637 336.049L415.449 386.751Z"
-        fill="currentColor"
-        fillOpacity="0.28"
-      />
-      <path
-        d="M412.526 336.049C442.824 347.428 485.811 358.49 502.68 345.843C503.642 345.094 504.937 344.662 505.862 343.856L505.307 344.432C489.511 358.836 454.847 373.615 415.449 386.751L412.526 336.049Z"
-        fill="currentColor"
-        fillOpacity="0.22"
-      />
       <defs>
         <filter
-          id="post_it_shadow"
-          x="0"
-          y="0.460938"
-          width="542.837"
-          height="458.121"
+          id={shadowId}
+          x={shapeConfig.shadowFilter.x}
+          y={shapeConfig.shadowFilter.y}
+          width={shapeConfig.shadowFilter.width}
+          height={shapeConfig.shadowFilter.height}
           filterUnits="userSpaceOnUse"
           colorInterpolationFilters="sRGB"
         >
@@ -77,11 +156,11 @@ export function PostItNote({ className, title, ...props }: PostItNoteProps) {
           <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape" />
         </filter>
         <linearGradient
-          id="post_it_surface_sheen"
-          x1="50.5493"
-          y1="0.0809972"
-          x2="334.244"
-          y2="441.707"
+          id={surfaceSheenId}
+          x1={shapeConfig.sheen.x1}
+          y1={shapeConfig.sheen.y1}
+          x2={shapeConfig.sheen.x2}
+          y2={shapeConfig.sheen.y2}
           gradientUnits="userSpaceOnUse"
         >
           <stop stopColor="currentColor" stopOpacity="0.12" />
@@ -89,6 +168,19 @@ export function PostItNote({ className, title, ...props }: PostItNoteProps) {
           <stop offset="0.528846" stopColor="currentColor" stopOpacity="0.04" />
           <stop offset="0.903846" stopColor="currentColor" stopOpacity="0.34" />
           <stop offset="0.961538" stopColor="currentColor" stopOpacity="0.48" />
+        </linearGradient>
+        <linearGradient
+          id={selectionGlowId}
+          x1={shapeConfig.selection.x1}
+          y1={shapeConfig.selection.y1}
+          x2={shapeConfig.selection.x2}
+          y2={shapeConfig.selection.y2}
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop stopColor="white" stopOpacity="0.96" />
+          <stop offset="0.42" stopColor="white" stopOpacity="0.5" />
+          <stop offset="0.72" stopColor="white" stopOpacity="0.78" />
+          <stop offset="1" stopColor="white" stopOpacity="0.95" />
         </linearGradient>
       </defs>
     </svg>

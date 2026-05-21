@@ -1,6 +1,6 @@
 package com.nemonicworld.flipbook.service.result;
 
-import java.awt.Color;
+import com.nemonicworld.common.exception.InternalServerException;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
@@ -41,7 +41,7 @@ public class FlipbookGifComposer {
     public byte[] compose(List<byte[]> frameImageBytes) {
         List<BufferedImage> frames = frameImageBytes.stream().map(this::readImage).toList();
         if (frames.isEmpty()) {
-            throw new IllegalStateException(RESULT_CREATE_ERROR_MESSAGE);
+            throw new InternalServerException(RESULT_CREATE_ERROR_MESSAGE);
         }
 
         BufferedImage firstFrame = frames.get(0);
@@ -64,7 +64,7 @@ public class FlipbookGifComposer {
 
             return outputStream.toByteArray();
         } catch (IOException e) {
-            throw new IllegalStateException(RESULT_CREATE_ERROR_MESSAGE, e);
+            throw new InternalServerException(RESULT_CREATE_ERROR_MESSAGE, e);
         }
     }
 
@@ -72,19 +72,19 @@ public class FlipbookGifComposer {
         try {
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
             if (image == null) {
-                throw new IllegalStateException(RESULT_CREATE_ERROR_MESSAGE);
+                throw new InternalServerException(RESULT_CREATE_ERROR_MESSAGE);
             }
 
             return image;
         } catch (IOException e) {
-            throw new IllegalStateException(RESULT_CREATE_ERROR_MESSAGE, e);
+            throw new InternalServerException(RESULT_CREATE_ERROR_MESSAGE, e);
         }
     }
 
     private ImageWriter findGifWriter() {
         Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName(GIF_FORMAT);
         if (!writers.hasNext()) {
-            throw new IllegalStateException(RESULT_CREATE_ERROR_MESSAGE);
+            throw new InternalServerException(RESULT_CREATE_ERROR_MESSAGE);
         }
 
         return writers.next();
@@ -92,7 +92,7 @@ public class FlipbookGifComposer {
 
     private void writeFrame(ImageWriter writer, BufferedImage frame) throws IOException {
         ImageWriteParam params = writer.getDefaultWriteParam();
-        ImageTypeSpecifier imageType = ImageTypeSpecifier.createFromBufferedImageType(BufferedImage.TYPE_INT_RGB);
+        ImageTypeSpecifier imageType = ImageTypeSpecifier.createFromRenderedImage(frame);
         IIOMetadata metadata = writer.getDefaultImageMetadata(imageType, params);
         configureGifMetadata(metadata);
 
@@ -102,7 +102,7 @@ public class FlipbookGifComposer {
     private void configureGifMetadata(IIOMetadata metadata) throws IOException {
         IIOMetadataNode root = (IIOMetadataNode) metadata.getAsTree(GIF_METADATA_FORMAT);
         IIOMetadataNode graphicControlExtension = getNode(root, "GraphicControlExtension");
-        graphicControlExtension.setAttribute("disposalMethod", "none");
+        graphicControlExtension.setAttribute("disposalMethod", "restoreToBackgroundColor");
         graphicControlExtension.setAttribute("userInputFlag", "FALSE");
         graphicControlExtension.setAttribute("transparentColorFlag", "FALSE");
         graphicControlExtension.setAttribute("delayTime", Integer.toString(frameDelayCentiseconds));
@@ -132,11 +132,9 @@ public class FlipbookGifComposer {
     }
 
     private BufferedImage normalize(BufferedImage source, int width, int height) {
-        BufferedImage target = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        BufferedImage target = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = target.createGraphics();
         try {
-            graphics.setColor(Color.WHITE);
-            graphics.fillRect(0, 0, width, height);
             graphics.drawImage(source, 0, 0, width, height, null);
         } finally {
             graphics.dispose();

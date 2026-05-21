@@ -1,5 +1,6 @@
 package com.nemonicworld.global.storage.minio;
 
+import com.nemonicworld.global.logging.StructuredEventLogger;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -9,7 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 /**
- * DB에 저장된 MinIO object key를 브라우저에서 접근 가능한 public URL로 변환합니다.
+ * DB에 저장된 MinIO 객체 키를 브라우저에서 접근 가능한 공개 URL로 변환합니다.
  */
 @Component
 public class MinioPublicUrlResolver {
@@ -23,7 +24,7 @@ public class MinioPublicUrlResolver {
     }
 
     /**
-     * 이미 완성된 URL은 그대로 반환하고, object key는 publicUrl/bucket과 조합합니다.
+     * 이미 완성된 URL은 그대로 반환하고, 객체 키는 publicUrl/bucket과 조합합니다.
      */
     public String resolve(String objectReference) {
         if (!StringUtils.hasText(objectReference)) {
@@ -39,8 +40,10 @@ public class MinioPublicUrlResolver {
         String bucket = trimSlashes(minioStorageProperties.bucket());
         String objectKey = trimSlashes(trimmedObjectReference);
         if (!StringUtils.hasText(publicUrl) || !StringUtils.hasText(bucket) || !StringUtils.hasText(objectKey)) {
-            log.warn("MinIO public URL을 생성할 수 없습니다. publicUrl={}, bucket={}, objectReference={}", publicUrl, bucket,
-                objectReference);
+            log.warn(
+                "MinIO public URL cannot be created. publicUrlConfigured={} bucketConfigured={} objectReferenceHash={}",
+                StringUtils.hasText(publicUrl), StringUtils.hasText(bucket),
+                StructuredEventLogger.sha256Prefix(objectReference));
 
             return null;
         }
@@ -48,7 +51,8 @@ public class MinioPublicUrlResolver {
         try {
             return "%s/%s/%s".formatted(publicUrl, encodePathSegment(bucket), encodeObjectKey(objectKey));
         } catch (RuntimeException e) {
-            log.warn("MinIO public URL 생성 중 오류가 발생했습니다. objectReference={}", objectReference, e);
+            log.warn("MinIO public URL creation failed. objectReferenceHash={}",
+                StructuredEventLogger.sha256Prefix(objectReference), e);
 
             return null;
         }

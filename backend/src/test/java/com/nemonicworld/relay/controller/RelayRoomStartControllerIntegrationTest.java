@@ -21,7 +21,7 @@ import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
-import com.nemonicworld.support.IntegrationTest;
+import com.nemonicworld.support.AbstractIntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
 import java.time.Duration;
@@ -37,23 +37,18 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@IntegrationTest
-@AutoConfigureMockMvc
-@TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
 /**
  * 릴레이 게임 시작 API의 HTTP 계약, Redis 상태 변경 범위, WebSocket 이벤트 발행을 검증합니다.
  */
-class RelayRoomStartControllerIntegrationTest {
+class RelayRoomStartControllerIntegrationTest extends AbstractIntegrationTest {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String DEFAULT_ROOM_CODE = "AB3K9Q";
@@ -270,6 +265,20 @@ class RelayRoomStartControllerIntegrationTest {
     }
 
     @Test
+    void startRelayGameRejectsBelowStoredMinimumParticipants() throws Exception {
+        UUID hostUuid = createExistingUserWithNickname("Mango");
+        UUID participantUuid = createExistingUserWithNickname("Peach");
+        storeRoom(DEFAULT_ROOM_CODE, createRoomState(RelayRoomStatus.WAITING, 45, 3, 8,
+            participant(hostUuid, "Mango", true, 0, true), participant(participantUuid, "Peach", false, 1, true)));
+
+        mockMvc.perform(post("/api/v1/relay/rooms/{roomCode}/start", DEFAULT_ROOM_CODE)
+            .header(ANONYMOUS_USER_UUID_HEADER, hostUuid.toString())).andExpect(status().isConflict());
+
+        verify(valueOperations, never()).set(anyString(), anyString(), eq(ROOM_STATE_TTL));
+        verify(relayRoomEventPublisher, never()).publishGameStarted(any(RelayRoomStateResponse.class));
+    }
+
+    @Test
     void startRelayGameRejectsDisconnectedParticipant() throws Exception {
         UUID hostUuid = createExistingUserWithNickname("Mango");
         UUID participantUuid = createExistingUserWithNickname("Peach");
@@ -453,13 +462,18 @@ class RelayRoomStartControllerIntegrationTest {
 
     private RelayRoomState createRoomState(RelayRoomStatus status, int timeLimitSeconds,
         RelayRoomParticipant... participants) {
+        return createRoomState(status, timeLimitSeconds, 2, 6, participants);
+    }
+
+    private RelayRoomState createRoomState(RelayRoomStatus status, int timeLimitSeconds, int minParticipants,
+        int maxParticipants, RelayRoomParticipant... participants) {
         LocalDateTime createdAt = LocalDateTime.now().minusMinutes(5).truncatedTo(ChronoUnit.SECONDS);
         List<RelayRoomParticipant> participantList = new ArrayList<>(List.of(participants));
         String hostUserUuid = participantList.stream().filter(RelayRoomParticipant::host).findFirst()
             .map(RelayRoomParticipant::userUuid).orElse(participantList.get(0).userUuid());
 
-        return new RelayRoomState(DEFAULT_ROOM_CODE, status, hostUserUuid, timeLimitSeconds, 2, 6, null,
-            participantList, createdAt, createdAt.plusSeconds(1));
+        return new RelayRoomState(DEFAULT_ROOM_CODE, status, hostUserUuid, timeLimitSeconds, minParticipants,
+            maxParticipants, null, participantList, createdAt, createdAt.plusSeconds(1));
     }
 
     private RelayRoomParticipant participant(UUID userUuid, String nickname, boolean host, int joinOrder,

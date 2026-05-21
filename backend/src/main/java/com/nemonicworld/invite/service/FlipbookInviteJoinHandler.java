@@ -6,8 +6,9 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
-import com.nemonicworld.flipbook.service.FlipbookInviteMetadataSyncService;
-import com.nemonicworld.flipbook.service.FlipbookRoomPolicy;
+import com.nemonicworld.flipbook.service.support.FlipbookInviteMetadataSyncService;
+import com.nemonicworld.flipbook.service.support.FlipbookRoomPolicy;
+import com.nemonicworld.global.logging.StructuredEventLogger;
 import com.nemonicworld.invite.dto.response.InviteJoinResponse;
 import com.nemonicworld.invite.redis.InviteMetadata;
 import com.nemonicworld.user.entity.AppUser;
@@ -35,6 +36,7 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
     private static final int ROOM_UPDATE_MAX_RETRIES = 3;
 
     private static final String ROOM_CLOSED_MESSAGE = "이미 종료된 방입니다.";
+    private static final String GAME_IN_PROGRESS_MESSAGE = "게임이 진행 중입니다.";
     private static final String ROOM_FULL_MESSAGE = "정원이 가득 찬 방입니다.";
     private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
     private static final String ROOM_UPDATE_CONFLICT_MESSAGE = "동시 입장 요청이 많아 방 입장 상태를 갱신하지 못했습니다. 다시 시도해주세요.";
@@ -71,7 +73,9 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
             // 이미 참여자 목록에 있으면 새로 추가하지 않고 그대로 성공 응답한다.
             // 이게 멱등 처리. 같은 API를 여러 번 호출해도 중복 참가자가 생기지 않음.
             if (existingParticipant.isPresent()) {
-                flipbookRoomPolicy.validateExistingParticipantReturn(roomState, existingParticipant.get(), now);
+                FlipbookRoomParticipant participant = existingParticipant.get();
+                flipbookRoomPolicy.validateExistingParticipantReturn(roomState, participant, now);
+                logParticipantJoined(roomState, participant.joinOrder(), userUuid, true);
                 return createResponse(invite, roomState, userUuid, true);
             }
 
@@ -89,6 +93,7 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
             // 현재 상태가 초기 상태와 같다면 복사본으로 대체
             if (flipbookRoomRepository.saveIfUnchanged(roomState, updatedRoomState)) {
                 flipbookInviteMetadataSyncService.syncWithRoomState(updatedRoomState);
+                logParticipantJoined(updatedRoomState, nextJoinOrder(roomState), userUuid, false);
                 return createResponse(invite, updatedRoomState, userUuid, false);
             }
         }
@@ -101,6 +106,10 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
      * 초대코드 신규 입장은 아직 시작 전인 플립북 대기방에서만 허용합니다.
      */
     private void validateJoinableRoom(FlipbookRoomState roomState) {
+        if (roomState.status() == FlipbookRoomStatus.PLAYING) {
+            throw new ConflictException(GAME_IN_PROGRESS_MESSAGE);
+        }
+
         if (roomState.status() != FlipbookRoomStatus.WAITING) {
             throw new ConflictException(ROOM_CLOSED_MESSAGE);
         }
@@ -138,6 +147,15 @@ public class FlipbookInviteJoinHandler implements InviteJoinHandler {
     private int nextJoinOrder(FlipbookRoomState roomState) {
         return roomState.participants().stream().map(FlipbookRoomParticipant::joinOrder).max(Comparator.naturalOrder())
             .orElse(-1) + 1;
+    }
+
+    private void logParticipantJoined(FlipbookRoomState roomState, int joinOrder, String userUuid,
+        boolean reconnectAttempt) {
+        StructuredEventLogger.apiBusiness("flipbook_participant_joined", "flipbook", userUuid,
+            StructuredEventLogger.metadata("room_id", roomState.roomCode(), "uuid", userUuid, "participant_count",
+                roomState.participantCount(), "max_participants", roomState.maxParticipants(), "join_order", joinOrder,
+                "room_status", roomState.status(), "reconnect_attempt", reconnectAttempt, "already_joined",
+                reconnectAttempt));
     }
 
     /**

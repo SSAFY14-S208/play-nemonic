@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.atLeastOnce;
@@ -20,8 +21,13 @@ import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.service.support.RelayRoomParticipantLimit;
+import com.nemonicworld.relay.service.support.RelayRoomPolicy;
+import com.nemonicworld.relay.service.support.RelayRoomTimeLimitSettings;
+import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
+import com.nemonicworld.relay.service.support.RelayRuntimeSettingsSnapshot;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
-import com.nemonicworld.support.IntegrationTest;
+import com.nemonicworld.support.AbstractIntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
 import java.time.Duration;
@@ -37,29 +43,24 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@IntegrationTest
-@AutoConfigureMockMvc
-@TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
 /**
  * 릴레이 방 설정 변경 API의 HTTP 계약, Redis 저장 범위, 이벤트 발행을 검증합니다.
  */
-class RelayRoomSettingsControllerIntegrationTest {
+class RelayRoomSettingsControllerIntegrationTest extends AbstractIntegrationTest {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String DEFAULT_ROOM_CODE = "AB3K9Q";
     private static final Duration ROOM_STATE_TTL = Duration.ofHours(24);
-    private static final String INVALID_TIME_LIMIT_SECONDS_MESSAGE = "제한 시간은 30초, 45초, 60초 중 하나여야 합니다.";
+    private static final String INVALID_TIME_LIMIT_SECONDS_MESSAGE = "허용되지 않는 릴레이 제한 시간입니다.";
 
     @Autowired
     private MockMvc mockMvc;
@@ -78,6 +79,9 @@ class RelayRoomSettingsControllerIntegrationTest {
 
     @MockitoBean
     private RelayRoomEventPublisher relayRoomEventPublisher;
+
+    @MockitoBean
+    private RelayRuntimeSettingsProvider relayRuntimeSettingsProvider;
 
     private RedisOperations<String, String> redisOperations;
     private ValueOperations<String, String> valueOperations;
@@ -100,6 +104,10 @@ class RelayRoomSettingsControllerIntegrationTest {
 
             return callback.execute(redisOperations);
         });
+        lenient().when(relayRuntimeSettingsProvider.currentRoomTimeLimitSettings())
+            .thenReturn(RelayRoomTimeLimitSettings.defaultSettings());
+        lenient().when(relayRuntimeSettingsProvider.currentSettingsSnapshot())
+            .thenReturn(defaultRuntimeSettingsSnapshot());
     }
 
     /**
@@ -535,6 +543,12 @@ class RelayRoomSettingsControllerIntegrationTest {
         }
 
         throw new AssertionError("Redis 저장 key를 찾을 수 없습니다. expectedKey=" + expectedKey);
+    }
+
+    private RelayRuntimeSettingsSnapshot defaultRuntimeSettingsSnapshot() {
+        return new RelayRuntimeSettingsSnapshot(RelayRoomParticipantLimit.defaultLimit(),
+            RelayRoomTimeLimitSettings.defaultSettings(),
+            Duration.ofSeconds(RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS));
     }
 
     @SuppressWarnings("unchecked")

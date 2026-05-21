@@ -42,10 +42,12 @@
  */
 export class ApiError extends Error {
   readonly errors?: Record<string, string>
+  readonly data?: unknown
 
-  constructor(message: string, errors?: Record<string, string>) {
+  constructor(message: string, errors?: Record<string, string>, data?: unknown) {
     super(message)
     this.name = 'ApiError'
     this.errors = errors
+    this.data = data
   }
 }

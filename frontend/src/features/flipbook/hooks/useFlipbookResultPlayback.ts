@@ -1,8 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import type { FlipbookStep } from '../constants'
-import type { FlipbookFrame } from '../types'
+import type { FlipbookFrame, FlipbookStep } from '../types'
 
 export function useFlipbookResultPlayback({
   currentStep,
@@ -30,6 +29,13 @@ export function useFlipbookResultPlayback({
     setResultFrameIndex((currentFrameIndex) => Math.min(frames.length - 1, currentFrameIndex + 1))
   }, [frames.length])
 
+  const showResultFrame = useCallback(
+    (frameIndex: number) => {
+      setResultFrameIndex(Math.min(Math.max(0, frameIndex), Math.max(0, frames.length - 1)))
+    },
+    [frames.length],
+  )
+
   useEffect(() => {
     if (currentStep !== 'result' || !isGifPlaying || frames.length <= 1) return
 
@@ -50,6 +56,7 @@ export function useFlipbookResultPlayback({
     canGoNextResultFrame,
     resetResultFrameIndex,
     setIsGifPlaying,
+    showResultFrame,
     showPreviousResultFrame,
     showNextResultFrame,
   }

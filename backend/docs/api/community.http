@@ -8,6 +8,13 @@
 ### Get community memos
 GET {{host}}/api/v1/community/memos
 
+# Response item includes saved decoration so the frontend can restore memoColor after refresh.
+# Example item field:
+# "decoration": {
+#   "kind": "community-direct-v1",
+#   "memoColor": "#ffe887"
+# }
+
 ### Get community memos with viewer UUID
 GET {{host}}/api/v1/community/memos
 Anonymous-User-UUID: {{anonymousUserUuid}}
@@ -23,12 +30,168 @@ GET {{host}}/api/v1/community/memos/{{memoId}}
 GET {{host}}/api/v1/community/memos/{{memoId}}
 Anonymous-User-UUID: {{anonymousUserUuid}}
 
+### 커뮤니티 메모 QR 공유 이미지 생성
+POST {{host}}/api/v1/community/memos/{{memoId}}/share
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
 ### Get community memo detail - invalid memo UUID
 GET {{host}}/api/v1/community/memos/not-a-uuid
 
 ### Get community memo detail - invalid anonymous user UUID
 GET {{host}}/api/v1/community/memos/{{memoId}}
 Anonymous-User-UUID: not-a-uuid
+
+### Update community memo position
+PATCH {{host}}/api/v1/community/memos/{{memoId}}
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "positionX": 120.5,
+  "positionY": -30.0,
+  "zIndex": 12,
+  "rotationDeg": 5.5
+}
+
+### Update community memo position - invalid memo UUID
+PATCH {{host}}/api/v1/community/memos/not-a-uuid
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "positionX": 120.5,
+  "positionY": -30.0,
+  "zIndex": 12,
+  "rotationDeg": 5.5
+}
+
+### Update community memo position - invalid anonymous user UUID
+PATCH {{host}}/api/v1/community/memos/{{memoId}}
+Content-Type: application/json
+Anonymous-User-UUID: not-a-uuid
+
+{
+  "positionX": 120.5,
+  "positionY": -30.0,
+  "zIndex": 12,
+  "rotationDeg": 5.5
+}
+
+### Update community memo position - invalid position
+PATCH {{host}}/api/v1/community/memos/{{memoId}}
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "positionY": -30.0,
+  "zIndex": 12,
+  "rotationDeg": 5.5
+}
+
+### Update community memo position - forbidden owner
+PATCH {{host}}/api/v1/community/memos/{{memoId}}
+Content-Type: application/json
+Anonymous-User-UUID: 00000000-0000-0000-0000-000000000001
+
+{
+  "positionX": 120.5,
+  "positionY": -30.0,
+  "zIndex": 12,
+  "rotationDeg": 5.5
+}
+
+### Delete community memo
+DELETE {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Delete community memo - invalid memo UUID
+DELETE {{host}}/api/v1/community/memos/not-a-uuid
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Delete community memo - invalid anonymous user UUID
+DELETE {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: not-a-uuid
+
+### Delete community memo - forbidden owner
+DELETE {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: 00000000-0000-0000-0000-000000000001
+
+### Delete community memo - already deleted memo
+# Use a memoId whose deleted_at is already set. The API returns 404.
+DELETE {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Delete community memo - hidden memo
+# Use a hidden memoId. The API returns 404.
+DELETE {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Report community memo
+POST {{host}}/api/v1/community/memos/{{memoId}}/reports
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "reason": "욕설/비방/혐오",
+  "reasonDetail": "욕설이 포함되어 있어요."
+}
+
+### Report community memo - invalid memo UUID
+POST {{host}}/api/v1/community/memos/not-a-uuid/reports
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "reason": "부적절한 콘텐츠"
+}
+
+### Report community memo - invalid anonymous user UUID
+POST {{host}}/api/v1/community/memos/{{memoId}}/reports
+Content-Type: application/json
+Anonymous-User-UUID: not-a-uuid
+
+{
+  "reason": "부적절한 콘텐츠"
+}
+
+### Report community memo - invalid reason
+POST {{host}}/api/v1/community/memos/{{memoId}}/reports
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "reason": "unknown"
+}
+
+### Report community memo - duplicate report
+# Use the same anonymous user UUID and memoId again. The API returns 409.
+POST {{host}}/api/v1/community/memos/{{memoId}}/reports
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "reason": "스팸/광고"
+}
+
+### Report community memo - own memo
+# Use a memoId created by the same anonymous user. The API returns 400.
+POST {{host}}/api/v1/community/memos/{{memoId}}/reports
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "reason": "기타"
+}
+
+### Report community memo - hidden or deleted memo
+# Use a hidden or deleted memoId. The API returns 404.
+POST {{host}}/api/v1/community/memos/{{memoId}}/reports
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "reason": "부적절한 콘텐츠"
+}
 
 ### Create community memo from final rendered direct snapshot
 POST {{host}}/api/v1/community/memos
@@ -45,6 +208,8 @@ Anonymous-User-UUID: {{anonymousUserUuid}}
   "zIndex": 1,
   "rotationDeg": 0.0,
   "decoration": {
+    "kind": "community-direct-v1",
+    "memoColor": "#ffe887",
     "layers": []
   },
   "clientText": "텍스트박스 원문"

@@ -1,27 +1,62 @@
 'use client'
-import { Canvas } from '@react-three/fiber'
-import { cn } from '@/shared/libs'
-import { useHubViewStore } from '@/shared/stores'
-import { HUB_CAMERA_FAR, HUB_CAMERA_FOV } from './constants'
-import HubScene from './HubScene'
-import { useHubCanvasLifecycle } from './hooks'
 
-export default function HubCanvas() {
-  const { handleCanvasCreated } = useHubCanvasLifecycle()
-  const isDragging = useHubViewStore((state) => state.isDragging)
+import { Canvas } from '@react-three/fiber'
+import { useEffect } from 'react'
+import * as THREE from 'three'
+import {
+  HUB_CAMERA_PRESETS,
+  HUB_PERFORMANCE_PROFILES,
+} from '@/shared/constants'
+import type { HubPerformanceMode } from '@/shared/types'
+import { startHubPerformanceDiagnostics } from '@/shared/utils'
+import HubScene from './HubScene'
+
+export default function HubCanvas({
+  onCanvasReady,
+  performanceMode,
+}: {
+  onCanvasReady?: () => void
+  performanceMode: HubPerformanceMode
+}) {
+  const overviewCamera = HUB_CAMERA_PRESETS.overview
+  const performanceProfile = HUB_PERFORMANCE_PROFILES[performanceMode]
+
+  useEffect(() => {
+    return startHubPerformanceDiagnostics(performanceMode)
+  }, [performanceMode])
 
   return (
     <Canvas
-      camera={{ position: [0, 2.65, 13.9], fov: HUB_CAMERA_FOV, near: 0.1, far: HUB_CAMERA_FAR }}
-      gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-      onCreated={handleCanvasCreated}
-      className={cn(
-        'absolute inset-0 z-[1] h-full w-full',
-        isDragging ? 'cursor-grabbing' : 'cursor-grab',
-      )}
-      dpr={[1, 2]}
+      frameloop="demand"
+      shadows={performanceProfile.shadows}
+      className="absolute inset-0 z-[1] h-full w-full cursor-grab active:cursor-grabbing"
+      camera={{
+        position: overviewCamera.position,
+        fov: 64,
+        near: 0.1,
+        far: 80,
+      }}
+      dpr={performanceProfile.dpr}
+      gl={{
+        antialias: true,
+        alpha: false,
+        powerPreference: 'high-performance',
+      }}
+      onCreated={({ camera, gl }) => {
+        camera.lookAt(
+          overviewCamera.target[0],
+          overviewCamera.target[1],
+          overviewCamera.target[2],
+        )
+        gl.outputColorSpace = THREE.SRGBColorSpace
+        gl.toneMapping = THREE.ACESFilmicToneMapping
+        gl.toneMappingExposure = performanceProfile.toneMappingExposure
+        gl.shadowMap.enabled = performanceProfile.shadows
+        gl.shadowMap.type = THREE.PCFSoftShadowMap
+        onCanvasReady?.()
+      }}
     >
-      <HubScene />
+      <HubScene performanceMode={performanceMode} />
     </Canvas>
   )
 }

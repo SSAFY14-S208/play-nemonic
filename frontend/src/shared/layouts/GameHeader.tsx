@@ -14,12 +14,12 @@ interface GameNavigationItem {
 }
 
 const GAME_NAVIGATION_ITEMS: GameNavigationItem[] = [
-  { key: 'square', label: '광장', href: '/hub' },
-  { key: 'fortune', label: '운세', href: '/hub' },
+  { key: 'square', label: '광장', href: '/' },
+  { key: 'fortune', label: '운세', href: '/' },
   { key: 'infinite', label: '무한', href: '/infinite-canvas' },
   { key: 'flipbook', label: '플립북', href: '/flipbook' },
   { key: 'relay', label: '릴레이', href: '/relay-drawing' },
-  { key: 'community', label: '커뮤니티', href: '/hub' },
+  { key: 'community', label: '커뮤니티', href: '/' },
 ]
 
 function getActiveNavigationKey(pathname: string): GameNavigationKey | null {
@@ -37,11 +37,11 @@ export default function GameHeader() {
   return (
     <header className="sticky top-0 z-[var(--z-sticky)] border-b border-relay-border bg-relay-header/95 backdrop-blur-md">
       <div className="mx-auto flex h-[72px] w-full max-w-[1440px] items-center justify-between px-6">
-        <Link href="/hub" className="flex items-center gap-3 text-relay-ink">
+        <Link href="/" className="flex items-center gap-3 text-relay-ink">
           <span className="grid size-8 place-items-center rounded-[var(--radius-md)] bg-relay-blue text-fg-inverse shadow-sm">
             N
           </span>
-          <span className="body-b">네모닉 월드</span>
+          <span className="body-b">Play! Nemonic</span>
         </Link>
 
         <nav className="hidden items-center gap-5 md:flex">

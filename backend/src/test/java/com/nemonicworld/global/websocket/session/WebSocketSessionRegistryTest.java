@@ -47,6 +47,36 @@ class WebSocketSessionRegistryTest {
         assertThat(registry.findCurrentSession(ROOM_CODE, USER_UUID)).isEmpty();
     }
 
+    @Test
+    void hasCurrentSessionUsesConnectionType() {
+        registry.register(WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK, ROOM_CODE, USER_UUID, "session-1");
+
+        assertThat(registry.hasCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE, USER_UUID))
+            .isFalse();
+        assertThat(
+            registry.hasCurrentSession(WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK, ROOM_CODE, USER_UUID))
+            .isTrue();
+    }
+
+    /**
+     * 연결 종류와 roomCode가 같은 최신 세션만 조회합니다.
+     */
+    @Test
+    void findCurrentSessionsReturnsCurrentSessionsForConnectionTypeAndRoom() {
+        String secondUserUuid = "550e8400-e29b-41d4-a716-446655440001";
+        String flipbookUserUuid = "550e8400-e29b-41d4-a716-446655440002";
+        String otherRoomUserUuid = "550e8400-e29b-41d4-a716-446655440003";
+        registry.register(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE, USER_UUID, "session-1");
+        registry.register(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE, USER_UUID, "session-2");
+        registry.register(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE, secondUserUuid, "session-3");
+        registry.register(WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK, ROOM_CODE, flipbookUserUuid,
+            "session-4");
+        registry.register(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, "OTHER1", otherRoomUserUuid, "session-5");
+
+        assertThat(registry.findCurrentSessions(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE))
+            .extracting(ActiveWebSocketSession::sessionId).containsExactlyInAnyOrder("session-2", "session-3");
+    }
+
     /**
      * 교체된 이전 세션을 제거해도 최신 세션 매핑은 지워지지 않습니다.
      */

@@ -1,12 +1,19 @@
+# syntax=docker/dockerfile:1.7
 # ============================================================
 # Next.js 16 Standalone Dockerfile (pnpm)
 #
 # 빌드 최적화:
-# - builder 단일 스테이지에서 install + build (pnpm symlink 구조와
-#   Docker stage 간 COPY 충돌 회피)
+# - BuildKit cache mount으로 pnpm store / .next/cache를 레이어 밖에 격리
+#   (containerd가 .pnpm/ 가상 스토어 diff tar 만들 때 발생하던 race 회피)
 # - corepack으로 pnpm 버전 pin (재현 가능한 빌드)
 # - 최종 runner는 .next/standalone만 복사해 이미지 크기 최소화
 # - non-root user (보안)
+#
+# build-arg:
+#   NEXT_PUBLIC_API_URL                   — 클라이언트 번들에 인라인되는 API URL
+#   NEXT_PUBLIC_WEBSOCKET_URL             — 클라이언트 번들에 인라인되는 WS URL
+#   NEXT_PUBLIC_GRAFANA_URL               — 백오피스 대시보드 iframe 임베딩 URL
+#   NEXT_PUBLIC_OPENSEARCH_DASHBOARDS_URL — 백오피스 통계 iframe 임베딩 URL
 # ============================================================
 
 # ===== Stage 1: Builder =====
@@ -22,12 +29,19 @@ RUN corepack enable && \
 
 WORKDIR /app
 
+# pnpm content-addressed store를 cache mount용 고정 경로로 둠
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+
 # 의존성 파일만 먼저 복사 → 캐시 레이어 활용
 # pnpm-workspace.yaml, .npmrc는 있을 수도 없을 수도 있어서 * 사용
 COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* .npmrc* ./
 
 # --frozen-lockfile: lockfile과 package.json 불일치 시 실패 (재현 가능한 빌드)
-RUN pnpm install --frozen-lockfile
+# cache mount로 store를 레이어 밖에 두어 .pnpm/ symlink 그래프 commit race 회피
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store && \
+    pnpm install --frozen-lockfile
 
 # 소스 복사
 COPY . .
@@ -38,11 +52,27 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # 빌드 메모리 여유 (Next.js 빌드는 메모리 많이 씀)
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
+# NEXT_PUBLIC_*는 next build 시점에 클라이언트 번들에 인라인됨.
+# 런타임 env로는 브라우저 번들 못 바꾸므로 반드시 빌드 타임에 주입.
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_WEBSOCKET_URL
+ARG NEXT_PUBLIC_GRAFANA_URL
+ARG NEXT_PUBLIC_OPENSEARCH_DASHBOARDS_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WEBSOCKET_URL=$NEXT_PUBLIC_WEBSOCKET_URL
+ENV NEXT_PUBLIC_GRAFANA_URL=$NEXT_PUBLIC_GRAFANA_URL
+ENV NEXT_PUBLIC_OPENSEARCH_DASHBOARDS_URL=$NEXT_PUBLIC_OPENSEARCH_DASHBOARDS_URL
+
 # 빌드 (next.config의 output: 'standalone' 필요)
-RUN pnpm build
+# .next/cache도 cache mount로 빼서 레이어 commit 안정화 + 빌드 캐시 재사용
+RUN --mount=type=cache,id=next-cache,target=/app/.next/cache \
+    pnpm build
 
 # ===== Stage 2: Runner =====
 FROM node:20-alpine AS runner
+
+# sharp 네이티브 바인딩에 필요
+RUN apk add --no-cache libc6-compat
 
 WORKDIR /app
 

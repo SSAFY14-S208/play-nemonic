@@ -14,16 +14,21 @@ import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomHostChangedEventRespo
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantKickedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantDroppedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomParticipantLeftEventResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomResultCreatedEventResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoomSimpleMessageResponse;
 import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundStartedEventResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundTimeUpEventResponse;
+import com.nemonicworld.flipbook.dto.websocket.FlipbookRoundTimeUpEventResponse.PendingSubmission;
 import com.nemonicworld.flipbook.redis.FlipbookFrameAssignment;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookDroppedParticipantResult;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookHostChangeResult;
+import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationResult;
 import com.nemonicworld.global.websocket.session.WebSocketSessionAttributes;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry;
 import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.ActiveWebSocketSession;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -46,6 +51,7 @@ public class FlipbookRoomEventPublisher {
     private static final CloseStatus KICKED_FROM_ROOM_CLOSE_STATUS = CloseStatus.POLICY_VIOLATION
         .withReason("KICKED_FROM_ROOM");
     private static final CloseStatus LEFT_ROOM_CLOSE_STATUS = CloseStatus.NORMAL.withReason("LEFT_ROOM");
+    private static final CloseStatus ROOM_CLOSED_CLOSE_STATUS = CloseStatus.NORMAL.withReason("ROOM_CLOSED");
     private static final String PONG_MESSAGE = "pong";
 
     private final SimpMessagingTemplate messagingTemplate;
@@ -102,6 +108,18 @@ public class FlipbookRoomEventPublisher {
     }
 
     /**
+     * 현재 라운드 제한 시간이 끝나 클라이언트가 현재 캔버스를 제출해야 함을 방 전체에 알립니다.
+     */
+    public void publishRoundTimeUp(String roomCode, int round, LocalDateTime roundDeadlineAt,
+        LocalDateTime submitGraceDeadlineAt, long autoSubmitGraceMillis, List<PendingSubmission> pendingSubmissions) {
+        FlipbookRoomEventResponse event = FlipbookRoomEventResponse.of(FlipbookRoomEventType.ROUND_TIME_UP, roomCode,
+            new FlipbookRoundTimeUpEventResponse(roomCode, round, roundDeadlineAt, submitGraceDeadlineAt,
+                autoSubmitGraceMillis, pendingSubmissions == null ? 0 : pendingSubmissions.size(), pendingSubmissions));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
+    }
+
+    /**
      * 마감 시간으로 프레임이 빈 제출 처리되었음을 방 전체에 알립니다.
      */
     public void publishFrameAutoSubmitted(String roomCode, String nickname, FlipbookFrameAssignment assignment) {
@@ -130,6 +148,16 @@ public class FlipbookRoomEventPublisher {
             roomCode, new FlipbookAllRoundsCompletedEventResponse(roomCode, roomStatus, completedAt));
 
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
+    }
+
+    /**
+     * 최종 GIF 결과 생성과 갤러리 저장이 완료되었음을 방 전체에 알립니다.
+     */
+    public void publishResultCreated(FlipbookRoomFinalizationResult finalizationResult) {
+        FlipbookRoomEventResponse event = FlipbookRoomEventResponse.of(FlipbookRoomEventType.RESULT_CREATED,
+            finalizationResult.roomCode(), FlipbookRoomResultCreatedEventResponse.from(finalizationResult));
+
+        messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + finalizationResult.roomCode(), event);
     }
 
     /**
@@ -182,13 +210,27 @@ public class FlipbookRoomEventPublisher {
     }
 
     /**
-     * 마지막 참여자 퇴장으로 방이 종료되었음을 방 전체에 알립니다.
+     * 방이 종료되었음을 방 전체에 알립니다.
      */
     public void publishRoomClosed(String roomCode, LocalDateTime closedAt) {
+        publishRoomClosed(roomCode, closedAt, null);
+    }
+
+    /**
+     * 방 종료 사유와 함께 방이 종료되었음을 방 전체에 알립니다.
+     */
+    public void publishRoomClosed(String roomCode, LocalDateTime closedAt, String closeReason) {
         FlipbookRoomEventResponse event = FlipbookRoomEventResponse.of(FlipbookRoomEventType.ROOM_CLOSED, roomCode,
-            new FlipbookRoomClosedEventResponse(roomCode, FlipbookRoomStatus.CLOSED, closedAt));
+            new FlipbookRoomClosedEventResponse(roomCode, FlipbookRoomStatus.CLOSED, closedAt, closeReason));
 
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomCode, event);
+        closeRoomSessions(roomCode);
+    }
+
+    private void closeRoomSessions(String roomCode) {
+        webSocketSessionRegistry.findCurrentSessions(WebSocketSessionAttributes.CONNECTION_TYPE_FLIPBOOK, roomCode)
+            .forEach(session -> webSocketSessionRegistry.closeWebSocketSession(session.sessionId(),
+                ROOM_CLOSED_CLOSE_STATUS));
     }
 
     /**

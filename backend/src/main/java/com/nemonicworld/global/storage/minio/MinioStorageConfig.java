@@ -18,20 +18,20 @@ public class MinioStorageConfig {
     @Primary
     public MinioClient minioClient(MinioStorageProperties properties) {
         return MinioClient.builder().endpoint(properties.endpoint())
-            .credentials(properties.accessKey(), properties.secretKey()).build();
+            .credentials(properties.accessKey(), properties.secretKey()).region(properties.region()).build();
     }
 
     /**
-     * 프론트/앱이 직접 접근할 presigned URL은 공개 origin 기준으로 서명합니다.
+     * 프론트/앱이 직접 접근할 사전 서명 URL은 공개 origin 기준으로 서명합니다.
      *
      * <p>
      * MinIO Java SDK는 endpoint에 path를 허용하지 않으므로, public-url이 /minio 같은 path를 포함해도
-     * origin만 사용해 presigned URL을 생성합니다. 실제 반환 URL의 path prefix는 FileService에서 붙입니다.
+     * origin만 사용해 사전 서명 URL을 생성합니다. 실제 반환 URL의 경로 접두사는 FileService에서 붙입니다.
      */
     @Bean
     public MinioClient publicMinioClient(MinioStorageProperties properties) {
         return MinioClient.builder().endpoint(publicOrigin(properties.publicUrl()))
-            .credentials(properties.accessKey(), properties.secretKey()).build();
+            .credentials(properties.accessKey(), properties.secretKey()).region(properties.region()).build();
     }
 
     private String publicOrigin(String publicUrl) {

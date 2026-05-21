@@ -1,12 +1,15 @@
 package com.nemonicworld.flipbook.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.common.openapi.OpenApiCommonResponses;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.flipbook.dto.request.FlipbookFrameSubmitRequest;
 import com.nemonicworld.flipbook.dto.request.FlipbookRoomKickRequest;
 import com.nemonicworld.flipbook.dto.request.FlipbookRoomSettingsRequest;
 import com.nemonicworld.flipbook.dto.response.FlipbookFrameSubmitResponse;
+import com.nemonicworld.flipbook.dto.response.FlipbookRoomCloseResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomCreateResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomKickResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomLeaveResponse;
@@ -14,6 +17,7 @@ import com.nemonicworld.flipbook.dto.response.FlipbookRoomMyAssignmentResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomResultsResponse;
 import com.nemonicworld.flipbook.dto.response.FlipbookRoomStateResponse;
 import com.nemonicworld.flipbook.service.FlipbookRoomService;
+import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationTriggerService;
 import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -37,7 +41,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/flipbook/rooms")
-@Tag(name = "Flipbook", description = "플립북 API")
+@Tag(name = OpenApiTags.FLIPBOOK, description = OpenApiTags.FLIPBOOK_DESCRIPTION)
 public class FlipbookRoomController {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
@@ -48,16 +52,21 @@ public class FlipbookRoomController {
     private static final String FLIPBOOK_MY_ASSIGNMENT_FOUND_MESSAGE = "내 플립북 프레임 배정 조회 성공";
     private static final String FLIPBOOK_FRAME_SUBMITTED_MESSAGE = "플립북 프레임 제출 성공";
     private static final String FLIPBOOK_RESULTS_FOUND_MESSAGE = "플립북 결과 조회 성공";
+    private static final String FLIPBOOK_ROOM_CLOSED_MESSAGE = "플립북 방 종료 성공";
+    private static final String FLIPBOOK_ROOM_ALREADY_CLOSED_MESSAGE = "이미 종료된 방입니다.";
     private static final String FLIPBOOK_ROOM_PARTICIPANT_KICKED_MESSAGE = "참여자 강퇴 성공";
     private static final String FLIPBOOK_ROOM_LEFT_MESSAGE = "플립북 방 퇴장 성공";
 
     private final FlipbookRoomService flipbookRoomService;
     private final FlipbookRoomEventPublisher flipbookRoomEventPublisher;
+    private final FlipbookRoomFinalizationTriggerService flipbookRoomFinalizationTriggerService;
 
     public FlipbookRoomController(FlipbookRoomService flipbookRoomService,
-        FlipbookRoomEventPublisher flipbookRoomEventPublisher) {
+        FlipbookRoomEventPublisher flipbookRoomEventPublisher,
+        FlipbookRoomFinalizationTriggerService flipbookRoomFinalizationTriggerService) {
         this.flipbookRoomService = flipbookRoomService;
         this.flipbookRoomEventPublisher = flipbookRoomEventPublisher;
+        this.flipbookRoomFinalizationTriggerService = flipbookRoomFinalizationTriggerService;
     }
 
     /**
@@ -72,7 +81,7 @@ public class FlipbookRoomController {
             @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
             @ExampleObject(name = "닉네임 미설정", value = OpenApiErrorExamples.FLIPBOOK_NICKNAME_REQUIRED)})),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 사용자", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.USER_NOT_FOUND))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<ApiResponse<FlipbookRoomCreateResponse>> createRoom(
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
         FlipbookRoomCreateResponse response = flipbookRoomService.createRoom(userUuid);
@@ -96,7 +105,7 @@ public class FlipbookRoomController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 리소스", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
             @ExampleObject(name = "방 없음", value = OpenApiErrorExamples.FLIPBOOK_ROOM_NOT_FOUND)})),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<ApiResponse<FlipbookRoomStateResponse>> getRoomState(
         @PathVariable("roomCode") String roomCode,
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
@@ -128,7 +137,7 @@ public class FlipbookRoomController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "설정 변경 불가 상태", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "대기방 상태 아님", value = OpenApiErrorExamples.FLIPBOOK_WAITING_ROOM_SETTINGS_ONLY),
             @ExampleObject(name = "동시 변경 충돌", value = OpenApiErrorExamples.FLIPBOOK_ROOM_UPDATE_CONFLICT)})),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<ApiResponse<FlipbookRoomStateResponse>> updateRoomSettings(
         @PathVariable("roomCode") String roomCode,
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
@@ -164,7 +173,7 @@ public class FlipbookRoomController {
             @ExampleObject(name = "인원 부족", value = OpenApiErrorExamples.FLIPBOOK_NOT_ENOUGH_PARTICIPANTS),
             @ExampleObject(name = "연결 끊김", value = OpenApiErrorExamples.FLIPBOOK_PARTICIPANTS_DISCONNECTED),
             @ExampleObject(name = "동시 변경 충돌", value = OpenApiErrorExamples.FLIPBOOK_ROOM_START_UPDATE_CONFLICT)})),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<ApiResponse<FlipbookRoomStateResponse>> startRoom(@PathVariable("roomCode") String roomCode,
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
         FlipbookRoomStateResponse response = flipbookRoomService.startRoom(userUuid, roomCode);
@@ -194,7 +203,7 @@ public class FlipbookRoomController {
             @ExampleObject(name = "게임 시작 전", value = OpenApiErrorExamples.FLIPBOOK_GAME_NOT_STARTED),
             @ExampleObject(name = "종료된 방", value = OpenApiErrorExamples.FLIPBOOK_ROOM_CLOSED),
             @ExampleObject(name = "배정 없음", value = OpenApiErrorExamples.FLIPBOOK_CURRENT_ASSIGNMENT_NOT_FOUND)})),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<ApiResponse<FlipbookRoomMyAssignmentResponse>> getMyAssignment(
         @PathVariable("roomCode") String roomCode,
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
@@ -236,16 +245,70 @@ public class FlipbookRoomController {
             @ExampleObject(name = "파일 상태 충돌", value = OpenApiErrorExamples.FLIPBOOK_FRAME_FILE_STATUS_CONFLICT),
             @ExampleObject(name = "파일 목적 충돌", value = OpenApiErrorExamples.FLIPBOOK_FRAME_FILE_PURPOSE_CONFLICT),
             @ExampleObject(name = "동시 제출 충돌", value = OpenApiErrorExamples.FLIPBOOK_FRAME_SUBMIT_UPDATE_CONFLICT)})),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<ApiResponse<FlipbookFrameSubmitResponse>> submitFrame(
         @PathVariable("roomCode") String roomCode, @PathVariable("round") int round,
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid,
         @RequestBody(required = false) FlipbookFrameSubmitRequest request) {
         FlipbookFrameSubmitResponse response = flipbookRoomService.submitFrame(userUuid, roomCode, round, request);
         flipbookRoomEventPublisher.publishFrameSubmitted(response);
+        publishRoundAdvanceEvent(response);
 
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(FLIPBOOK_FRAME_SUBMITTED_MESSAGE, response));
+    }
+
+    private void publishRoundAdvanceEvent(FlipbookFrameSubmitResponse response) {
+        if (!response.advanced()) {
+            return;
+        }
+
+        if (response.allRoundsCompleted()) {
+            flipbookRoomEventPublisher.publishAllRoundsCompleted(response.roomCode(), response.roomStatus(),
+                response.submittedAt());
+            flipbookRoomFinalizationTriggerService.triggerFinalizationAsync(response.roomCode());
+            return;
+        }
+
+        if (response.nextRound() != null) {
+            flipbookRoomEventPublisher.publishRoundStarted(response.roomCode(), response.round(), response.nextRound(),
+                response.nextRoundStartedAt(), response.nextRoundDeadlineAt());
+        }
+    }
+
+    /**
+     * 방장이 결과 생성이 완료된 플립북 방을 즉시 닫습니다.
+     */
+    @PostMapping("/{roomCode}/close")
+    @Operation(summary = "플립북 방 수동 종료", description = "방장이 결과 생성이 완료된 플립북 방을 즉시 CLOSED 상태로 전환합니다.")
+    @Parameter(name = "roomCode", in = ParameterIn.PATH, required = true)
+    @Parameter(name = ANONYMOUS_USER_UUID_HEADER, in = ParameterIn.HEADER, required = true)
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "플립북 방 종료 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "UUID 형식 오류", value = OpenApiErrorExamples.INVALID_UUID),
+            @ExampleObject(name = "방코드 형식 오류", value = OpenApiErrorExamples.INVALID_ROOM_CODE)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "종료 권한 없음", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "비참여자", value = OpenApiErrorExamples.FLIPBOOK_ROOM_PARTICIPANT_REQUIRED),
+            @ExampleObject(name = "방장 아님", value = OpenApiErrorExamples.FLIPBOOK_ROOM_CLOSE_HOST_REQUIRED)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 리소스", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
+            @ExampleObject(name = "방 없음", value = OpenApiErrorExamples.FLIPBOOK_ROOM_NOT_FOUND)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "종료 불가 상태", content = @Content(mediaType = "application/json", examples = {
+            @ExampleObject(name = "결과 생성 전", value = OpenApiErrorExamples.FLIPBOOK_CLOSE_BEFORE_RESULT),
+            @ExampleObject(name = "게임 진행 중", value = OpenApiErrorExamples.FLIPBOOK_CLOSE_WHILE_PLAYING),
+            @ExampleObject(name = "결과 생성 중", value = OpenApiErrorExamples.FLIPBOOK_CLOSE_WHILE_FINALIZING),
+            @ExampleObject(name = "동시 변경 충돌", value = OpenApiErrorExamples.FLIPBOOK_ROOM_UPDATE_CONFLICT)})),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
+    public ResponseEntity<ApiResponse<FlipbookRoomCloseResponse>> closeRoom(@PathVariable("roomCode") String roomCode,
+        @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
+        FlipbookRoomCloseResponse response = flipbookRoomService.closeRoom(userUuid, roomCode);
+        if (!response.alreadyClosed()) {
+            flipbookRoomEventPublisher.publishRoomClosed(response.roomCode(), response.closedAt());
+        }
+        String message = response.alreadyClosed() ? FLIPBOOK_ROOM_ALREADY_CLOSED_MESSAGE : FLIPBOOK_ROOM_CLOSED_MESSAGE;
+
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(ApiResponse.success(message, response));
     }
 
     /**
@@ -264,7 +327,7 @@ public class FlipbookRoomController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 리소스", content = @Content(mediaType = "application/json", examples = {
             @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
             @ExampleObject(name = "결과 없음", value = OpenApiErrorExamples.FLIPBOOK_RESULT_NOT_FOUND)})),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<ApiResponse<FlipbookRoomResultsResponse>> getResults(
         @PathVariable("roomCode") String roomCode,
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
@@ -297,7 +360,7 @@ public class FlipbookRoomController {
             @ExampleObject(name = "대기실 아님", value = OpenApiErrorExamples.FLIPBOOK_WAITING_ROOM_KICK_ONLY),
             @ExampleObject(name = "자기 자신 강퇴", value = OpenApiErrorExamples.FLIPBOOK_SELF_KICK_NOT_ALLOWED),
             @ExampleObject(name = "방장 강퇴", value = OpenApiErrorExamples.FLIPBOOK_HOST_KICK_NOT_ALLOWED)})),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<ApiResponse<FlipbookRoomKickResponse>> kickParticipant(
         @PathVariable("roomCode") String roomCode,
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid, // 요청자
@@ -328,7 +391,7 @@ public class FlipbookRoomController {
             @ExampleObject(name = "사용자 없음", value = OpenApiErrorExamples.USER_NOT_FOUND),
             @ExampleObject(name = "방 없음", value = OpenApiErrorExamples.FLIPBOOK_ROOM_NOT_FOUND)})),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "퇴장 불가 상태", content = @Content(mediaType = "application/json", examples = @ExampleObject(name = "대기실 아님", value = OpenApiErrorExamples.FLIPBOOK_WAITING_ROOM_LEAVE_ONLY))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<ApiResponse<FlipbookRoomLeaveResponse>> leaveRoom(@PathVariable("roomCode") String roomCode,
         @RequestHeader(value = ANONYMOUS_USER_UUID_HEADER, required = false) String userUuid) {
         FlipbookRoomLeaveResponse response = flipbookRoomService.leaveRoom(userUuid, roomCode);

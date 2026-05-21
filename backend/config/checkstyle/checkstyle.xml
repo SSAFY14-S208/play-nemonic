@@ -9,7 +9,7 @@
     <property name="max" value="120"/>
     <property name="fileExtensions" value="java"/>
     <property name="ignorePattern"
-      value="^\s*@(Operation|io\.swagger\.v3\.oas\.annotations\.responses\.ApiResponse)\b"/>
+      value="^\s*@(Operation|Schema|io\.swagger\.v3\.oas\.annotations\.(parameters\.RequestBody|responses\.ApiResponse))\b"/>
   </module>
 
   <module name="TreeWalker">

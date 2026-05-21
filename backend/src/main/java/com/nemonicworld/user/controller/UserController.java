@@ -1,6 +1,8 @@
 package com.nemonicworld.user.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.common.openapi.OpenApiCommonResponses;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.user.dto.request.AnonymousUserBirthInfoRequest;
@@ -33,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/users")
-@Tag(name = "User", description = "사용자 API")
+@Tag(name = OpenApiTags.USER, description = OpenApiTags.USER_DESCRIPTION)
 /**
  * 익명 사용자와 관련된 HTTP 요청을 받는 컨트롤러입니다.
  *
@@ -68,7 +70,7 @@ public class UserController {
     @Parameters({@Parameter(name = USER_AGENT_HEADER, in = ParameterIn.HEADER, description = "User-Agent")})
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "익명 사용자 UUID 발급 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = OpenApiCommonResponses.SERVER_ERROR_REF)})
     public ResponseEntity<ApiResponse<AnonymousUserResponse>> createAnonymousUser(
         @RequestHeader(value = USER_AGENT_HEADER, required = false) String userAgent) {
         AnonymousUserResponse response = userService.createAnonymousUser(userAgent);

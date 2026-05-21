@@ -1,208 +1,333 @@
-@import url("https://fonts.googleapis.com/css2?family=Jua&display=swap");
-
-@keyframes copySwap {
-  0% {
-    opacity: 0.2;
-    transform: translateY(-0.45rem);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.copySwap {
-  display: grid;
-  gap: 0.62rem;
-  justify-items: center;
-  animation: copySwap 380ms ease-out both;
-}
-
-.viewerCopy {
-  position: absolute;
-  top: clamp(1.1rem, 4vh, 2.6rem);
-  left: 50%;
+.brandPanel {
+  position: fixed;
+  top: 1.5rem;
+  left: 1.5rem;
   z-index: 30;
-  width: min(46rem, calc(100% - 2rem));
-  transform: translateX(-50%);
-  display: grid;
-  text-align: center;
-  justify-items: center;
+  color: #362d50;
   pointer-events: none;
-  filter: drop-shadow(0 14px 24px rgba(7, 6, 24, 0.3));
 }
 
-.eyebrow {
-  position: relative;
+.brandMark {
+  display: block;
+  width: 8.75rem;
+  filter: drop-shadow(0 0.55rem 1.15rem rgb(0 0 0 / 18%));
+}
+
+.brandLogo {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+}
+
+.utilityCluster {
+  position: fixed;
+  top: 1.4rem;
+  right: 1.4rem;
+  z-index: 30;
   display: inline-flex;
   align-items: center;
-  max-width: 100%;
-  min-height: 1.9rem;
-  margin: 0;
-  padding: 0.38rem 1rem;
-  border: 1px solid rgba(255, 236, 218, 0.22);
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 245, 229, 0.1));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.26),
-    0 8px 18px rgba(9, 7, 30, 0.18);
-  color: rgba(255, 238, 221, 0.78);
-  font-size: clamp(0.76rem, 1.1vw, 0.88rem);
-  font-weight: 400;
-  letter-spacing: 0;
-  white-space: nowrap;
-  backdrop-filter: blur(14px);
+  gap: 0.5rem;
 }
 
-.eyebrow::before,
-.eyebrow::after {
-  content: "";
-  width: 0.7rem;
-  height: 1px;
-  border-radius: 999px;
-  background: rgba(255, 238, 221, 0.34);
-}
-
-.eyebrow::before {
-  margin-right: 0.52rem;
-}
-
-.eyebrow::after {
-  margin-left: 0.52rem;
-}
-
-.viewerTitle {
-  margin: 0;
-  color: #fff6ed;
-  font-family: "Jua", var(--font-pretendard);
-  font-size: clamp(3.05rem, 6vw, 5.9rem);
-  line-height: 0.96;
-  letter-spacing: 0;
-  font-weight: 400;
-  text-shadow:
-    0 2px 0 rgba(90, 65, 112, 0.44),
-    0 14px 28px rgba(2, 2, 18, 0.34);
-}
-
-.viewerDescription {
-  margin: 0;
-  max-width: 35rem;
-  justify-self: center;
-  color: rgba(255, 245, 230, 0.82);
-  font-size: clamp(0.98rem, 1.28vw, 1.08rem);
-  font-weight: 300;
-  line-height: 1.68;
-  word-break: keep-all;
-}
-
-.viewerControls {
-  position: absolute;
-  left: 50%;
-  bottom: clamp(0.5rem, 2vh, 1rem);
-  z-index: 30;
-  width: min(54rem, calc(100% - 2rem));
-  transform: translateX(-50%);
-  display: grid;
-}
-
-.platformButtons {
-  display: flex;
-  justify-content: center;
-  gap: clamp(0.52rem, 1vw, 0.78rem);
-  flex-wrap: wrap;
+.utilityButton {
+  display: inline-flex;
+  height: 2.72rem;
+  width: 2.72rem;
   align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(255 247 235 / 74%);
+  border-radius: 0.8rem;
+  background: rgb(255 250 242 / 72%);
+  box-shadow: 0 0.8rem 2rem rgb(54 45 80 / 12%);
+  color: #5b4a82;
+  cursor: pointer;
+  backdrop-filter: blur(16px);
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
 }
 
-.platformButton {
-  appearance: none;
-  position: relative;
-  min-width: 4.95rem;
-  min-height: 2.78rem;
-  border: 1px solid var(--hub-chip-border);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.68), var(--hub-chip-bg));
-  color: var(--hub-chip-text);
-  padding: 0.64rem 1.02rem 0.68rem;
-  border-radius: 999px;
+.utilityButton:hover {
+  background: rgb(255 252 247 / 88%);
+  transform: translateY(-1px);
+}
+
+.utilityButton:active {
+  transform: scale(0.96);
+}
+
+.musicButton {
+  display: inline-flex;
+  height: 2.72rem;
+  width: 4.35rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.34rem;
+  border: 1px solid rgb(255 247 235 / 74%);
+  border-radius: 0.8rem;
+  background: rgb(255 250 242 / 72%);
+  box-shadow: 0 0.8rem 2rem rgb(54 45 80 / 12%);
+  color: #5b4a82;
+  cursor: pointer;
+  backdrop-filter: blur(16px);
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.musicButton[data-muted='true'] {
+  background: rgb(255 250 242 / 56%);
+  color: #746a85;
+  opacity: 0.82;
+}
+
+.musicButton:hover {
+  background: rgb(255 252 247 / 86%);
+  transform: translateY(-1px);
+}
+
+.musicButton:active {
+  transform: scale(0.96);
+}
+
+.musicSignal {
+  height: 1rem;
+  width: 1rem;
+  flex: 0 0 auto;
+  color: #7d63bc;
+}
+
+.musicButton[data-playing='true'] .musicSignal {
+  animation: hubMusicPulse 1.45s ease-in-out infinite;
+}
+
+.focusControls {
+  position: fixed;
+  left: 50%;
+  right: auto;
+  top: auto;
+  bottom: 1.4rem;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: calc(100vw - 8rem);
+  overflow-x: auto;
+  border: 1px solid rgb(255 247 235 / 74%);
+  border-radius: 0.95rem;
+  background: rgb(255 250 242 / 76%);
+  box-shadow: 0 0.9rem 2.2rem rgb(54 45 80 / 14%);
+  padding: 0.48rem;
+  transform: translateX(-50%);
+  backdrop-filter: blur(18px);
+}
+
+.focusButton {
+  display: inline-flex;
+  height: 2.35rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.38rem;
+  border: 0;
+  border-radius: 0.68rem;
+  background: transparent;
+  padding: 0 0.78rem;
+  color: #5f5578;
   font: inherit;
-  font-size: 0.9rem;
-  font-weight: 500;
-  letter-spacing: 0;
+  font-size: 0.8rem;
+  font-weight: 800;
   cursor: pointer;
   transition:
-    transform 190ms cubic-bezier(0.2, 1, 0.34, 1),
-    background-color 180ms ease,
-    border-color 180ms ease,
-    color 180ms ease,
-    box-shadow 220ms ease,
-    filter 180ms ease;
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.focusButton:hover {
+  transform: translateY(-1px);
+  background: rgb(255 255 255 / 66%);
+}
+
+.focusButtonActive {
+  background: linear-gradient(135deg, #a98bed, #8ed2ef);
+  color: #ffffff;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.58),
-    0 10px 22px rgba(9, 7, 30, 0.22);
-  white-space: nowrap;
-  backdrop-filter: blur(12px);
+    0 0.4rem 1rem rgb(91 77 155 / 20%),
+    inset 0 1px 0 rgb(255 255 255 / 34%);
 }
 
-.platformButton:hover {
-  transform: translateY(-2px);
-  filter: saturate(1.04);
+.printerPrompt {
+  position: fixed;
+  left: 50%;
+  bottom: 5.05rem;
+  z-index: 32;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.46rem;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: hubPrinterPromptIn 220ms ease-out both;
 }
 
-.active {
-  color: #fff6ed;
-  transform: translateY(-2px) scale(1.025);
-  border-color: rgba(83, 62, 54, 0.28);
+.printerPromptButton {
+  display: inline-flex;
+  min-height: 2.6rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.44rem;
+  border: 1px solid rgb(255 247 235 / 82%);
+  border-radius: 0.8rem;
+  background: rgb(255 250 242 / 86%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.76),
-    0 10px 22px rgba(103, 78, 68, 0.12),
-    0 0 0 4px rgba(255, 255, 255, 0.56);
-  filter: saturate(1.08);
+    0 0.75rem 1.8rem rgb(54 45 80 / 16%),
+    inset 0 1px 0 rgb(255 255 255 / 58%);
+  color: #4e426c;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 900;
+  padding: 0 0.85rem;
+  pointer-events: auto;
+  backdrop-filter: blur(18px);
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
 }
 
-.platformButton:focus-visible {
-  outline: 3px solid rgba(255, 255, 255, 0.95);
-  outline-offset: 4px;
+.printerPromptButton:hover {
+  background: rgb(255 252 247 / 94%);
+  color: #312747;
+  transform: translateY(-1px);
 }
 
-@media (max-width: 800px) {
-  .viewerCopy {
-    top: 1.2rem;
-    width: min(34rem, calc(100% - 1.2rem));
+.printerPromptButton:active {
+  transform: scale(0.97);
+}
+
+.printerPromptIcon {
+  height: 1rem;
+  width: 1rem;
+  color: #8e6ce0;
+  animation: hubPrinterPromptTap 1.28s ease-in-out infinite;
+}
+
+.printerPromptBeam {
+  height: 2.25rem;
+  width: 1px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to top,
+    rgb(142 108 224 / 0),
+    rgb(142 108 224 / 56%),
+    rgb(142 108 224 / 0)
+  );
+  opacity: 0.82;
+  animation: hubPrinterPromptBeam 1.28s ease-in-out infinite;
+}
+
+@keyframes hubMusicPulse {
+  0%,
+  100% {
+    opacity: 0.68;
+    transform: scale(0.96);
   }
 
-  .copySwap {
-    gap: 0.45rem;
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes hubPrinterPromptIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 0.45rem);
   }
 
-  .viewerTitle {
-    font-size: clamp(2.6rem, 14vw, 4.2rem);
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes hubPrinterPromptTap {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
   }
 
-  .viewerDescription {
-    max-width: 25rem;
-    font-size: 0.94rem;
-    line-height: 1.6;
+  48% {
+    transform: translateY(0.08rem) scale(0.94);
+  }
+}
+
+@keyframes hubPrinterPromptBeam {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: scaleY(0.72);
   }
 
-  .eyebrow {
-    min-height: 1.86rem;
-    padding: 0.36rem 0.92rem;
-    font-size: 0.75rem;
+  50% {
+    opacity: 0.86;
+    transform: scaleY(1);
+  }
+}
+
+@media (max-width: 860px) {
+  .brandPanel {
+    top: 1rem;
+    left: 1rem;
   }
 
-  .viewerControls {
-    width: calc(100% - 1.2rem);
-    bottom: 0.45rem;
+  .utilityCluster {
+    top: 1rem;
+    right: 1rem;
+    gap: 0.4rem;
   }
 
-  .platformButtons {
-    gap: 0.55rem;
+  .utilityButton {
+    height: 2.55rem;
+    width: 2.55rem;
   }
 
-  .platformButton {
-    min-width: 4.25rem;
-    min-height: 2.55rem;
-    padding: 0.58rem 0.74rem 0.62rem;
-    font-size: 0.8rem;
+  .musicButton {
+    height: 2.55rem;
+    width: 3.9rem;
+  }
+
+  .focusControls {
+    bottom: 1rem;
+    max-width: calc(100vw - 6.5rem);
+    border-radius: 0.8rem;
+  }
+
+  .focusButton span {
+    display: none;
+  }
+
+  .printerPrompt {
+    bottom: 4.65rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .brandMark {
+    width: 7.5rem;
+  }
+
+  .focusButton {
+    padding: 0 0.68rem;
+  }
+
+  .printerPromptButton {
+    min-height: 2.45rem;
+    padding: 0 0.76rem;
   }
 }

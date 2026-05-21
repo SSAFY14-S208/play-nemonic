@@ -1,274 +1,347 @@
 'use client'
 
-import { Download, Pause, Play, Share2 } from 'lucide-react'
-import type { DrawingLine } from '@/shared/types'
-import { cn } from '@/shared/libs'
+import { useEffect, useMemo, useState } from 'react'
+import Image from 'next/image'
+import { Loader2 } from 'lucide-react'
+
+import { HowToPlayModal, PhoneLauncherButton } from '@/shared/components'
+import type { FlipbookResultItemResponse } from '@/shared/types'
+import { getDisplayImageUrl } from '@/shared/utils'
+
 import {
-  FLIPBOOK_BACKGROUND_COLOR,
-  FLIPBOOK_BOARD_SIZE,
-  FLIPBOOK_PARTICIPANTS,
-  FLIPBOOK_TOPIC,
+  FLIPBOOK_HOW_TO_PLAY_PANELS,
+  FLIPBOOK_SOUND_PATHS,
 } from '../constants'
-import type { FlipbookFrame } from '../types'
+import { useFlipbookEntranceBgm, useFlipbookResultActions } from '../hooks'
+import { toFlipbookPrintParticipants } from '../utils'
+import {
+  FlipbookPrintResultStage,
+  type FlipbookPrintFrame,
+  type FlipbookPrintParticipant,
+} from './result-print'
+
+const FLIPBOOK_RESULT_CONTROL_IMAGES = {
+  howToPlay: '/images/flipbook-entrance-scene/how-to-play-button.png',
+  soundOn: '/images/flipbook-entrance-scene/sound-on-button.png',
+  soundMuted: '/images/flipbook-entrance-scene/sound-muted-button.png',
+} as const
+
+const RESULT_ACTION_BUTTONS_IMAGE_SRC = '/images/flipbook-result/result-action-buttons.png'
+const RESULT_ACTION_BUTTONS_IMAGE_WIDTH = 733
+const RESULT_ACTION_BUTTONS_IMAGE_HEIGHT = 70
+const RESULT_ACTION_BUTTONS_ASPECT_RATIO = `${RESULT_ACTION_BUTTONS_IMAGE_WIDTH} / ${RESULT_ACTION_BUTTONS_IMAGE_HEIGHT}`
 
 interface FlipbookResultViewProps {
-  frames: FlipbookFrame[]
-  activeFrame: FlipbookFrame | null
-  resultFrameIndex: number
-  isGifPlaying: boolean
-  canGoPreviousResultFrame: boolean
-  canGoNextResultFrame: boolean
-  onToggleGifPlaying: (isPlaying: boolean) => void
-  onShowPreviousFrame: () => void
-  onShowNextFrame: () => void
-  onCreateAnother: () => void
+  resultItems: FlipbookResultItemResponse[]
+  resultOwnerNames: string[]
+  activeResultIndex: number
+  resultCount: number
+  canCloseRoom: boolean
+  isBusy: boolean
+  errorMessage: string | null
+  onSelectResult: (resultIndex: number) => void
+  onReturnToLobby: () => void
+  // 참여자별 print/reveal 시퀀스가 끝나고 GIF가 보이는 시점에 한 번 발사.
+  // 자동 전환 hook이 이 시점을 5초 카운트의 시작점으로 사용한다.
+  onParticipantRevealComplete?: (participantIndex: number) => void
 }
 
 export default function FlipbookResultView({
-  frames,
-  activeFrame,
-  resultFrameIndex,
-  isGifPlaying,
-  canGoPreviousResultFrame,
-  canGoNextResultFrame,
-  onToggleGifPlaying,
-  onShowPreviousFrame,
-  onShowNextFrame,
-  onCreateAnother,
+  resultItems,
+  resultOwnerNames,
+  activeResultIndex,
+  resultCount,
+  canCloseRoom,
+  isBusy,
+  errorMessage,
+  onSelectResult,
+  onReturnToLobby,
+  onParticipantRevealComplete,
 }: FlipbookResultViewProps) {
+  const [isHowToPlayModalOpen, setIsHowToPlayModalOpen] = useState(false)
+  const { audioRef, isBgmMuted, toggleFlipbookEntranceBgmMuted } = useFlipbookEntranceBgm({
+    shouldStart: true,
+  })
+  const printParticipants = useMemo(
+    () => toFlipbookPrintParticipants({ resultItems, resultOwnerNames }),
+    [resultItems, resultOwnerNames],
+  )
+  const activeResult = resultItems[activeResultIndex] ?? resultItems[0] ?? null
+  const resultActions = useFlipbookResultActions({
+    activeResult,
+    activeResultIndex,
+    resultOwnerNames,
+    onReturnToLobby,
+  })
+  const isResultLoading = printParticipants.length === 0
+  const resultActionButtons = [
+    {
+      id: 'local-gallery',
+      label: '저장하기',
+      left: '1.77%',
+      width: '22.78%',
+      disabled: !resultActions.canSaveToLocal,
+      onClick: () => {
+        void resultActions.saveToLocalGallery()
+      },
+    },
+    {
+      id: 'community-post',
+      label: '커뮤니티 게시',
+      left: '25.92%',
+      width: '24.15%',
+      disabled: !resultActions.canPostCommunity,
+      onClick: resultActions.postToCommunity,
+    },
+    {
+      id: 'external-share',
+      label: '외부 공유',
+      left: '51.43%',
+      width: '21.69%',
+      disabled: !resultActions.canShareExternal,
+      onClick: () => {
+        void resultActions.shareExternal()
+      },
+    },
+    {
+      id: 'return-to-lobby',
+      label: '로비로 돌아가기',
+      left: '74.62%',
+      width: '23.47%',
+      disabled: canCloseRoom && isBusy,
+      onClick: resultActions.returnToLobby,
+    },
+  ]
+
   return (
-    <section className="min-h-screen bg-flipbook-background px-6 py-10 text-flipbook-ink lg:px-12 lg:py-14">
-      <div className="mx-auto w-full max-w-[1312px]">
-        <div className="flex min-h-9 items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="caption-b text-flipbook-deep">2026.04.28 ·</span>
-            <span className="caption-b rounded-full bg-flipbook-light px-3 py-1 text-flipbook-ink">
-              🐱 고양이 님의 앨범
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {frames.map((frame, frameIndex) => (
-              <span
-                key={frame.id}
-                className={cn(
-                  'size-[9px] rounded-full bg-flipbook-light',
-                  frameIndex <= resultFrameIndex && 'bg-flipbook-deep',
-                )}
-              />
-            ))}
-            <span className="caption-b ml-1 text-flipbook-deep">
-              {frames.length === 0 ? 0 : resultFrameIndex + 1} / {frames.length}
-            </span>
+    <section className="relative min-h-[100svh] overflow-hidden bg-[#fff7ed]">
+      <audio ref={audioRef} src={FLIPBOOK_SOUND_PATHS.entranceBgm} preload="auto" loop aria-hidden />
+
+      <div className="absolute left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-[120] flex items-center gap-2 sm:left-6 sm:top-6">
+        <FlipbookResultIconButton
+          imageSrc={FLIPBOOK_RESULT_CONTROL_IMAGES.howToPlay}
+          label="게임 설명"
+          onClick={() => setIsHowToPlayModalOpen(true)}
+        />
+        <FlipbookResultIconButton
+          imageSrc={isBgmMuted ? FLIPBOOK_RESULT_CONTROL_IMAGES.soundMuted : FLIPBOOK_RESULT_CONTROL_IMAGES.soundOn}
+          label={isBgmMuted ? '배경음악 켜기' : '배경음악 음소거'}
+          pressed={isBgmMuted}
+          onClick={toggleFlipbookEntranceBgmMuted}
+        />
+        <PhoneLauncherButton className="size-14 sm:size-[clamp(54px,4.6vw,70px)]" />
+      </div>
+
+      <FlipbookPrintResultStage
+        participants={printParticipants}
+        activeParticipantIndex={activeResultIndex}
+        onSelectParticipant={onSelectResult}
+        onParticipantRevealComplete={onParticipantRevealComplete}
+        renderPaper={(frame, frameIndex, participant) => (
+          <FlipbookPrintedArtwork
+            frame={frame}
+            frameIndex={frameIndex}
+            participant={participant}
+          />
+        )}
+      />
+
+      {isResultLoading && (
+        <div className="absolute left-1/2 top-1/2 z-[120] grid -translate-x-1/2 -translate-y-1/2 justify-items-center gap-3 rounded-[8px] border border-white/70 bg-white/82 px-8 py-6 text-center shadow-[0_18px_40px_rgb(120_80_80_/_16%)] backdrop-blur-md">
+          <Loader2 className="size-7 animate-spin text-[#e56883]" aria-hidden />
+          <div>
+            <p className="body-b text-[#332222]">결과를 불러오는 중이에요</p>
+            <p className="caption-m mt-1 text-[#c07182]">
+              완성된 작품 {resultCount}개를 정리하고 있어요
+            </p>
           </div>
         </div>
+      )}
 
-        <div className="mt-5 grid gap-8 lg:grid-cols-[minmax(0,880px)_400px] lg:items-start">
-          <section className="min-h-[716px] overflow-hidden rounded-[18px] bg-flipbook-paper px-5 py-6 shadow-[0_14px_28px_var(--color-flipbook-shadow)] md:px-7">
-            <header className="mb-4 flex min-h-[60px] items-end justify-between gap-4">
-              <div>
-                <p className="caption-b text-flipbook-deep">STEP {resultFrameIndex + 1}</p>
-                <h1 className="h2-b mt-1 flex flex-wrap items-center gap-2 text-flipbook-ink">
-                  <span className="rounded-full bg-flipbook-light px-3 py-0.5">
-                    {activeFrame?.drawnBy ?? '친구'} 님의 작품
-                  </span>
-                </h1>
-              </div>
-              <button
-                type="button"
-                aria-label={isGifPlaying ? 'GIF 재생 멈춤' : 'GIF 재생 시작'}
-                onClick={() => onToggleGifPlaying(!isGifPlaying)}
-                className="grid size-11 place-items-center rounded-full bg-flipbook-primary text-flipbook-ink"
-              >
-                {isGifPlaying ? (
-                  <Pause className="size-5" aria-hidden />
-                ) : (
-                  <Play className="size-5" aria-hidden />
-                )}
-              </button>
-            </header>
-
-            <div className="relative h-[460px] overflow-hidden rounded-[14px] border-[1.5px] border-flipbook-light bg-flipbook-paper">
-              <FrameDrawing lines={activeFrame?.lines ?? []} />
-              <div className="caption-b absolute right-4 top-4 flex items-center gap-2 rounded-full border border-flipbook-light bg-flipbook-paper py-1.5 pl-2 pr-4 text-flipbook-deep shadow-[0_6px_7px_var(--color-flipbook-shadow)]">
-                <span className="grid size-8 place-items-center rounded-full bg-flipbook-light">
-                  {activeFrame?.participantAvatar ?? '📖'}
-                </span>
-                {activeFrame?.drawnBy ?? '아직 프레임 없음'}
-              </div>
-            </div>
-
-            <div className="mt-4 flex min-h-11 items-center gap-3">
-              <button
-                type="button"
-                onClick={onShowPreviousFrame}
-                disabled={!canGoPreviousResultFrame}
-                className="body-b min-h-11 rounded-[12px] border-[1.5px] border-flipbook-light bg-flipbook-paper px-4 text-flipbook-deep disabled:opacity-45"
-              >
-                ◀ 이전
-              </button>
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-flipbook-result-soft">
-                <div
-                  className="h-full rounded-full bg-flipbook-deep"
-                  style={{
-                    width:
-                      frames.length > 0
-                        ? `${((resultFrameIndex + 1) / frames.length) * 100}%`
-                        : '0%',
-                  }}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={onShowNextFrame}
-                disabled={!canGoNextResultFrame}
-                className="body-b min-h-11 rounded-[12px] bg-flipbook-primary px-4 text-flipbook-ink disabled:opacity-45"
-              >
-                다음 ▶
-              </button>
-            </div>
-          </section>
-
-          <aside className="flex min-h-[716px] flex-col gap-4">
-            <section className="rounded-[18px] border border-flipbook-light bg-flipbook-paper px-5 py-4">
-              <p className="caption-b text-flipbook-deep">이번엔 {FLIPBOOK_PARTICIPANTS.length}명이 모였어요</p>
-              <h2 className="h4-b mt-2 text-flipbook-ink">{FLIPBOOK_TOPIC}</h2>
-              <div className="mt-4 grid gap-2">
-                {frames.map((frame, frameIndex) => (
-                  <button
-                    key={frame.id}
-                    type="button"
-                    className={cn(
-                      'flex min-h-11 items-center gap-3 rounded-[14px] bg-flipbook-result-soft px-3.5',
-                      frameIndex === resultFrameIndex &&
-                        'border-[1.5px] border-flipbook-deep bg-flipbook-paper shadow-[0_4px_5px_var(--color-flipbook-shadow)]',
-                    )}
-                  >
-                    <span className="text-[18px]">{frame.participantAvatar}</span>
-                    <span className="body-b text-flipbook-ink">{frame.drawnBy}</span>
-                    <span className="caption-b ml-auto text-flipbook-deep">
-                      {frame.index + 1}장
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <section className="rounded-[18px] border border-flipbook-light bg-flipbook-paper p-5">
-              <p className="caption-b text-flipbook-deep">GIF 다운로드 URL</p>
-              <p className="caption-r mt-2 rounded-[12px] bg-flipbook-result-soft p-3 text-flipbook-muted">
-                /api/mock/flipbook/flipbook_uuid.gif
-              </p>
-            </section>
-
-            <div className="mt-auto grid min-h-[60px] gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                className="body-b inline-flex items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-flipbook-light bg-flipbook-paper px-5 text-flipbook-ink"
-              >
-                <Download className="size-4" aria-hidden />
-                GIF 저장
-              </button>
-              <button
-                type="button"
-                className="body-b inline-flex items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-flipbook-primary bg-flipbook-primary px-5 text-flipbook-ink shadow-[0_4px_10px_var(--color-flipbook-shadow)]"
-              >
-                <Share2 className="size-4" aria-hidden />
-                공유하기
-              </button>
-            </div>
-
+      <div className="absolute left-1/2 top-[calc(4.75rem+env(safe-area-inset-top))] z-[120] w-[min(733px,calc(100vw-2rem))] -translate-x-1/2 sm:left-auto sm:right-6 sm:top-6 sm:translate-x-0">
+        <div
+          className="relative w-full"
+          style={{ aspectRatio: RESULT_ACTION_BUTTONS_ASPECT_RATIO }}
+        >
+          <Image
+            src={RESULT_ACTION_BUTTONS_IMAGE_SRC}
+            alt=""
+            fill
+            priority
+            draggable={false}
+            unoptimized
+            sizes={`(max-width: 640px) calc(100vw - 2rem), ${RESULT_ACTION_BUTTONS_IMAGE_WIDTH}px`}
+            className="select-none object-contain"
+            aria-hidden
+          />
+          {resultActionButtons.map((actionButton) => (
             <button
+              key={actionButton.id}
               type="button"
-              onClick={onCreateAnother}
-              className="caption-b self-center text-flipbook-muted"
+              aria-label={actionButton.label}
+              title={actionButton.label}
+              onClick={actionButton.onClick}
+              disabled={actionButton.disabled}
+              className="absolute top-0 h-full rounded-full text-transparent transition hover:bg-white/10 active:bg-black/5 disabled:cursor-not-allowed disabled:bg-white/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#ff3f7e]"
+              style={{ left: actionButton.left, width: actionButton.width }}
             >
-              새 플립북 만들기
+              <span className="sr-only">{actionButton.label}</span>
             </button>
-          </aside>
+          ))}
         </div>
       </div>
+
+      {(errorMessage || resultActions.actionMessage) && (
+        <p className="caption-b absolute bottom-[calc(7.75rem+env(safe-area-inset-bottom))] left-4 right-4 z-[120] rounded-full bg-white/86 px-5 py-3 text-center text-[#b84e66] shadow-[0_8px_18px_rgb(120_80_80_/_14%)] backdrop-blur-md sm:bottom-6 sm:left-1/2 sm:right-auto sm:-translate-x-1/2">
+          {errorMessage ?? resultActions.actionMessage}
+        </p>
+      )}
+
+      {printParticipants.length > 0 && (
+        <div className="absolute inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-[120] grid max-h-[28svh] gap-2 rounded-[18px] border border-white/80 bg-white/86 px-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_14px_30px_rgb(120_80_80_/_16%)] backdrop-blur-md md:hidden">
+          <p className="caption-b text-[#b84e66]">작품 선택</p>
+          <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1">
+            {printParticipants.map((participant, participantIndex) => {
+              const isActiveParticipant = participantIndex === activeResultIndex
+
+              return (
+                <button
+                  key={participant.id}
+                  type="button"
+                  onClick={() => onSelectResult(participantIndex)}
+                  className={`caption-b min-h-11 max-w-48 shrink-0 snap-start truncate rounded-full border px-4 ${
+                    isActiveParticipant
+                      ? 'border-[#ff8aa4] bg-[#fff0f4] text-[#b84e66]'
+                      : 'border-[#eadfd2] bg-white text-[#5d3b38]'
+                  }`}
+                >
+                  {participant.name}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+      <HowToPlayModal
+        open={isHowToPlayModalOpen}
+        onOpenChange={setIsHowToPlayModalOpen}
+        panels={FLIPBOOK_HOW_TO_PLAY_PANELS}
+        title="플립북 게임 설명"
+        subtitle="이전 프레임을 힌트로 보며 조금씩 바꿔 그려 움직이는 플립북을 만들어요."
+        accentColor="#ff7182"
+      />
     </section>
   )
 }
 
-function FrameDrawing({ lines }: { lines: DrawingLine[] }) {
-  const hasLines = lines.length > 0
+function FlipbookResultIconButton({
+  imageSrc,
+  label,
+  pressed,
+  onClick,
+}: {
+  imageSrc: string
+  label: string
+  pressed?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={pressed}
+      title={label}
+      className="relative grid size-14 place-items-center transition duration-150 hover:-translate-y-0.5 active:translate-y-px active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-flipbook-primary sm:size-[clamp(54px,4.6vw,70px)]"
+      onClick={onClick}
+    >
+      <Image
+        src={imageSrc}
+        alt=""
+        width={67}
+        height={70}
+        sizes="70px"
+        className="h-full w-auto object-contain"
+      />
+      <span className="sr-only">{label}</span>
+    </button>
+  )
+}
+
+function FlipbookPrintedArtwork({
+  frame,
+  participant,
+}: {
+  frame: FlipbookPrintFrame
+  frameIndex: number
+  participant: FlipbookPrintParticipant
+}) {
+  const [loadFailed, setLoadFailed] = useState(false)
+  const displayImageUrl = getDisplayImageUrl(frame.imageUrl)
+  const isGifPlaybackFrame = frame.outputMode === 'gif-playback'
+
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      if (!cancelled) {
+        setLoadFailed(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [displayImageUrl])
 
   return (
-    <svg
-      className="h-full w-full"
-      viewBox={`0 0 ${FLIPBOOK_BOARD_SIZE.width} ${FLIPBOOK_BOARD_SIZE.height}`}
-      role="img"
-      aria-label="플립북 프레임"
-      preserveAspectRatio="xMidYMid meet"
-    >
-      <rect width={FLIPBOOK_BOARD_SIZE.width} height={FLIPBOOK_BOARD_SIZE.height} fill={FLIPBOOK_BACKGROUND_COLOR} />
-      {Array.from({ length: 36 }).map((unusedRow, rowIndex) =>
-        Array.from({ length: 43 }).map((unusedColumn, columnIndex) => (
-          <circle
-            key={`${unusedRow}-${unusedColumn}-${rowIndex}-${columnIndex}`}
-            cx={12 + columnIndex * 20}
-            cy={12 + rowIndex * 20}
-            r={1}
-            fill="#ffa8b8"
-            opacity={0.54}
-          />
-        )),
+    <div className="relative h-full w-full overflow-hidden bg-[#fffefa]">
+      {displayImageUrl && !loadFailed ? (
+        <Image
+          src={displayImageUrl}
+          alt={
+            isGifPlaybackFrame
+              ? `${participant.name} 완성 GIF`
+              : `${participant.name} ${frame.frameNumber}번째 그림`
+          }
+          fill
+          sizes="(max-width: 768px) 80vw, 748px"
+          unoptimized
+          className={isGifPlaybackFrame ? 'object-contain p-[2%]' : 'object-contain p-[4%]'}
+          onError={() => {
+            setLoadFailed(true)
+            console.warn('플립북 결과 이미지 로딩에 실패했습니다.', displayImageUrl)
+          }}
+        />
+      ) : (
+        <BlankArtworkFallback frame={frame} participant={participant} />
       )}
-      {lines.map((line) => {
-        if (line.kind === 'fill' && line.imageDataUrl) {
-          return (
-            <image
-              key={line.id}
-              href={line.imageDataUrl}
-              x={0}
-              y={0}
-              width={FLIPBOOK_BOARD_SIZE.width}
-              height={FLIPBOOK_BOARD_SIZE.height}
-            />
-          )
-        }
+    </div>
+  )
+}
 
-        if (line.kind === 'fill') {
-          return (
-            <polygon
-              key={line.id}
-              points={line.points.map((point) => `${point.x},${point.y}`).join(' ')}
-              fill={line.color}
-            />
-          )
-        }
-
-        return (
-          <polyline
-            key={line.id}
-            points={line.points.map((point) => `${point.x},${point.y}`).join(' ')}
-            fill="none"
-            stroke={
-              line.compositeOperation === 'destination-out'
-                ? FLIPBOOK_BACKGROUND_COLOR
-                : line.color
-            }
-            strokeWidth={line.strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        )
-      })}
-      {!hasLines && (
-        <text
-          x={FLIPBOOK_BOARD_SIZE.width / 2}
-          y={FLIPBOOK_BOARD_SIZE.height / 2}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fill="#ac626a"
-          fontFamily="Pretendard Variable"
-          fontSize={18}
-          fontWeight={700}
+function BlankArtworkFallback({
+  frame,
+  participant,
+}: {
+  frame: FlipbookPrintFrame
+  participant: FlipbookPrintParticipant
+}) {
+  return (
+    <div className="grid h-full w-full place-items-center bg-[#fffefa] p-8 text-center">
+      <div>
+        <span
+          className="mx-auto grid size-14 place-items-center rounded-full text-[18px] font-bold text-white shadow-[0_8px_16px_rgb(40_40_40_/_12%)]"
+          style={{
+            backgroundColor: frame.accentColor ?? participant.accentColor ?? '#f58c97',
+          }}
         >
-          빈 프레임은 compact 처리되어 결과에서 빠져요
-        </text>
-      )}
-    </svg>
+          {frame.frameNumber}
+        </span>
+        <p className="h3-b mt-4 text-[#332222]">{frame.title}</p>
+        <p className="caption-b mt-3 rounded-full bg-[#eef6e8] px-3 py-1 text-[#54704d]">
+          이미지 준비 중
+        </p>
+      </div>
+    </div>
   )
 }

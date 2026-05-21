@@ -8,7 +8,7 @@ import com.nemonicworld.common.exception.BadRequestException;
  */
 public enum AdminRole {
 
-    ADMIN("admin"), SUPER_ADMIN("super_admin");
+    VIEWER("viewer"), ADMIN("admin"), SUPER_ADMIN("super_admin");
 
     private final String value;
 
@@ -19,6 +19,18 @@ public enum AdminRole {
     @JsonValue
     public String getValue() {
         return value;
+    }
+
+    public boolean canOperateBackoffice() {
+        return this == ADMIN || this == SUPER_ADMIN;
+    }
+
+    public boolean canManageAdminAccounts() {
+        return this == SUPER_ADMIN;
+    }
+
+    public boolean canBeCreatedBySuperAdmin() {
+        return this == VIEWER || this == ADMIN;
     }
 
     public static AdminRole fromValue(String value) {

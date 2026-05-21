@@ -11,41 +11,29 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.admin.entity.AdminUser;
-import com.nemonicworld.auth.service.AdminTokenStore;
-import com.nemonicworld.auth.service.IssuedAdminRefreshToken;
-import com.nemonicworld.auth.service.StoredAdminRefreshToken;
 import com.nemonicworld.common.jwt.AdminTokenClaims;
-import com.nemonicworld.support.IntegrationTest;
+import com.nemonicworld.support.AbstractReadOnlyIntegrationTest;
+import com.nemonicworld.support.InMemoryAdminTokenStore;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-@IntegrationTest
-@AutoConfigureMockMvc
-@TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=none")
-class AuthControllerIntegrationTest {
+@ExtendWith(OutputCaptureExtension.class)
+class AuthControllerIntegrationTest extends AbstractReadOnlyIntegrationTest {
 
     private static final long ADMIN_ID = 1L;
     private static final String ADMIN_LOGIN_ID = "admin";
@@ -97,7 +85,7 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    void adminLoginReturnsAccessAndRefreshTokensAndUpdatesLastLoginAt() throws Exception {
+    void adminLoginReturnsAccessAndRefreshTokensAndUpdatesLastLoginAt(CapturedOutput output) throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
 
         MvcResult result = mockMvc
@@ -120,6 +108,19 @@ class AuthControllerIntegrationTest {
         assertThat(data.path("accessToken").asText()).contains(".");
         assertThat(data.path("refreshToken").asText()).isNotBlank();
         assertThat(readLastLoginAt(ADMIN_ID)).isNotNull();
+
+        JsonNode auditLog = findAuditLog(output, "admin_login_success");
+        JsonNode metadata = auditLog.path("metadata");
+        assertThat(auditLog.path("level").asText()).isEqualTo("INFO");
+        assertThat(auditLog.path("service").asText()).isEqualTo("backoffice-api");
+        assertThat(auditLog.path("trace_id").asText()).isEqualTo("auth-login-success-test");
+        assertThat(metadata.path("actor_id").asText()).isEqualTo(String.valueOf(ADMIN_ID));
+        assertThat(metadata.path("actor_role").asText()).isEqualTo("super_admin");
+        assertThat(metadata.path("target_type").asText()).isEqualTo("admin_account");
+        assertThat(metadata.path("target_id").asText()).isEqualTo(String.valueOf(ADMIN_ID));
+        assertThat(metadata.path("action").asText()).isEqualTo("login");
+        assertThat(metadata.path("result").asText()).isEqualTo("success");
+        assertThat(auditLog.toString()).doesNotContain(ADMIN_PASSWORD);
     }
 
     @Test
@@ -148,16 +149,30 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    void adminLoginRejectsWrongPasswordWithoutExposingReason() throws Exception {
+    void adminLoginRejectsWrongPasswordWithoutExposingReason(CapturedOutput output) throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "admin", null);
 
         mockMvc
             .perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .header("X-Trace-Id", "auth-login-failure-test")
                 .content(loginRequestBody(ADMIN_LOGIN_ID, "wrong-password")))
             .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("관리자 인증에 실패했습니다."));
 
         assertThat(readLastLoginAt(ADMIN_ID)).isNull();
+
+        JsonNode auditLog = findAuditLog(output, "admin_login_failed");
+        JsonNode metadata = auditLog.path("metadata");
+        assertThat(auditLog.path("level").asText()).isEqualTo("WARN");
+        assertThat(auditLog.path("service").asText()).isEqualTo("backoffice-api");
+        assertThat(auditLog.path("trace_id").asText()).isEqualTo("auth-login-failure-test");
+        assertThat(metadata.path("actor_id").asText()).isEqualTo(String.valueOf(ADMIN_ID));
+        assertThat(metadata.path("actor_role").asText()).isEqualTo("admin");
+        assertThat(metadata.path("target_type").asText()).isEqualTo("admin_account");
+        assertThat(metadata.path("target_id").asText()).isEqualTo(ADMIN_LOGIN_ID);
+        assertThat(metadata.path("action").asText()).isEqualTo("login");
+        assertThat(metadata.path("result").asText()).isEqualTo("failure");
+        assertThat(auditLog.toString()).doesNotContain("wrong-password");
     }
 
     @Test
@@ -191,7 +206,7 @@ class AuthControllerIntegrationTest {
     void adminDetailReturnsUnauthorizedWhenTokenIsMissingInvalidOrBlacklisted() throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         AdminTokens tokens = loginAndReadTokens();
-        adminTokenStore.accessTokenBlacklist.add(readTokenClaims(tokens.accessToken()).tokenId());
+        adminTokenStore.blacklistAccessToken(readTokenClaims(tokens.accessToken()));
 
         mockMvc.perform(get("/api/v1/admins/{adminId}", ADMIN_ID)).andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.success").value(false)).andExpect(jsonPath("$.message").isNotEmpty());
@@ -209,7 +224,7 @@ class AuthControllerIntegrationTest {
             .andExpect(jsonPath("$.message").isNotEmpty());
     }
     @Test
-    void adminLogoutRevokesRefreshTokenAndBlacklistsAccessToken() throws Exception {
+    void adminLogoutRevokesRefreshTokenAndBlacklistsAccessToken(CapturedOutput output) throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "admin", null);
         AdminTokens tokens = loginAndReadTokens();
 
@@ -225,15 +240,29 @@ class AuthControllerIntegrationTest {
         mockMvc.perform(
             get("/api/v1/admins/{adminId}", ADMIN_ID).header(HttpHeaders.AUTHORIZATION, bearer(tokens.accessToken())))
             .andExpect(status().isUnauthorized());
+
+        JsonNode auditLog = findAuditLog(output, "admin_logout");
+        JsonNode metadata = auditLog.path("metadata");
+        assertThat(auditLog.path("level").asText()).isEqualTo("INFO");
+        assertThat(auditLog.path("service").asText()).isEqualTo("backoffice-api");
+        assertThat(auditLog.path("trace_id").asText()).isEqualTo("auth-logout-test");
+        assertThat(metadata.path("actor_id").asText()).isEqualTo(String.valueOf(ADMIN_ID));
+        assertThat(metadata.path("actor_role").asText()).isEqualTo("admin");
+        assertThat(metadata.path("target_type").asText()).isEqualTo("admin_account");
+        assertThat(metadata.path("target_id").asText()).isEqualTo(String.valueOf(ADMIN_ID));
+        assertThat(metadata.path("action").asText()).isEqualTo("logout");
+        assertThat(metadata.path("result").asText()).isEqualTo("success");
+        assertThat(auditLog.toString()).doesNotContain(tokens.accessToken()).doesNotContain(tokens.refreshToken());
     }
 
     @Test
-    void superAdminCreatesAdmin() throws Exception {
+    void superAdminCreatesAdmin(CapturedOutput output) throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         String accessToken = loginAndReadAccessToken();
 
-        mockMvc
+        MvcResult result = mockMvc
             .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .header("X-Trace-Id", "admin-create-audit-test").header("X-Forwarded-For", "10.10.20.31, 10.10.20.32")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(adminCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
                     NEW_ADMIN_EMAIL)))
@@ -242,11 +271,62 @@ class AuthControllerIntegrationTest {
             .andExpect(jsonPath("$.data.loginId").value(NEW_ADMIN_LOGIN_ID))
             .andExpect(jsonPath("$.data.nickname").value(NEW_ADMIN_NICKNAME))
             .andExpect(jsonPath("$.data.email").value(NEW_ADMIN_EMAIL))
-            .andExpect(jsonPath("$.data.role").value("admin"));
+            .andExpect(jsonPath("$.data.role").value("admin")).andReturn();
 
         String storedPasswordHash = readPasswordHash(NEW_ADMIN_LOGIN_ID);
         assertThat(passwordEncoder.matches(NEW_ADMIN_PASSWORD, storedPasswordHash)).isTrue();
         assertThat(storedPasswordHash).isNotEqualTo(NEW_ADMIN_PASSWORD);
+
+        String createdAdminId = readData(result).path("id").asText();
+        JsonNode auditLog = findAuditLog(output, "admin_account_create");
+        JsonNode metadata = auditLog.path("metadata");
+        assertThat(auditLog.path("level").asText()).isEqualTo("INFO");
+        assertThat(auditLog.path("service").asText()).isEqualTo("backoffice-api");
+        assertThat(auditLog.path("trace_id").asText()).isEqualTo("admin-create-audit-test");
+        assertThat(metadata.path("actor_id").asText()).isEqualTo(String.valueOf(ADMIN_ID));
+        assertThat(metadata.path("actor_role").asText()).isEqualTo("super_admin");
+        assertThat(metadata.path("actor_ip").asText()).isEqualTo("10.10.20.31");
+        assertThat(metadata.path("target_type").asText()).isEqualTo("admin_account");
+        assertThat(metadata.path("target_id").asText()).isEqualTo(createdAdminId);
+        assertThat(metadata.path("action").asText()).isEqualTo("create");
+        assertThat(metadata.path("result").asText()).isEqualTo("success");
+        assertThat(metadata.path("after").path("login_id").asText()).isEqualTo(NEW_ADMIN_LOGIN_ID);
+        assertThat(metadata.path("after").path("nickname").asText()).isEqualTo(NEW_ADMIN_NICKNAME);
+        assertThat(metadata.path("after").path("role").asText()).isEqualTo("admin");
+        assertThat(metadata.path("after").has("email")).isFalse();
+        assertThat(auditLog.toString()).doesNotContain(NEW_ADMIN_PASSWORD).doesNotContain(NEW_ADMIN_EMAIL)
+            .doesNotContain("password_hash");
+    }
+
+    @Test
+    void superAdminCreatesViewerAdmin() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc
+            .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(adminCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
+                    NEW_ADMIN_EMAIL, "viewer")))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.loginId").value(NEW_ADMIN_LOGIN_ID))
+            .andExpect(jsonPath("$.data.role").value("viewer"));
+
+        assertThat(readAdminRole(NEW_ADMIN_LOGIN_ID)).isEqualTo("viewer");
+    }
+
+    @Test
+    void adminCreationRejectsSuperAdminRole() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc
+            .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(adminCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
+                    NEW_ADMIN_EMAIL, "super_admin")))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("생성할 수 없는 관리자 권한입니다."));
     }
 
     @Test
@@ -260,6 +340,25 @@ class AuthControllerIntegrationTest {
             .andExpect(jsonPath("$.message").isNotEmpty()).andExpect(jsonPath("$.data.length()").value(2))
             .andExpect(jsonPath("$.data[0].id").value(ADMIN_ID))
             .andExpect(jsonPath("$.data[1].id").value(TARGET_ADMIN_ID));
+    }
+
+    @Test
+    void viewerFindsAdminsButCannotCreateAdmin() throws Exception {
+        insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "viewer", null);
+        insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", null);
+        String accessToken = loginAndReadAccessToken();
+
+        mockMvc.perform(get("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.length()").value(2));
+
+        mockMvc
+            .perform(post("/api/v1/admins").header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(adminCreateRequestBody(NEW_ADMIN_LOGIN_ID, NEW_ADMIN_PASSWORD, NEW_ADMIN_NICKNAME,
+                    NEW_ADMIN_EMAIL)))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("슈퍼 관리자 권한이 필요합니다."));
     }
 
     @Test
@@ -333,15 +432,16 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    void superAdminDeletesAdminAndRevokesTokens() throws Exception {
+    void superAdminDeletesAdminAndRevokesTokens(CapturedOutput output) throws Exception {
         insertAdminUser(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_PASSWORD, "super_admin", null);
         insertAdminUser(TARGET_ADMIN_ID, TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD, "admin", null);
         String accessToken = loginAndReadAccessToken();
         AdminTokens targetTokens = loginAndReadTokens(TARGET_ADMIN_LOGIN_ID, TARGET_ADMIN_PASSWORD);
 
         mockMvc
-            .perform(delete("/api/v1/admins/{adminId}", TARGET_ADMIN_ID).header(HttpHeaders.AUTHORIZATION,
-                bearer(accessToken)))
+            .perform(delete("/api/v1/admins/{adminId}", TARGET_ADMIN_ID)
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken)).header("X-Trace-Id", "admin-delete-audit-test")
+                .header("X-Real-IP", "10.10.20.41"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").isNotEmpty()).andExpect(jsonPath("$.data").doesNotExist());
 
@@ -354,6 +454,25 @@ class AuthControllerIntegrationTest {
             bearer(targetTokens.accessToken()))).andExpect(status().isUnauthorized());
         mockMvc.perform(post("/api/v1/auth/reissue").contentType(MediaType.APPLICATION_JSON)
             .content(refreshTokenRequestBody(targetTokens.refreshToken()))).andExpect(status().isUnauthorized());
+
+        JsonNode auditLog = findAuditLog(output, "admin_account_delete");
+        JsonNode metadata = auditLog.path("metadata");
+        assertThat(auditLog.path("level").asText()).isEqualTo("INFO");
+        assertThat(auditLog.path("service").asText()).isEqualTo("backoffice-api");
+        assertThat(auditLog.path("trace_id").asText()).isEqualTo("admin-delete-audit-test");
+        assertThat(metadata.path("actor_id").asText()).isEqualTo(String.valueOf(ADMIN_ID));
+        assertThat(metadata.path("actor_role").asText()).isEqualTo("super_admin");
+        assertThat(metadata.path("actor_ip").asText()).isEqualTo("10.10.20.41");
+        assertThat(metadata.path("target_type").asText()).isEqualTo("admin_account");
+        assertThat(metadata.path("target_id").asText()).isEqualTo(String.valueOf(TARGET_ADMIN_ID));
+        assertThat(metadata.path("action").asText()).isEqualTo("delete");
+        assertThat(metadata.path("result").asText()).isEqualTo("success");
+        assertThat(metadata.path("before").path("login_id").asText()).isEqualTo(TARGET_ADMIN_LOGIN_ID);
+        assertThat(metadata.path("before").path("role").asText()).isEqualTo("admin");
+        assertThat(metadata.path("before").has("email")).isFalse();
+        assertThat(auditLog.toString()).doesNotContain(TARGET_ADMIN_PASSWORD).doesNotContain(ADMIN_EMAIL)
+            .doesNotContain("password_hash").doesNotContain(targetTokens.accessToken())
+            .doesNotContain(targetTokens.refreshToken());
     }
 
     @Test
@@ -489,6 +608,18 @@ class AuthControllerIntegrationTest {
             """.formatted(loginId, password, nickname, email);
     }
 
+    private String adminCreateRequestBody(String loginId, String password, String nickname, String email, String role) {
+        return """
+            {
+              "loginId": "%s",
+              "password": "%s",
+              "nickname": "%s",
+              "email": "%s",
+              "role": "%s"
+            }
+            """.formatted(loginId, password, nickname, email, role);
+    }
+
     private String passwordChangeRequestBody(String password) {
         return """
             {
@@ -533,85 +664,25 @@ class AuthControllerIntegrationTest {
             loginId);
     }
 
+    private String readAdminRole(String loginId) {
+        return jdbcTemplate.queryForObject("SELECT role FROM admin_user WHERE login_id = ?", String.class, loginId);
+    }
+
     private JsonNode readData(MvcResult result) throws Exception {
         return objectMapper.readTree(result.getResponse().getContentAsString()).path("data");
     }
 
+    private JsonNode findAuditLog(CapturedOutput output, String eventName) throws Exception {
+        for (String line : output.getOut().split("\\R")) {
+            if (line.contains("\"event_name\":\"%s\"".formatted(eventName))) {
+                return objectMapper.readTree(line.substring(line.indexOf('{')));
+            }
+        }
+
+        throw new AssertionError("Audit log not found. eventName=" + eventName);
+    }
+
     private record AdminTokens(String accessToken, String refreshToken) {
-    }
-
-    @TestConfiguration
-    static class AdminTokenStoreTestConfig {
-
-        @Bean
-        @Primary
-        InMemoryAdminTokenStore adminTokenStore() {
-            return new InMemoryAdminTokenStore();
-        }
-    }
-
-    static class InMemoryAdminTokenStore implements AdminTokenStore {
-
-        private final Map<String, StoredAdminRefreshToken> refreshTokens = new ConcurrentHashMap<>();
-        private final Set<String> accessTokenBlacklist = ConcurrentHashMap.newKeySet();
-        private final Map<Long, Instant> accessRevokedAfter = new ConcurrentHashMap<>();
-
-        @Override
-        public IssuedAdminRefreshToken issueRefreshToken(AdminUser adminUser) {
-            String refreshToken = UUID.randomUUID().toString();
-            Instant expiresAt = Instant.now().plusSeconds(14 * 24 * 60 * 60);
-            refreshTokens.put(refreshToken, new StoredAdminRefreshToken(adminUser.getId(), expiresAt));
-
-            return new IssuedAdminRefreshToken(refreshToken, OffsetDateTime.ofInstant(expiresAt, ZoneOffset.UTC));
-        }
-
-        @Override
-        public Optional<StoredAdminRefreshToken> findRefreshToken(String refreshToken) {
-            StoredAdminRefreshToken storedToken = refreshTokens.get(refreshToken);
-            if (storedToken == null || storedToken.isExpired(Instant.now())) {
-                return Optional.empty();
-            }
-
-            return Optional.of(storedToken);
-        }
-
-        @Override
-        public void revokeRefreshToken(String refreshToken) {
-            refreshTokens.remove(refreshToken);
-        }
-
-        @Override
-        public void revokeAllRefreshTokens(Long adminId) {
-            refreshTokens.entrySet().removeIf(entry -> entry.getValue().adminId().equals(adminId));
-        }
-
-        @Override
-        public void blacklistAccessToken(AdminTokenClaims claims) {
-            if (claims.tokenId() != null) {
-                accessTokenBlacklist.add(claims.tokenId());
-            }
-        }
-
-        @Override
-        public void revokeAccessTokensIssuedBefore(Long adminId, Instant revokedAt) {
-            accessRevokedAfter.put(adminId, revokedAt);
-        }
-
-        @Override
-        public boolean isAccessTokenRevoked(AdminTokenClaims claims) {
-            if (claims.tokenId() != null && accessTokenBlacklist.contains(claims.tokenId())) {
-                return true;
-            }
-
-            Instant revokedAfter = accessRevokedAfter.get(claims.adminId());
-            return revokedAfter != null && !claims.issuedAt().isAfter(revokedAfter);
-        }
-
-        void clear() {
-            refreshTokens.clear();
-            accessTokenBlacklist.clear();
-            accessRevokedAfter.clear();
-        }
     }
 
     private static final class Base64Url {

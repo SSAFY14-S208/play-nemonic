@@ -10,7 +10,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * gallery 소유권 기준으로 조회 가능한 산출물 이미지 object key를 읽습니다.
+ * 갤러리 소유권 기준으로 조회 가능한 산출물 이미지 객체 키를 읽습니다.
  */
 @Repository
 public class ArtifactImageUrlRepository {
@@ -25,7 +25,9 @@ public class ArtifactImageUrlRepository {
             fba.gif_url AS flipbook_gif_url,
             fba.first_image AS flipbook_first_image_url,
             ica.canvas_image_url AS infinite_canvas_image_url,
-            pa.phone_image_url AS phone_image_url
+            pa.phone_image_url AS phone_image_url,
+            cm.body_image_url AS community_memo_original_image_url,
+            cm.thumbnail_image_url AS community_memo_thumbnail_image_url
         FROM artifact a
         JOIN gallery g ON g.artifact_id = a.id
         LEFT JOIN fortune_artifact fa ON fa.artifact_id = a.id
@@ -33,6 +35,7 @@ public class ArtifactImageUrlRepository {
         LEFT JOIN flipbook_artifact fba ON fba.artifact_id = a.id
         LEFT JOIN infinite_canvas_artifact ica ON ica.artifact_id = a.id
         LEFT JOIN phone_artifact pa ON pa.artifact_id = a.id
+        LEFT JOIN community_memo cm ON cm.artifact_id = a.id
         WHERE a.id = :artifactId
           AND g.user_id = :userUuid
           AND g.deleted_at IS NULL
@@ -58,6 +61,7 @@ public class ArtifactImageUrlRepository {
             resultSet.getString("thumbnail_url"), resultSet.getString("fortune_image_url"),
             resultSet.getString("relay_combined_preview_url"), resultSet.getString("flipbook_gif_url"),
             resultSet.getString("flipbook_first_image_url"), resultSet.getString("infinite_canvas_image_url"),
-            resultSet.getString("phone_image_url"));
+            resultSet.getString("phone_image_url"), resultSet.getString("community_memo_original_image_url"),
+            resultSet.getString("community_memo_thumbnail_image_url"));
     }
 }

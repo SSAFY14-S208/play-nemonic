@@ -1,103 +1,146 @@
 'use client'
 
-import { useMemo, type CSSProperties } from 'react'
+import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import {
-  HUB_CONTENT_VIEWS,
-  type HubContentKey,
-  useHubViewStore,
-} from '@/shared/stores'
+  Gamepad2,
+  HelpCircle,
+  Home,
+  LayoutDashboard,
+  Music2,
+  MousePointerClick,
+  Printer,
+  Volume2,
+  VolumeX,
+} from 'lucide-react'
 import { cn } from '@/shared/libs'
+import { useHubOnboardingStore, useHubRoomStore } from '@/shared/stores'
+import type { HubFocusKey } from '@/shared/types'
+import HubOnboardingTour from './HubOnboardingTour'
 import styles from './HubOverlay.module.css'
+import MonitorGameInfoCard from './MonitorGameInfoCard'
+import { useHubBgm } from './useHubBgm'
 
-const HUB_BUTTONS: Array<{ key: HubContentKey; label: string }> = [
-  { key: 'community', label: '커뮤니티' },
-  { key: 'fortune', label: '운세' },
-  { key: 'relay', label: '릴레이' },
-  { key: 'infinite', label: '무한' },
-  { key: 'flipbook', label: '플립북' },
+const NEMONIC_ROOM_PATH = '/nemonic'
+
+const FOCUS_BUTTONS: Array<{
+  focusKey: HubFocusKey
+  icon: typeof Home
+  label: string
+  iconOnly?: boolean
+}> = [
+  { focusKey: 'overview', icon: Home, label: '홈', iconOnly: true },
+  { focusKey: 'monitor', icon: Gamepad2, label: '게임 선택' },
+  { focusKey: 'communityBoard', icon: LayoutDashboard, label: '커뮤니티 보드' },
+  { focusKey: 'printer', icon: Printer, label: '네모닉' },
 ]
 
-const PLATFORM_BUTTON_STYLES: Record<HubContentKey, CSSProperties> = {
-  community: {
-    '--hub-chip-bg': 'rgba(183, 235, 163, 0.72)',
-    '--hub-chip-border': 'rgba(111, 168, 87, 0.34)',
-    '--hub-chip-text': '#4d7a42',
-  } as CSSProperties,
-  fortune: {
-    '--hub-chip-bg': 'rgba(204, 173, 238, 0.72)',
-    '--hub-chip-border': 'rgba(128, 99, 178, 0.34)',
-    '--hub-chip-text': '#6c5596',
-  } as CSSProperties,
-  relay: {
-    '--hub-chip-bg': 'rgba(255, 157, 168, 0.74)',
-    '--hub-chip-border': 'rgba(204, 96, 108, 0.34)',
-    '--hub-chip-text': '#98525b',
-  } as CSSProperties,
-  infinite: {
-    '--hub-chip-bg': 'rgba(185, 224, 246, 0.78)',
-    '--hub-chip-border': 'rgba(93, 154, 190, 0.34)',
-    '--hub-chip-text': '#527c94',
-  } as CSSProperties,
-  flipbook: {
-    '--hub-chip-bg': 'rgba(255, 225, 143, 0.76)',
-    '--hub-chip-border': 'rgba(204, 154, 53, 0.34)',
-    '--hub-chip-text': '#8a6b31',
-  } as CSSProperties,
-}
-
-export default function HubOverlay() {
-  const selectedContentKey = useHubViewStore((state) => state.selectedContentKey)
-  const currentCopy = useHubViewStore((state) => state.currentCopy)
-  const selectContent = useHubViewStore((state) => state.selectContent)
-  const copyKey = `${currentCopy.eyebrow}-${currentCopy.title}-${currentCopy.description}`
-
-  const renderedButtons = useMemo(
-    () =>
-      HUB_BUTTONS.map(({ key, label }) => {
-        const platform = HUB_CONTENT_VIEWS[key].platform
-        const isActive = selectedContentKey === key
-
-        return (
-          <button
-            key={key}
-            type="button"
-            aria-pressed={isActive}
-            data-platform={platform}
-            style={PLATFORM_BUTTON_STYLES[key]}
-            onClick={() => selectContent(key)}
-            className={cn(styles.platformButton, isActive && styles.active)}
-          >
-            {label}
-          </button>
-        )
-      }),
-    [selectContent, selectedContentKey],
+export default function HubOverlay({
+  disableBgm = false,
+}: {
+  disableBgm?: boolean
+}) {
+  const router = useRouter()
+  const focusKey = useHubRoomStore((state) => state.focusKey)
+  const setFocus = useHubRoomStore((state) => state.setFocus)
+  const reopenOnboarding = useHubOnboardingStore(
+    (state) => state.reopenOnboarding,
   )
+  const { isBgmEnabled, isBgmPlaying, toggleHubBgm } = useHubBgm({
+    disabled: disableBgm,
+  })
+  const BgmIcon = isBgmEnabled ? Volume2 : VolumeX
+  const bgmToggleLabel = isBgmEnabled ? '허브 음악 끄기' : '허브 음악 켜기'
+
+  const handleFocusButtonClick = (nextFocusKey: HubFocusKey) => {
+    setFocus(nextFocusKey)
+  }
+
+  const handleOpenNemonic = () => {
+    router.push(NEMONIC_ROOM_PATH)
+  }
 
   return (
     <>
-      <header className={styles.viewerCopy}>
-        <div
-          key={copyKey}
-          className={styles.copySwap}
-        >
-          <p className={styles.eyebrow}>
-            {currentCopy.eyebrow}
-          </p>
-          <h1 className={styles.viewerTitle}>
-            {currentCopy.title}
-          </h1>
-          <p className={styles.viewerDescription}>
-            {currentCopy.description}
-          </p>
+      <header className={styles.brandPanel}>
+        <div className={styles.brandMark}>
+          <Image
+            src="/images/play-nemonic-logo-v2.png"
+            alt="Play! Nemonic"
+            width={2716}
+            height={1222}
+            priority
+            draggable={false}
+            className={styles.brandLogo}
+          />
         </div>
       </header>
 
-      <footer className={styles.viewerControls}>
-        <div className={styles.platformButtons}>
-          {renderedButtons}
+      <div className={styles.utilityCluster}>
+        <button
+          type="button"
+          aria-label="허브 사용법 다시 보기"
+          className={styles.utilityButton}
+          title="허브 사용법 다시 보기"
+          onClick={reopenOnboarding}
+        >
+          <HelpCircle className="h-4 w-4" strokeWidth={2.35} />
+        </button>
+        {!disableBgm && (
+          <button
+            type="button"
+            aria-label={bgmToggleLabel}
+            aria-pressed={isBgmEnabled}
+            className={styles.musicButton}
+            data-muted={!isBgmEnabled}
+            data-playing={isBgmPlaying}
+            title={`Pastel Puzzle Room · ${bgmToggleLabel}`}
+            onClick={toggleHubBgm}
+          >
+            <Music2 className={styles.musicSignal} strokeWidth={2.35} />
+            <BgmIcon className="h-4 w-4" strokeWidth={2.35} />
+          </button>
+        )}
+      </div>
+
+      <nav className={styles.focusControls} aria-label="허브 카메라 포커스">
+        {FOCUS_BUTTONS.map(
+          ({ focusKey: buttonFocusKey, icon: Icon, label, iconOnly }) => {
+            const isActive = focusKey === buttonFocusKey
+
+            return (
+              <button
+                key={buttonFocusKey}
+                type="button"
+                aria-pressed={isActive}
+                aria-label={label}
+                className={cn(styles.focusButton, isActive && styles.focusButtonActive)}
+                onClick={() => handleFocusButtonClick(buttonFocusKey)}
+              >
+                <Icon className="h-4 w-4" strokeWidth={2.35} />
+                {!iconOnly && <span>{label}</span>}
+              </button>
+            )
+          },
+        )}
+      </nav>
+
+      {focusKey === 'printer' && (
+        <div className={styles.printerPrompt} aria-live="polite">
+          <button
+            type="button"
+            className={styles.printerPromptButton}
+            onClick={handleOpenNemonic}
+          >
+            <MousePointerClick className={styles.printerPromptIcon} strokeWidth={2.35} />
+            <span>네모닉 체험하기</span>
+          </button>
+          <span className={styles.printerPromptBeam} aria-hidden />
         </div>
-      </footer>
+      )}
+
+      <MonitorGameInfoCard />
+      <HubOnboardingTour />
     </>
   )
 }

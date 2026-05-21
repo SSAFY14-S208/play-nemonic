@@ -71,6 +71,14 @@ public record FlipbookRoomState(String roomCode, FlipbookRoomStatus status, Stri
             updatedParticipants, createdAt, updatedAt, kickedUserUuids);
     }
 
+    public FlipbookRoomState withParticipantsAssignmentsHostAndStatus(List<FlipbookRoomParticipant> updatedParticipants,
+        List<FlipbookFrameAssignment> updatedAssignments, String updatedHostUserUuid, FlipbookRoomStatus updatedStatus,
+        LocalDateTime updatedAt) {
+        return new FlipbookRoomState(roomCode, updatedStatus, updatedHostUserUuid, timeLimitSeconds, minParticipants,
+            maxParticipants, currentRound, totalRounds, roundStartedAt, roundDeadlineAt, gameStartedAt,
+            updatedAssignments, updatedParticipants, createdAt, updatedAt, kickedUserUuids);
+    }
+
     // 나머지 값은 그대로, updatedAt만 현재 시각으로 변경 (record라 기존의 객체 값을 변경할 수 없음)
     public FlipbookRoomState withTimeLimitSeconds(int updatedTimeLimitSeconds, LocalDateTime updatedAt) {
         return new FlipbookRoomState(roomCode, status, hostUserUuid, updatedTimeLimitSeconds, minParticipants,
@@ -97,12 +105,30 @@ public record FlipbookRoomState(String roomCode, FlipbookRoomStatus status, Stri
     }
 
     /**
-     * 모든 라운드 제출이 끝난 방을 결과 조회 가능한 종료 상태로 전환합니다.
+     * 모든 라운드 제출이 끝난 방을 결과 생성 대기 상태로 전환합니다.
      */
     public FlipbookRoomState finishGame(List<FlipbookFrameAssignment> updatedAssignments, LocalDateTime finishedAt) {
-        return new FlipbookRoomState(roomCode, FlipbookRoomStatus.FINISHED, hostUserUuid, timeLimitSeconds,
+        return new FlipbookRoomState(roomCode, FlipbookRoomStatus.FINALIZING, hostUserUuid, timeLimitSeconds,
             minParticipants, maxParticipants, currentRound, totalRounds, roundStartedAt, roundDeadlineAt, gameStartedAt,
             updatedAssignments, participants, createdAt, finishedAt, kickedUserUuids);
+    }
+
+    /**
+     * 최종 결과물 생성과 갤러리 저장이 끝난 방을 결과 조회 가능한 종료 상태로 전환합니다.
+     */
+    public FlipbookRoomState finish(LocalDateTime finishedAt) {
+        return new FlipbookRoomState(roomCode, FlipbookRoomStatus.FINISHED, hostUserUuid, timeLimitSeconds,
+            minParticipants, maxParticipants, currentRound, totalRounds, roundStartedAt, roundDeadlineAt, gameStartedAt,
+            assignments, participants, createdAt, finishedAt, kickedUserUuids);
+    }
+
+    /**
+     * 결과물/갤러리/임시 파일은 그대로 두고 방 상태만 닫힘 상태로 전환합니다.
+     */
+    public FlipbookRoomState close(LocalDateTime closedAt) {
+        return new FlipbookRoomState(roomCode, FlipbookRoomStatus.CLOSED, hostUserUuid, timeLimitSeconds,
+            minParticipants, maxParticipants, currentRound, totalRounds, roundStartedAt, roundDeadlineAt, gameStartedAt,
+            assignments, participants, createdAt, closedAt, kickedUserUuids);
     }
 
     /**

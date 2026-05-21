@@ -1,73 +1,107 @@
-import { useRef, Suspense } from "react";
-import * as THREE from "three";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Lighting from "../_infra/Lighting";
-import Character from "../_infra/Character";
-import DeskMesh from "./objects/DeskMesh";
-import DeskBoundsMesh from "./objects/DeskBoundsMesh";
-import PrinterHud from "./objects/PrinterHud";
 import LandingCamera from "./LandingCamera";
-import { useLandingInteraction } from "./useLandingInteraction";
-import { usePrinterProximity } from "./usePrinterProximity";
 import { useNemonicPrinterInteraction } from "../_shared/hooks";
 import { NemonicPrinterMesh } from "../_shared/mesh";
-import { CAPSULE_HALF_HEIGHT, CAPSULE_RADIUS } from "../_infra/constants";
+import { NEMONIC_PRINTER_POSITION } from "./constants";
+import LandingInteractionHints from "./LandingInteractionHints";
 import {
-  DESK_SURFACE_Y,
-  NEMONIC_PRINTER_POSITION,
-  CHARACTER_INITIAL_POSITION,
-  PRINTER_HUD_OFFSET_Y,
-} from "./constants";
+  NEMONIC_ROOM_PRINT_EVENT,
+  consumeNemonicRoomPrintDraft,
+  type NemonicRoomPrintDraft,
+} from "@/shared/utils";
+
+const NEMONIC_WHITE_PLASTIC_MATERIAL_NAMES = [
+  "nemonic_plastic_base_white",
+  "nemonic_plastic_base_white.001",
+];
+const ROOM_PRINT_ANIMATION_DELAY_MS = 80;
 
 export default function LandingScene() {
-  const targetPositionRef = useRef<THREE.Vector3>(new THREE.Vector3());
-  // 첫 프레임 카메라 스냅 위치 — 실제 캐릭터 RigidBody Y와 일치시켜야 카메라가 튀지 않음
-  const characterPositionRef = useRef<THREE.Vector3>(
-    new THREE.Vector3(
-      0,
-      DESK_SURFACE_Y + CAPSULE_HALF_HEIGHT + CAPSULE_RADIUS,
-      0,
-    ),
-  );
-  const isPointerDownRef = useRef<boolean>(false);
-
+  const [showInteractionHints, setShowInteractionHints] = useState(true);
+  const [roomPrintDraft, setRoomPrintDraft] =
+    useState<NemonicRoomPrintDraft | null>(null);
+  const [isDefaultPrintLabelVisible, setDefaultPrintLabelVisible] =
+    useState(false);
+  const lastPlayedPrintIdRef = useRef<string | null>(null);
   const { actionsRef, handlePrintButtonClick, handleOpenButtonClick } =
     useNemonicPrinterInteraction();
 
-  const { isNearPrinter } = usePrinterProximity(characterPositionRef);
+  useEffect(() => {
+    const handleNemonicRoomPrint = () => {
+      const printDraft = consumeNemonicRoomPrintDraft();
+      if (!printDraft) return;
 
-  useLandingInteraction(targetPositionRef, isPointerDownRef);
+      setShowInteractionHints(false);
+      setDefaultPrintLabelVisible(false);
+      setRoomPrintDraft(printDraft);
+    };
 
-  const hudPosition: [number, number, number] = [
-    NEMONIC_PRINTER_POSITION[0],
-    NEMONIC_PRINTER_POSITION[1] + PRINTER_HUD_OFFSET_Y,
-    NEMONIC_PRINTER_POSITION[2],
-  ];
+    handleNemonicRoomPrint();
+    window.addEventListener(NEMONIC_ROOM_PRINT_EVENT, handleNemonicRoomPrint);
+    return () => {
+      window.removeEventListener(
+        NEMONIC_ROOM_PRINT_EVENT,
+        handleNemonicRoomPrint,
+      );
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!roomPrintDraft) return;
+
+    const printId = roomPrintDraft.createdAt ?? roomPrintDraft.imageUrl;
+    if (lastPlayedPrintIdRef.current === printId) return;
+
+    lastPlayedPrintIdRef.current = printId;
+    const timerId = window.setTimeout(() => {
+      handlePrintButtonClick();
+    }, ROOM_PRINT_ANIMATION_DELAY_MS);
+
+    return () => window.clearTimeout(timerId);
+  }, [handlePrintButtonClick, roomPrintDraft]);
+
+  const handleHintedPrintButtonClick = () => {
+    setShowInteractionHints(false);
+    if (!roomPrintDraft) {
+      setDefaultPrintLabelVisible(true);
+    }
+
+    window.setTimeout(handlePrintButtonClick, ROOM_PRINT_ANIMATION_DELAY_MS);
+  };
+
+  const handleHintedOpenButtonClick = () => {
+    setShowInteractionHints(false);
+    handleOpenButtonClick();
+  };
 
   return (
     <>
-      <LandingCamera characterPositionRef={characterPositionRef} />
+      <color attach="background" args={["#ffffff"]} />
+      <LandingCamera />
       <Lighting />
-      <Suspense fallback={null}>
-        <DeskMesh />
-      </Suspense>
-      <DeskBoundsMesh />
       <Suspense fallback={null}>
         <NemonicPrinterMesh
           position={NEMONIC_PRINTER_POSITION}
           actionsRef={actionsRef}
-          onPrintButtonClick={handlePrintButtonClick}
-          onOpenButtonClick={handleOpenButtonClick}
+          baseColorOverride="#ffffff"
+          baseColorOverrideMaterialNames={NEMONIC_WHITE_PLASTIC_MATERIAL_NAMES}
+          highlightStrength="strong"
+          onPrintButtonClick={handleHintedPrintButtonClick}
+          onOpenButtonClick={handleHintedOpenButtonClick}
+          isPrintLabelVisible={
+            isDefaultPrintLabelVisible || Boolean(roomPrintDraft?.imageUrl)
+          }
+          printImageUrl={roomPrintDraft?.imageUrl}
+          withPhysics={false}
         />
-      </Suspense>
-      {isNearPrinter && <PrinterHud position={hudPosition} />}
-      <Suspense fallback={null}>
-        <Character
-          targetPositionRef={targetPositionRef}
-          characterPositionRef={characterPositionRef}
-          isPointerDownRef={isPointerDownRef}
-          surfaceY={DESK_SURFACE_Y}
-          initialPosition={CHARACTER_INITIAL_POSITION}
-        />
+        <group position={NEMONIC_PRINTER_POSITION}>
+          <LandingInteractionHints
+            visible={showInteractionHints}
+            onPrintHintClick={handleHintedPrintButtonClick}
+            onOpenHintClick={handleHintedOpenButtonClick}
+          />
+        </group>
       </Suspense>
     </>
   );

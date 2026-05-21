@@ -3,6 +3,7 @@ package com.nemonicworld.user.service;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.NotFoundException;
+import com.nemonicworld.global.logging.StructuredEventLogger;
 import com.nemonicworld.user.dto.request.AnonymousUserBirthInfoRequest;
 import com.nemonicworld.user.dto.request.AnonymousUserNicknameRequest;
 import com.nemonicworld.user.dto.response.AnonymousUserBirthInfoResponse;
@@ -59,6 +60,9 @@ public class UserServiceImpl implements UserService {
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         AppUser appUser = AppUser.createAnonymous(UUID.randomUUID(), normalizeUserAgent(userAgent), now);
         AppUser savedUser = userRepository.save(appUser);
+        StructuredEventLogger.apiBusiness("anonymous_user_created", "user", savedUser.getId().toString(),
+            StructuredEventLogger.metadata("result", "success", "user_agent_present", StringUtils.hasText(userAgent),
+                "created_at", savedUser.getCreatedAt()));
 
         return new AnonymousUserResponse(savedUser.getId().toString(), savedUser.getNickname(),
             savedUser.getCreatedAt());
@@ -118,6 +122,8 @@ public class UserServiceImpl implements UserService {
 
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         appUser.updateBirthInfo(birthInfo.birthday(), birthInfo.birthtime(), birthInfo.isLunar(), now);
+        StructuredEventLogger.apiBusiness("birth_info_saved", "user", appUser.getId().toString(), StructuredEventLogger
+            .metadata("operation", "create", "is_lunar", birthInfo.isLunar(), "result", "success"));
 
         return toBirthInfoResponse(appUser);
     }
@@ -139,6 +145,8 @@ public class UserServiceImpl implements UserService {
 
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         appUser.updateBirthInfo(birthInfo.birthday(), birthInfo.birthtime(), birthInfo.isLunar(), now);
+        StructuredEventLogger.apiBusiness("birth_info_saved", "user", appUser.getId().toString(), StructuredEventLogger
+            .metadata("operation", "update", "is_lunar", birthInfo.isLunar(), "result", "success"));
 
         return toBirthInfoResponse(appUser);
     }

@@ -2,6 +2,7 @@ package com.nemonicworld.invite.repository;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.invite.redis.InviteMetadata;
 import java.time.Duration;
 import java.util.Optional;
@@ -68,7 +69,7 @@ public class RedisInviteRepository implements InviteRepository {
         try {
             return objectMapper.writeValueAsString(inviteMetadata);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException(INVITE_SERIALIZATION_ERROR_MESSAGE, e);
+            throw new InternalServerException(INVITE_SERIALIZATION_ERROR_MESSAGE, e);
         }
     }
 
@@ -80,7 +81,7 @@ public class RedisInviteRepository implements InviteRepository {
         try {
             return objectMapper.readValue(inviteValue, InviteMetadata.class);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException(INVITE_DESERIALIZATION_ERROR_MESSAGE, e);
+            throw new InternalServerException(INVITE_DESERIALIZATION_ERROR_MESSAGE, e);
         }
     }
 }

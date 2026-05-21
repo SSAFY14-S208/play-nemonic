@@ -16,11 +16,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.common.exception.RoomCodeGenerationException;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.common.util.RoomCodeGenerator;
-import com.nemonicworld.support.IntegrationTest;
+import com.nemonicworld.support.AbstractIntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -30,22 +32,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-@IntegrationTest
-@AutoConfigureMockMvc
-@TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
 /**
  * 플립북 방 생성 API의 HTTP 응답과 Redis 저장 경계를 검증합니다.
  */
-class FlipbookRoomControllerIntegrationTest {
+class FlipbookRoomControllerIntegrationTest extends AbstractIntegrationTest {
 
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String DEFAULT_ROOM_CODE = "FB3K9Q";
@@ -56,6 +54,9 @@ class FlipbookRoomControllerIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Autowired
     private UserRepository userRepository;
@@ -70,6 +71,8 @@ class FlipbookRoomControllerIntegrationTest {
 
     @BeforeEach
     void prepare() {
+        prepareBackofficeSettingTables();
+        jdbcTemplate.update("DELETE FROM backoffice_setting");
         userRepository.deleteAll();
 
         valueOperations = createValueOperationsMock();
@@ -93,6 +96,10 @@ class FlipbookRoomControllerIntegrationTest {
             .andExpect(jsonPath("$.data.status").value("WAITING"))
             .andExpect(jsonPath("$.data.hostUserUuid").value(userUuid.toString()))
             .andExpect(jsonPath("$.data.timeLimitSeconds").value(45))
+            .andExpect(jsonPath("$.data.timeLimitSecondsOptions.default").value(45))
+            .andExpect(jsonPath("$.data.timeLimitSecondsOptions.allowed[0]").value(30))
+            .andExpect(jsonPath("$.data.timeLimitSecondsOptions.allowed[1]").value(45))
+            .andExpect(jsonPath("$.data.timeLimitSecondsOptions.allowed[2]").value(60))
             .andExpect(jsonPath("$.data.minParticipants").value(2))
             .andExpect(jsonPath("$.data.maxParticipants").value(6))
             .andExpect(jsonPath("$.data.participantCount").value(1))
@@ -128,6 +135,31 @@ class FlipbookRoomControllerIntegrationTest {
         assertThat(storedInvite.path("roomId").asText()).isEqualTo(DEFAULT_ROOM_CODE);
         assertThat(storedInvite.path("roomName").asText()).isEqualTo("망고의 플립북");
         assertThat(storedInvite.path("expiresAt").asText()).isNotBlank();
+    }
+
+    @Test
+    void createFlipbookRoomUsesFlipbookRuntimeSettingsForNewRoom() throws Exception {
+        insertFlipbookParticipantLimitSetting("""
+            {"min":3,"max":8,"unit":"people","description":"Flipbook room participant limit"}
+            """);
+        insertFlipbookRoomTimeLimitSetting("""
+            {"default":60,"allowed":[45,60,90],"unit":"seconds","description":"Flipbook room time limit"}
+            """);
+        UUID userUuid = createExistingUserWithNickname("Mango");
+
+        mockMvc.perform(post("/api/v1/flipbook/rooms").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.data.timeLimitSeconds").value(60))
+            .andExpect(jsonPath("$.data.timeLimitSecondsOptions.default").value(60))
+            .andExpect(jsonPath("$.data.timeLimitSecondsOptions.allowed[0]").value(45))
+            .andExpect(jsonPath("$.data.timeLimitSecondsOptions.allowed[1]").value(60))
+            .andExpect(jsonPath("$.data.timeLimitSecondsOptions.allowed[2]").value(90))
+            .andExpect(jsonPath("$.data.minParticipants").value(3))
+            .andExpect(jsonPath("$.data.maxParticipants").value(8));
+
+        JsonNode storedRoom = readStoredJson("flipbook:room:%s".formatted(DEFAULT_ROOM_CODE));
+        assertThat(storedRoom.path("timeLimitSeconds").asInt()).isEqualTo(60);
+        assertThat(storedRoom.path("minParticipants").asInt()).isEqualTo(3);
+        assertThat(storedRoom.path("maxParticipants").asInt()).isEqualTo(8);
     }
 
     /**
@@ -258,7 +290,7 @@ class FlipbookRoomControllerIntegrationTest {
     @Test
     void createFlipbookRoomReturnsServerErrorWhenRoomCodeGenerationFails() throws Exception {
         UUID userUuid = createExistingUserWithNickname("망고");
-        given(roomCodeGenerator.generateUnique(any())).willThrow(new IllegalStateException("방코드 생성에 실패했습니다."));
+        given(roomCodeGenerator.generateUnique(any())).willThrow(new RoomCodeGenerationException("방코드 생성에 실패했습니다."));
 
         mockMvc.perform(post("/api/v1/flipbook/rooms").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isInternalServerError()).andExpect(jsonPath("$.success").value(false))
@@ -279,6 +311,56 @@ class FlipbookRoomControllerIntegrationTest {
         mockMvc.perform(post("/api/v1/flipbook/rooms").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isInternalServerError()).andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.message").value("서버 오류가 발생했습니다."));
+    }
+
+    private void prepareBackofficeSettingTables() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS admin_user (
+                id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                login_id VARCHAR(64) NOT NULL UNIQUE,
+                password_hash VARCHAR(255) NOT NULL,
+                nickname VARCHAR(20) NOT NULL,
+                email VARCHAR(255) NOT NULL,
+                role VARCHAR(32) NOT NULL,
+                last_login_at TIMESTAMP NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL,
+                deleted_at TIMESTAMP NULL
+            )
+            """);
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS backoffice_setting (
+                id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                setting_key VARCHAR(128) NOT NULL UNIQUE,
+                setting_value TEXT NOT NULL DEFAULT '{}',
+                updated_by BIGINT NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
+            )
+            """);
+    }
+
+    private void insertFlipbookParticipantLimitSetting(String settingValue) {
+        insertSetting(10L, "flipbook.room_participant_limit", settingValue);
+    }
+
+    private void insertFlipbookRoomTimeLimitSetting(String settingValue) {
+        insertSetting(11L, "flipbook.room_time_limit_seconds", settingValue);
+    }
+
+    private void insertSetting(long id, String key, String settingValue) {
+        LocalDateTime now = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        jdbcTemplate.update("""
+            INSERT INTO backoffice_setting (
+                id,
+                setting_key,
+                setting_value,
+                updated_by,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """, id, key, settingValue, 0L, Timestamp.valueOf(now), Timestamp.valueOf(now));
     }
 
     private UUID createExistingUserWithNickname(String nickname) {

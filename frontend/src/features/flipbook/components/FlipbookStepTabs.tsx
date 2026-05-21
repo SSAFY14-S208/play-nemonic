@@ -1,6 +1,7 @@
 'use client'
 
-import { FLIPBOOK_STEPS, type FlipbookStep } from '../constants'
+import { FLIPBOOK_STEPS } from '../constants'
+import type { FlipbookStep } from '../types'
 import { cn } from '@/shared/libs'
 
 interface FlipbookStepTabsProps {

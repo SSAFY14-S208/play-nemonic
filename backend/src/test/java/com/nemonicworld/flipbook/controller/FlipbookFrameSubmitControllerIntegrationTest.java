@@ -13,6 +13,7 @@ import com.nemonicworld.flipbook.dto.response.FlipbookFrameSubmitResponse;
 import com.nemonicworld.flipbook.entity.FlipbookFrameAssignmentStatus;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.service.FlipbookRoomService;
+import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationTriggerService;
 import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
 import com.nemonicworld.support.IntegrationTest;
 import java.time.LocalDateTime;
@@ -43,6 +44,9 @@ class FlipbookFrameSubmitControllerIntegrationTest {
 
     @MockitoBean
     private FlipbookRoomEventPublisher flipbookRoomEventPublisher;
+
+    @MockitoBean
+    private FlipbookRoomFinalizationTriggerService flipbookRoomFinalizationTriggerService;
 
     /**
      * POST 요청을 프레임 제출 유스케이스로 위임하고 제출 이벤트를 발행합니다.
@@ -84,5 +88,44 @@ class FlipbookFrameSubmitControllerIntegrationTest {
 
         verify(flipbookRoomService).submitFrame(eq(participantUuid.toString()), eq(ROOM_CODE), eq(2), eq(request));
         verify(flipbookRoomEventPublisher).publishFrameSubmitted(response);
+        verify(flipbookRoomEventPublisher).publishRoundStarted(ROOM_CODE, 2, 3, now, now.plusSeconds(45));
+    }
+
+    /**
+     * 마지막 라운드 제출로 전체 라운드가 완료되면 전체 완료 이벤트를 함께 발행합니다.
+     */
+    @Test
+    void submitFramePublishesAllRoundsCompletedWhenLastRoundFinishes() throws Exception {
+        UUID participantUuid = UUID.randomUUID();
+        UUID fileId = UUID.randomUUID();
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        FlipbookFrameSubmitRequest request = new FlipbookFrameSubmitRequest(1, 3, fileId.toString());
+        FlipbookFrameSubmitResponse response = new FlipbookFrameSubmitResponse(ROOM_CODE, 3, 1, 3,
+            FlipbookFrameAssignmentStatus.SUBMITTED, fileId.toString(),
+            "uploads/flipbook/2026/05/08/%s/frame.png".formatted(fileId),
+            "https://example.com/minio/nemonic/uploads/flipbook/2026/05/08/%s/frame.png".formatted(fileId), now, false,
+            true, 2, 2, true, null, null, null, true, FlipbookRoomStatus.FINALIZING, participantUuid.toString(), "망고");
+        given(flipbookRoomService.submitFrame(eq(participantUuid.toString()), eq(ROOM_CODE), eq(3), eq(request)))
+            .willReturn(response);
+
+        mockMvc
+            .perform(post("/api/v1/flipbook/rooms/{roomCode}/rounds/{round}/frames", ROOM_CODE, 3)
+                .header(ANONYMOUS_USER_UUID_HEADER, participantUuid.toString()).contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "flipbookIndex": 1,
+                      "frameIndex": 3,
+                      "fileId": "%s"
+                    }
+                    """.formatted(fileId)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.advanced").value(true))
+            .andExpect(jsonPath("$.data.allRoundsCompleted").value(true))
+            .andExpect(jsonPath("$.data.roomStatus").value("FINALIZING"));
+
+        verify(flipbookRoomService).submitFrame(eq(participantUuid.toString()), eq(ROOM_CODE), eq(3), eq(request));
+        verify(flipbookRoomEventPublisher).publishFrameSubmitted(response);
+        verify(flipbookRoomEventPublisher).publishAllRoundsCompleted(ROOM_CODE, FlipbookRoomStatus.FINALIZING, now);
+        verify(flipbookRoomFinalizationTriggerService).triggerFinalizationAsync(ROOM_CODE);
     }
 }

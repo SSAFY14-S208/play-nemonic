@@ -46,7 +46,7 @@ export function useFlipbookRealtimeActions() {
       requestId: createFlipbookRequestId('room-create'),
       payload: {
         userUuid,
-        nickname: nickname ?? '여우',
+        nickname: nickname ?? '나',
       },
     })
   }, [enqueueClientMessage, nickname, userUuid])
@@ -59,7 +59,7 @@ export function useFlipbookRealtimeActions() {
         roomId,
         roomCode: FLIPBOOK_ROOM_CODE,
         userUuid,
-        nickname: nickname ?? '여우',
+        nickname: nickname ?? '나',
       },
     })
   }, [enqueueClientMessage, nickname, roomId, userUuid])

@@ -6,11 +6,13 @@ import com.nemonicworld.admin.dto.response.AdminResponse;
 import com.nemonicworld.admin.entity.AdminRole;
 import com.nemonicworld.admin.entity.AdminUser;
 import com.nemonicworld.admin.repository.AdminUserRepository;
+import com.nemonicworld.auth.service.AdminAuditLogger;
+import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.auth.service.AdminTokenStore;
+import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.exception.NotFoundException;
-import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -19,46 +21,49 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.util.StringUtils;
 
 @Service
 public class AdminServiceImpl implements AdminService {
 
-    private static final String SUPER_ADMIN_REQUIRED_MESSAGE = "슈퍼 관리자 권한이 필요합니다.";
     private static final String DUPLICATE_LOGIN_ID_MESSAGE = "이미 등록된 관리자 아이디입니다.";
 
     private static final String ADMIN_ACCOUNT_NOT_FOUND_MESSAGE = "관리자 계정을 찾을 수 없습니다.";
     private static final String SELF_DELETE_FORBIDDEN_MESSAGE = "자기 자신은 삭제할 수 없습니다.";
     private static final String SUPER_ADMIN_DELETE_FORBIDDEN_MESSAGE = "슈퍼 관리자 계정은 삭제할 수 없습니다.";
+    private static final String CREATE_ROLE_NOT_ALLOWED_MESSAGE = "생성할 수 없는 관리자 권한입니다.";
 
     private final AdminUserRepository adminUserRepository;
     private final AdminTokenStore adminTokenStore;
     private final PasswordEncoder passwordEncoder;
+    private final AdminAuditLogger adminAuditLogger;
 
     public AdminServiceImpl(AdminUserRepository adminUserRepository, AdminTokenStore adminTokenStore,
-        PasswordEncoder passwordEncoder) {
+        PasswordEncoder passwordEncoder, AdminAuditLogger adminAuditLogger) {
         this.adminUserRepository = adminUserRepository;
         this.adminTokenStore = adminTokenStore;
         this.passwordEncoder = passwordEncoder;
+        this.adminAuditLogger = adminAuditLogger;
     }
 
     @Override
     @Transactional
-    public AdminResponse createAdmin(AdminPrincipal adminPrincipal, AdminCreateRequest request) {
-        if (adminPrincipal == null) {
-            throw new UnauthorizedException("인증이 필요합니다.");
-        }
-
-        if (adminPrincipal.role() != AdminRole.SUPER_ADMIN) {
-            throw new ForbiddenException(SUPER_ADMIN_REQUIRED_MESSAGE);
-        }
+    public AdminResponse createAdmin(AdminPrincipal adminPrincipal, AdminCreateRequest request,
+        AdminClientInfo clientInfo) {
+        AdminAuthorization.requireSuperAdmin(adminPrincipal);
 
         if (adminUserRepository.existsByLoginId(request.loginId())) {
             throw new ConflictException(DUPLICATE_LOGIN_ID_MESSAGE);
         }
 
+        AdminRole createdRole = resolveCreateRole(request.role());
         try {
             AdminUser adminUser = adminUserRepository.insertAdmin(request.loginId(),
-                passwordEncoder.encode(request.password()), request.nickname(), request.email(), LocalDateTime.now());
+                passwordEncoder.encode(request.password()), request.nickname(), request.email(), createdRole,
+                LocalDateTime.now());
+            emitAfterCommit(() -> adminAuditLogger.logAdminAccountCreate(adminPrincipal, adminUser, clientInfo));
 
             return AdminResponse.from(adminUser);
         } catch (DuplicateKeyException e) {
@@ -68,14 +73,14 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public List<AdminResponse> findAdmins(AdminPrincipal adminPrincipal) {
-        requireSuperAdmin(adminPrincipal);
+        AdminAuthorization.requireAuthenticated(adminPrincipal);
 
         return adminUserRepository.findActiveAll().stream().map(AdminResponse::from).toList();
     }
 
     @Override
     public AdminResponse findAdmin(AdminPrincipal adminPrincipal, Long adminId) {
-        requireSuperAdmin(adminPrincipal);
+        AdminAuthorization.requireAuthenticated(adminPrincipal);
 
         AdminUser adminUser = adminUserRepository.findActiveById(adminId)
             .orElseThrow(() -> new NotFoundException(ADMIN_ACCOUNT_NOT_FOUND_MESSAGE));
@@ -86,7 +91,7 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional
     public void changeAdminPassword(AdminPrincipal adminPrincipal, Long adminId, AdminPasswordChangeRequest request) {
-        requireSuperAdmin(adminPrincipal);
+        AdminAuthorization.requireSuperAdmin(adminPrincipal);
 
         AdminUser targetAdmin = adminUserRepository.findActiveById(adminId)
             .orElseThrow(() -> new NotFoundException(ADMIN_ACCOUNT_NOT_FOUND_MESSAGE));
@@ -107,8 +112,8 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
-    public void deleteAdmin(AdminPrincipal adminPrincipal, Long adminId) {
-        requireSuperAdmin(adminPrincipal);
+    public void deleteAdmin(AdminPrincipal adminPrincipal, Long adminId, AdminClientInfo clientInfo) {
+        AdminAuthorization.requireSuperAdmin(adminPrincipal);
 
         if (adminPrincipal.id().equals(adminId)) {
             throw new ForbiddenException(SELF_DELETE_FORBIDDEN_MESSAGE);
@@ -128,15 +133,33 @@ public class AdminServiceImpl implements AdminService {
 
         adminTokenStore.revokeAllRefreshTokens(adminId);
         adminTokenStore.revokeAccessTokensIssuedBefore(adminId, revokedAt);
+        emitAfterCommit(() -> adminAuditLogger.logAdminAccountDelete(adminPrincipal, targetAdmin, clientInfo));
     }
 
-    private void requireSuperAdmin(AdminPrincipal adminPrincipal) {
-        if (adminPrincipal == null) {
-            throw new UnauthorizedException("인증이 필요합니다.");
+    private AdminRole resolveCreateRole(String roleValue) {
+        if (!StringUtils.hasText(roleValue)) {
+            return AdminRole.ADMIN;
         }
 
-        if (adminPrincipal.role() != AdminRole.SUPER_ADMIN) {
-            throw new ForbiddenException(SUPER_ADMIN_REQUIRED_MESSAGE);
+        AdminRole role = AdminRole.fromValue(roleValue.trim());
+        if (!role.canBeCreatedBySuperAdmin()) {
+            throw new BadRequestException(CREATE_ROLE_NOT_ALLOWED_MESSAGE);
         }
+
+        return role;
+    }
+
+    private void emitAfterCommit(Runnable auditLog) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            auditLog.run();
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                auditLog.run();
+            }
+        });
     }
 }

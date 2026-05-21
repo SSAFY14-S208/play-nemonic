@@ -1,5 +1,6 @@
 package com.nemonicworld.admin.bootstrap;
 
+import com.nemonicworld.common.exception.InternalServerException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -46,8 +47,7 @@ public class AdminBootstrapRunner implements ApplicationRunner {
 
     private void requireText(String value, String propertyName) {
         if (!StringUtils.hasText(value)) {
-            throw new IllegalStateException(
-                "%s is required when ADMIN_BOOTSTRAP_ENABLED is true.".formatted(propertyName));
+            throw new InternalServerException("ADMIN_BOOTSTRAP_ENABLED가 true이면 %s 값이 필요합니다.".formatted(propertyName));
         }
     }
 }

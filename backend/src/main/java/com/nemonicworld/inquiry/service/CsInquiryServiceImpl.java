@@ -3,11 +3,15 @@ package com.nemonicworld.inquiry.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.admin.service.AdminAuthorization;
+import com.nemonicworld.auth.service.AdminAuditLogger;
+import com.nemonicworld.auth.service.AdminClientInfo;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
+import com.nemonicworld.common.exception.EmailDeliveryException;
 import com.nemonicworld.common.exception.NotFoundException;
-import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import com.nemonicworld.global.logging.StructuredEventLogger;
 import com.nemonicworld.inquiry.dto.request.CsInquiryCreateRequest;
 import com.nemonicworld.inquiry.dto.request.CsInquiryReplyRequest;
 import com.nemonicworld.inquiry.dto.request.CsInquiryStatusUpdateRequest;
@@ -34,6 +38,8 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -42,7 +48,6 @@ public class CsInquiryServiceImpl implements CsInquiryService {
     private static final String INVALID_JSON_MESSAGE = "문의 데이터 형식이 올바르지 않습니다.";
     private static final String REQUIRED_ATTACHMENT_URL_MESSAGE = "첨부 파일 URL을 입력해 주세요.";
     private static final String INVALID_ATTACHMENT_URL_MESSAGE = "첨부 파일 URL 형식이 올바르지 않습니다.";
-    private static final String UNAUTHORIZED_MESSAGE = "관리자 인증이 필요합니다.";
     private static final String INVALID_USER_UUID_MESSAGE = "사용자 UUID 형식이 올바르지 않습니다.";
     private static final String INVALID_PAGE_REQUEST_MESSAGE = "페이지 요청 값이 올바르지 않습니다.";
     private static final String INVALID_INQUIRY_ID_MESSAGE = "문의 ID가 올바르지 않습니다.";
@@ -61,13 +66,15 @@ public class CsInquiryServiceImpl implements CsInquiryService {
     private final CsInquiryRepository csInquiryRepository;
     private final InquiryMailSender inquiryMailSender;
     private final ObjectMapper objectMapper;
+    private final AdminAuditLogger adminAuditLogger;
 
     public CsInquiryServiceImpl(AnonymousUserResolver anonymousUserResolver, CsInquiryRepository csInquiryRepository,
-        InquiryMailSender inquiryMailSender, ObjectMapper objectMapper) {
+        InquiryMailSender inquiryMailSender, ObjectMapper objectMapper, AdminAuditLogger adminAuditLogger) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.csInquiryRepository = csInquiryRepository;
         this.inquiryMailSender = inquiryMailSender;
         this.objectMapper = objectMapper;
+        this.adminAuditLogger = adminAuditLogger;
     }
 
     @Override
@@ -83,14 +90,20 @@ public class CsInquiryServiceImpl implements CsInquiryService {
             normalizeOptional(request.email()), serializeAttachments(request.attachments()),
             serializeMeta(request.meta(), userAgent, referer, now), CsInquiryStatus.NEW.getValue(), now, now);
 
-        return CsInquiryCreateResponse.from(csInquiryRepository.insertInquiry(command));
+        CsInquiryCreateResponse response = CsInquiryCreateResponse.from(csInquiryRepository.insertInquiry(command));
+        StructuredEventLogger.apiBusiness("inquiry_created", "inquiry", user.getId().toString(),
+            StructuredEventLogger.metadata("inquiry_id", response.id(), "type", type, "has_email",
+                StringUtils.hasText(request.email()), "attachment_count",
+                request.attachments() == null ? 0 : request.attachments().size(), "result", "success"));
+
+        return response;
     }
 
     @Override
     @Transactional(readOnly = true)
     public CsInquiryListResponse getInquiries(AdminPrincipal adminPrincipal, String status, String type, String keyword,
         String userUuid, String pageValue, String sizeValue) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireAuthenticated(adminPrincipal);
 
         int page = parsePage(pageValue);
         int size = parseSize(sizeValue);
@@ -111,7 +124,7 @@ public class CsInquiryServiceImpl implements CsInquiryService {
     @Override
     @Transactional(readOnly = true)
     public CsInquiryDetailResponse getInquiry(AdminPrincipal adminPrincipal, String inquiryIdValue) {
-        requireAdmin(adminPrincipal);
+        AdminAuthorization.requireAuthenticated(adminPrincipal);
 
         Long inquiryId = parseInquiryId(inquiryIdValue);
 
@@ -124,8 +137,8 @@ public class CsInquiryServiceImpl implements CsInquiryService {
     @Override
     @Transactional
     public CsInquiryReplyResponse replyInquiry(AdminPrincipal adminPrincipal, String inquiryIdValue,
-        CsInquiryReplyRequest request) {
-        requireAdmin(adminPrincipal);
+        CsInquiryReplyRequest request, AdminClientInfo clientInfo) {
+        AdminAuthorization.requireOperator(adminPrincipal);
 
         Long inquiryId = parseInquiryId(inquiryIdValue);
         CsInquiry inquiry = csInquiryRepository.findById(inquiryId)
@@ -139,7 +152,16 @@ public class CsInquiryServiceImpl implements CsInquiryService {
 
         String subject = normalizeRequiredTrimmed(request.subject());
         String message = normalizeRequiredTrimmed(request.message());
-        inquiryMailSender.sendReply(inquiry.getEmail(), subject, message);
+        try {
+            inquiryMailSender.sendReply(inquiry.getEmail(), subject, message);
+        } catch (EmailDeliveryException e) {
+            StructuredEventLogger.apiBusinessWarn("inquiry_reply_email_failed", "inquiry",
+                inquiry.getUserId().toString(), "inquiry reply email failed",
+                StructuredEventLogger.metadata("inquiry_id", inquiryId, "admin_id", adminPrincipal.id(), "result",
+                    "failed", "reason_code", e.getClass().getSimpleName()),
+                e);
+            throw e;
+        }
 
         LocalDateTime respondedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         int updatedCount = csInquiryRepository.updateReply(inquiryId, adminPrincipal.id(), message, respondedAt,
@@ -148,30 +170,46 @@ public class CsInquiryServiceImpl implements CsInquiryService {
             throw new NotFoundException(INQUIRY_NOT_FOUND_MESSAGE);
         }
 
+        emitAfterCommit(() -> adminAuditLogger.logInquiryReplySend(adminPrincipal, inquiryId.toString(),
+            inquiry.getStatus(), CsInquiryStatus.RESOLVED.getValue(), clientInfo));
+
         return CsInquiryReplyResponse.from(csInquiryRepository.findById(inquiryId).orElseThrow());
     }
 
     @Override
     @Transactional
     public CsInquiryStatusUpdateResponse updateInquiryStatus(AdminPrincipal adminPrincipal, String inquiryIdValue,
-        CsInquiryStatusUpdateRequest request) {
-        requireAdmin(adminPrincipal);
+        CsInquiryStatusUpdateRequest request, AdminClientInfo clientInfo) {
+        AdminAuthorization.requireOperator(adminPrincipal);
 
         Long inquiryId = parseInquiryId(inquiryIdValue);
         String status = CsInquiryStatus.fromValue(request.status().trim().toLowerCase(Locale.ROOT)).getValue();
+        CsInquiry inquiry = csInquiryRepository.findById(inquiryId)
+            .orElseThrow(() -> new NotFoundException(INQUIRY_NOT_FOUND_MESSAGE));
         LocalDateTime updatedAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         int updatedCount = csInquiryRepository.updateStatus(inquiryId, status, updatedAt);
         if (updatedCount == 0) {
             throw new NotFoundException(INQUIRY_NOT_FOUND_MESSAGE);
         }
 
+        emitAfterCommit(() -> adminAuditLogger.logInquiryStatusChange(adminPrincipal, inquiryId.toString(),
+            inquiry.getStatus(), status, clientInfo));
+
         return CsInquiryStatusUpdateResponse.from(csInquiryRepository.findById(inquiryId).orElseThrow());
     }
 
-    private void requireAdmin(AdminPrincipal adminPrincipal) {
-        if (adminPrincipal == null) {
-            throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
+    private void emitAfterCommit(Runnable auditLog) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            auditLog.run();
+            return;
         }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                auditLog.run();
+            }
+        });
     }
 
     private String normalizeRequiredTrimmed(String value) {

@@ -8,6 +8,7 @@ import type {
   DrawingLine,
   DrawingPointerEvent,
 } from '@/shared/types'
+import { cn } from '@/shared/libs'
 import RasterFillImage from './RasterFillImage'
 
 interface DrawingBoardProps {
@@ -16,6 +17,7 @@ interface DrawingBoardProps {
   onionSkinLines?: DrawingLine[]
   drawArea?: DrawingArea
   backgroundColor?: string
+  backgroundCornerRadius?: number
   gridColor?: string
   gridGap?: number
   onionSkinOpacity?: number
@@ -33,6 +35,7 @@ export default function DrawingBoard({
   onionSkinLines = [],
   drawArea,
   backgroundColor = '#fffdf7',
+  backgroundCornerRadius = 16,
   gridColor = '#ffa8b8',
   gridGap = 20,
   onionSkinOpacity = 0.22,
@@ -60,18 +63,34 @@ export default function DrawingBoard({
     }
   }
 
+  const handleTouchStart = (event: DrawingPointerEvent) => {
+    preventNativeTouchScroll(event)
+    onDrawStart(event)
+  }
+
+  const handleTouchMove = (event: DrawingPointerEvent) => {
+    preventNativeTouchScroll(event)
+    onDrawMove(event)
+  }
+
+  const handleTouchEnd = (event: DrawingPointerEvent) => {
+    preventNativeTouchScroll(event)
+    onDrawEnd()
+  }
+
   return (
     <Stage
       width={boardSize.width}
       height={boardSize.height}
-      className={className}
+      className={cn('touch-none select-none', className)}
       onMouseDown={onDrawStart}
       onMouseMove={onDrawMove}
       onMouseUp={onDrawEnd}
       onMouseLeave={onDrawEnd}
-      onTouchStart={onDrawStart}
-      onTouchMove={onDrawMove}
-      onTouchEnd={onDrawEnd}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
       <Layer listening={false}>
         <Rect
@@ -80,7 +99,7 @@ export default function DrawingBoard({
           width={boardSize.width}
           height={boardSize.height}
           fill={backgroundColor}
-          cornerRadius={16}
+          cornerRadius={backgroundCornerRadius}
         />
 
         {gridDots.map((dot) => (
@@ -106,7 +125,11 @@ export default function DrawingBoard({
             clipWidth={boardSize.width}
             clipHeight={clipArea.height}
           >
-            <DrawingLineGroup lines={onionSkinLines} eraserColor={backgroundColor} />
+            <DrawingLineGroup
+              lines={onionSkinLines}
+              boardSize={boardSize}
+              eraserColor={backgroundColor}
+            />
           </Group>
         </Layer>
       )}
@@ -118,7 +141,7 @@ export default function DrawingBoard({
           clipWidth={boardSize.width}
           clipHeight={clipArea.height}
         >
-          <DrawingLineGroup lines={lines} eraserColor={backgroundColor} />
+          <DrawingLineGroup lines={lines} boardSize={boardSize} eraserColor={backgroundColor} />
         </Group>
       </Layer>
 
@@ -129,11 +152,20 @@ export default function DrawingBoard({
   )
 }
 
+function preventNativeTouchScroll(event: DrawingPointerEvent) {
+  const nativeEvent = event.evt
+  if ('touches' in nativeEvent && nativeEvent.cancelable) {
+    nativeEvent.preventDefault()
+  }
+}
+
 function DrawingLineGroup({
   lines,
+  boardSize,
   eraserColor,
 }: {
   lines: DrawingLine[]
+  boardSize: DrawingBoardSize
   eraserColor: string
 }) {
   return (
@@ -141,7 +173,15 @@ function DrawingLineGroup({
       {lines.map((line) => {
         if (line.kind === 'fill') {
           if (line.imageDataUrl) {
-            return <RasterFillImage key={line.id} imageDataUrl={line.imageDataUrl} />
+            return (
+              <RasterFillImage
+                key={line.id}
+                imageDataUrl={line.imageDataUrl}
+                width={boardSize.width}
+                height={boardSize.height}
+                compositeOperation={line.compositeOperation}
+              />
+            )
           }
 
           return (
@@ -149,8 +189,10 @@ function DrawingLineGroup({
               key={line.id}
               points={line.points.flatMap((point) => [point.x, point.y])}
               fill={line.color}
+              opacity={line.opacity ?? 1}
               closed
               listening={false}
+              globalCompositeOperation={line.compositeOperation ?? 'source-over'}
             />
           )
         }
@@ -161,6 +203,7 @@ function DrawingLineGroup({
             points={line.points.flatMap((point) => [point.x, point.y])}
             stroke={line.color}
             strokeWidth={line.strokeWidth}
+            opacity={line.opacity ?? 1}
             tension={0.45}
             lineCap="round"
             lineJoin="round"

@@ -1,10 +1,21 @@
 // File 도메인 (OpenAPI: tag "File")
 
+export type FilePurpose =
+  | 'COMMUNITY'
+  | 'RELAY_DRAWING'
+  | 'FLIPBOOK'
+  | 'FLIPBOOK_GIF'
+  | 'FORTUNE'
+  | 'INFINITE_CANVAS'
+  | 'PHONE'
+
+export type FileUploadStatus = 'PENDING' | 'UPLOADED' | 'FAILED'
+
 export interface FilePresignRequest {
   fileName: string
   contentType: string
-  purpose: string
-  byteSize?: number
+  purpose: FilePurpose
+  byteSize: number
 }
 
 export interface FilePresignResponse {
@@ -15,10 +26,23 @@ export interface FilePresignResponse {
 
 export interface FileConfirmResponse {
   fileId: string
-  status: string
+  status: FileUploadStatus
+  uploadedAt: string
+}
+
+export interface FileViewUrlResponse {
+  fileId: string
+  viewUrl: string
+  expiresIn: number
 }
 
 export interface FileDeleteResponse {
   fileId: string
-  status: string
+  deletedAt: string
+}
+
+export interface FilePresignedUploadRequest {
+  presignedUrl: string
+  file: Blob
+  contentType: string
 }

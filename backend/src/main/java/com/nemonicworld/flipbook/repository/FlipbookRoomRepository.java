@@ -35,12 +35,53 @@ public interface FlipbookRoomRepository {
     Optional<FlipbookRoomState> findByRoomCode(String roomCode);
 
     /**
+     * 백오피스 관리 화면용 — CLOSED를 제외한 모든 활성 플립북 방(WAITING/PLAYING/FINALIZING/FINISHED)을
+     * 조회합니다.
+     */
+    List<FlipbookRoomState> findAllActiveRooms();
+
+    /**
      * 게임 중 재접속 유예가 만료된 참여자가 있는 방을 조회합니다.
      */
     List<FlipbookRoomState> findPlayingRoomsForDisconnectGrace(LocalDateTime disconnectCutoff, int limit);
 
     /**
+     * WAITING 상태에서 모든 참여자가 끊긴 채 idleCutoff 이전부터 방치된 방을 조회합니다.
+     */
+    List<FlipbookRoomState> findAbandonedWaitingRooms(LocalDateTime idleCutoff, int limit);
+
+    /**
+     * PLAYING 상태에서 모든 참여자가 끊겼거나 dropped 처리된 채 abandonedCutoff 이전부터 방치된 방을 조회합니다.
+     */
+    List<FlipbookRoomState> findAbandonedPlayingRooms(LocalDateTime abandonedCutoff, int limit);
+
+    /**
+     * 비정상 상태 보정을 위해 참여자가 비어 있는 WAITING 방을 조회합니다.
+     */
+    List<FlipbookRoomState> findEmptyWaitingRooms(int limit);
+
+    /**
      * 현재 라운드 마감 시각이 지난 PLAYING 방을 최대 limit개 조회합니다.
      */
     List<FlipbookRoomState> findExpiredPlayingRooms(LocalDateTime roundDeadlineCutoff, int limit);
+
+    /**
+     * 최종 결과물 생성을 기다리는 FINALIZING 방을 최대 limit개 조회합니다.
+     */
+    List<FlipbookRoomState> findFinalizingRooms(int limit);
+
+    /**
+     * 결과 생성이 끝난 뒤 close 기준 시각을 지난 FINISHED 방을 최대 limit개 조회합니다.
+     */
+    List<FlipbookRoomState> findClosableFinishedRooms(LocalDateTime closeCutoff, int limit);
+
+    /**
+     * 특정 방의 최종 결과물 생성 lock을 획득합니다.
+     */
+    boolean acquireFinalizationLock(String roomCode, String token, Duration ttl);
+
+    /**
+     * 토큰이 일치할 때만 특정 방의 최종 결과물 생성 lock을 해제합니다.
+     */
+    void releaseFinalizationLock(String roomCode, String token);
 }

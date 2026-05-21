@@ -1,6 +1,9 @@
 package com.nemonicworld.inquiry.controller;
 
+import com.nemonicworld.common.openapi.OpenApiTags;
+import com.nemonicworld.auth.service.AdminClientInfoResolver;
 import com.nemonicworld.common.jwt.AdminPrincipal;
+import com.nemonicworld.common.openapi.OpenApiCommonResponses;
 import com.nemonicworld.common.openapi.OpenApiErrorExamples;
 import com.nemonicworld.common.response.ApiResponse;
 import com.nemonicworld.global.config.OpenApiConfig;
@@ -20,6 +23,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -36,7 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/admin/inquiries")
 @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SCHEME)
-@Tag(name = "관리자 문의", description = "백오피스 고객 문의 관리 API")
+@Tag(name = OpenApiTags.ADMIN_INQUIRY, description = OpenApiTags.ADMIN_INQUIRY_DESCRIPTION)
 public class AdminInquiryController {
 
     private static final String DETAIL_SUCCESS_MESSAGE = "고객 문의 상세 조회 성공";
@@ -51,9 +55,11 @@ public class AdminInquiryController {
         """;
 
     private final CsInquiryService csInquiryService;
+    private final AdminClientInfoResolver adminClientInfoResolver;
 
-    public AdminInquiryController(CsInquiryService csInquiryService) {
+    public AdminInquiryController(CsInquiryService csInquiryService, AdminClientInfoResolver adminClientInfoResolver) {
         this.csInquiryService = csInquiryService;
+        this.adminClientInfoResolver = adminClientInfoResolver;
     }
 
     @GetMapping
@@ -67,7 +73,7 @@ public class AdminInquiryController {
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "고객 문의 목록 조회 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 파라미터 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF)})
     public ResponseEntity<ApiResponse<CsInquiryListResponse>> getInquiries(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal,
         @RequestParam(name = "status", required = false) String status,
@@ -89,7 +95,7 @@ public class AdminInquiryController {
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "고객 문의 상세 조회 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "문의 ID 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "고객 문의 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = INQUIRY_NOT_FOUND_EXAMPLE)))})
     public ResponseEntity<ApiResponse<CsInquiryDetailResponse>> getInquiry(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("inquiryId") String inquiryId) {
@@ -105,13 +111,14 @@ public class AdminInquiryController {
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "고객 문의 이메일 회신 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 값 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "고객 문의 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = INQUIRY_NOT_FOUND_EXAMPLE))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "이메일 발송 실패", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.SERVER_ERROR)))})
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "이메일 발송 실패", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.EMAIL_DELIVERY_UNAVAILABLE)))})
     public ResponseEntity<ApiResponse<CsInquiryReplyResponse>> replyInquiry(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("inquiryId") String inquiryId,
-        @Valid @RequestBody CsInquiryReplyRequest request) {
-        CsInquiryReplyResponse response = csInquiryService.replyInquiry(adminPrincipal, inquiryId, request);
+        @Valid @RequestBody CsInquiryReplyRequest request, HttpServletRequest servletRequest) {
+        CsInquiryReplyResponse response = csInquiryService.replyInquiry(adminPrincipal, inquiryId, request,
+            adminClientInfoResolver.resolve(servletRequest));
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(REPLY_SUCCESS_MESSAGE, response));
@@ -123,13 +130,13 @@ public class AdminInquiryController {
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "고객 문의 상태 변경 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 값 오류", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.BAD_REQUEST))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "관리자 인증 필요", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = OpenApiErrorExamples.ADMIN_UNAUTHORIZED))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = OpenApiCommonResponses.ADMIN_UNAUTHORIZED_REF),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "고객 문의 없음", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = INQUIRY_NOT_FOUND_EXAMPLE)))})
     public ResponseEntity<ApiResponse<CsInquiryStatusUpdateResponse>> updateInquiryStatus(
         @AuthenticationPrincipal AdminPrincipal adminPrincipal, @PathVariable("inquiryId") String inquiryId,
-        @Valid @RequestBody CsInquiryStatusUpdateRequest request) {
+        @Valid @RequestBody CsInquiryStatusUpdateRequest request, HttpServletRequest servletRequest) {
         CsInquiryStatusUpdateResponse response = csInquiryService.updateInquiryStatus(adminPrincipal, inquiryId,
-            request);
+            request, adminClientInfoResolver.resolve(servletRequest));
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
             .body(ApiResponse.success(STATUS_UPDATE_SUCCESS_MESSAGE, response));

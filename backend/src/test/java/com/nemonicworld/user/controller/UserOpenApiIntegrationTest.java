@@ -28,7 +28,7 @@ class UserOpenApiIntegrationTest {
     void anonymousUserApiIsExposedInOpenApiDocs() throws Exception {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous'].post.summary").value("익명 사용자 UUID 발급"))
-            .andExpect(jsonPath("$.paths['/api/v1/users/anonymous'].post.tags[0]").value("User"))
+            .andExpect(jsonPath("$.paths['/api/v1/users/anonymous'].post.tags[0]").value("사용자"))
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous'].post.responses['201'].description")
                 .value("익명 사용자 UUID 발급 성공"));
     }
@@ -40,7 +40,7 @@ class UserOpenApiIntegrationTest {
     void anonymousUserVerifyApiIsExposedInOpenApiDocs() throws Exception {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/verify'].post.summary").value("익명 사용자 UUID 확인"))
-            .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/verify'].post.tags[0]").value("User"))
+            .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/verify'].post.tags[0]").value("사용자"))
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/verify'].post.parameters[*].name")
                 .value(hasItems("Anonymous-User-UUID", "User-Agent")))
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/verify'].post.requestBody").doesNotExist())
@@ -55,7 +55,7 @@ class UserOpenApiIntegrationTest {
     void anonymousUserNicknameApiIsExposedInOpenApiDocs() throws Exception {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/nickname'].patch.summary").value("익명 사용자 닉네임 설정/수정"))
-            .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/nickname'].patch.tags[0]").value("User"))
+            .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/nickname'].patch.tags[0]").value("사용자"))
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/nickname'].patch.parameters[*].name")
                 .value(hasItems("Anonymous-User-UUID")))
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/nickname'].patch.responses['200'].description")
@@ -69,7 +69,7 @@ class UserOpenApiIntegrationTest {
     void anonymousUserProfileApiIsExposedInOpenApiDocs() throws Exception {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/profile'].get.summary").value("익명 사용자 프로필 조회"))
-            .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/profile'].get.tags[0]").value("User"))
+            .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/profile'].get.tags[0]").value("사용자"))
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/profile'].get.parameters[*].name")
                 .value(hasItems("Anonymous-User-UUID")))
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/profile'].get.responses['200'].description")
@@ -84,7 +84,7 @@ class UserOpenApiIntegrationTest {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(
                 jsonPath("$.paths['/api/v1/users/anonymous/birth-info'].post.summary").value("익명 사용자 생년월일 정보 등록"))
-            .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/birth-info'].post.tags[0]").value("User"))
+            .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/birth-info'].post.tags[0]").value("사용자"))
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/birth-info'].post.parameters[*].name")
                 .value(hasItems("Anonymous-User-UUID")))
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/birth-info'].post.responses['200'].description")
@@ -99,7 +99,7 @@ class UserOpenApiIntegrationTest {
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(
                 jsonPath("$.paths['/api/v1/users/anonymous/birth-info'].patch.summary").value("익명 사용자 생년월일 정보 수정"))
-            .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/birth-info'].patch.tags[0]").value("User"))
+            .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/birth-info'].patch.tags[0]").value("사용자"))
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/birth-info'].patch.parameters[*].name")
                 .value(hasItems("Anonymous-User-UUID")))
             .andExpect(jsonPath("$.paths['/api/v1/users/anonymous/birth-info'].patch.responses['200'].description")

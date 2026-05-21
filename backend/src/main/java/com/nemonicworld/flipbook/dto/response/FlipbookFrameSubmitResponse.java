@@ -14,7 +14,7 @@ public record FlipbookFrameSubmitResponse(@Schema(description = "방 코드", ex
     @Schema(description = "제출 프레임 번호", example = "2") int frameIndex,
     @Schema(description = "제출 후 배정 상태", example = "SUBMITTED") FlipbookFrameAssignmentStatus assignmentStatus,
     @Schema(description = "제출 파일 ID", example = "f47ac10b-58cc-4372-a567-0e02b2c3d479") String fileId,
-    @Schema(description = "제출 이미지 object key", example = "uploads/flipbook/2026/05/08/.../frame.png") String objectKey,
+    @Schema(description = "제출 이미지 객체 키", example = "uploads/flipbook/2026/05/08/.../frame.png") String objectKey,
     @Schema(description = "제출 이미지 URL", nullable = true) String frameUrl,
     @Schema(description = "제출 시각", example = "2026-05-08T14:00:31") LocalDateTime submittedAt,
     @Schema(description = "기존 제출 재사용 여부", example = "false") boolean alreadySubmitted,

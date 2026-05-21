@@ -1,18 +1,18 @@
 import {
   BarChart3,
   BookOpen,
-  Flag,
+  FileText,
   Image as ImageIcon,
   Infinity as InfinityIcon,
   Layers,
   LayoutDashboard,
   MessageSquare,
   Pencil,
-  ScrollText,
+  Shield,
   Sliders,
-  Sparkles,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { AdminRole } from "@/shared/types";
 
 export type AdminNavItem = {
   key: string;
@@ -22,6 +22,7 @@ export type AdminNavItem = {
   pageTitle: string;
   pageDescription: string;
   children?: AdminNavItem[];
+  requiredRole?: AdminRole;
 };
 
 export type AdminNavGroup = {
@@ -44,7 +45,8 @@ export const ADMIN_NAVIGATION: AdminNavGroup[] = [
         href: "/admin/dashboard",
         icon: LayoutDashboard,
         pageTitle: "대시보드",
-        pageDescription: "네모닉 월드의 다양한 데이터를 한눈에 조회합니다.",
+        pageDescription:
+          "오늘의 KPI · 유입 채널 · 컨텐츠 · 단계별 흐름 · 체류 시간을 한 화면에서 조회합니다.",
       },
     ],
   },
@@ -96,13 +98,12 @@ export const ADMIN_NAVIGATION: AdminNavGroup[] = [
         ],
       },
       {
-        key: "fortune",
-        label: "오늘의 운세 뽑기",
-        href: "/admin/fortune",
-        icon: Sparkles,
-        pageTitle: "오늘의 운세 뽑기 관리",
-        pageDescription:
-          "GMS API 기반 일일 운세 발급 이력·프롬프트·발급 통계를 관리합니다.",
+        key: "gms-prompts",
+        label: "AI 프롬프트 관리",
+        href: "/admin/gms-prompts",
+        icon: FileText,
+        pageTitle: "AI 프롬프트 관리",
+        pageDescription: "운세 생성에 사용하는 프롬프트를 수정·관리합니다.",
       },
       {
         key: "content-parameters",
@@ -119,15 +120,6 @@ export const ADMIN_NAVIGATION: AdminNavGroup[] = [
     key: "moderation",
     label: "MODERATION",
     items: [
-      {
-        key: "reports",
-        label: "신고 관리",
-        href: "/admin/reports",
-        icon: Flag,
-        pageTitle: "신고 관리",
-        pageDescription:
-          "UUID 기반 사용자 활동 추적 및 신고 접수 내역을 관리합니다.",
-      },
       {
         key: "cs-inquiries",
         label: "CS 문의",
@@ -149,7 +141,8 @@ export const ADMIN_NAVIGATION: AdminNavGroup[] = [
         href: "/admin/analytics",
         icon: BarChart3,
         pageTitle: "통계 및 분석",
-        pageDescription: "서비스 운영 현황과 사용자 행동을 분석합니다.",
+        pageDescription:
+          "Grafana 기반 raw observability — 시스템 메트릭과 트래픽 차트를 임베드로 제공합니다.",
       },
     ],
   },
@@ -158,13 +151,14 @@ export const ADMIN_NAVIGATION: AdminNavGroup[] = [
     label: "SYSTEM",
     items: [
       {
-        key: "audit-log",
-        label: "감사 로그",
-        href: "/admin/audit-log",
-        icon: ScrollText,
-        pageTitle: "감사 로그",
+        key: "backoffice-management",
+        label: "백오피스 관리",
+        href: "/admin/backoffice-management",
+        icon: Shield,
+        pageTitle: "백오피스 관리",
         pageDescription:
-          "모든 운영자 조작 내역을 영구 기록합니다. 변경 내역 추적과 책임 소재 확인에 활용됩니다.",
+          "관리자 계정과 백오피스 감사 로그를 관리합니다. 슈퍼 관리자만 접근할 수 있습니다.",
+        requiredRole: "super_admin",
       },
     ],
   },
@@ -179,9 +173,7 @@ const ADMIN_LEAF_ITEMS: AdminNavItem[] = ADMIN_NAVIGATION.flatMap((group) =>
   flattenLeafItems(group.items),
 );
 
-export function findActiveAdminNavItem(
-  pathname: string,
-): AdminNavItem | null {
+export function findActiveAdminNavItem(pathname: string): AdminNavItem | null {
   const matches = ADMIN_LEAF_ITEMS.filter(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
   );

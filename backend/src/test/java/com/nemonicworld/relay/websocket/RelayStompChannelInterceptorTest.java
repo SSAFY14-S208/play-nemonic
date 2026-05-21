@@ -14,6 +14,7 @@ import com.nemonicworld.global.websocket.session.WebSocketSessionRegistry.Active
 import com.nemonicworld.relay.dto.response.RelayRoomParticipantResponse;
 import com.nemonicworld.relay.dto.response.RelayRoomStateResponse;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.RelayRoomService;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -40,6 +41,7 @@ class RelayStompChannelInterceptorTest {
     private static final String OLD_SESSION_ID = "session-1";
 
     private final RelayRoomService relayRoomService = mock(RelayRoomService.class);
+    private final RelayRoomRepository relayRoomRepository = mock(RelayRoomRepository.class);
     private final WebSocketSessionRegistry webSocketSessionRegistry = mock(WebSocketSessionRegistry.class);
     private final RelayRoomEventPublisher relayRoomEventPublisher = mock(RelayRoomEventPublisher.class);
     @SuppressWarnings("unchecked")
@@ -49,7 +51,7 @@ class RelayStompChannelInterceptorTest {
     @BeforeEach
     void setUp() {
         given(relayRoomEventPublisherProvider.getObject()).willReturn(relayRoomEventPublisher);
-        interceptor = new RelayStompChannelInterceptor(relayRoomService, webSocketSessionRegistry,
+        interceptor = new RelayStompChannelInterceptor(relayRoomService, relayRoomRepository, webSocketSessionRegistry,
             relayRoomEventPublisherProvider);
     }
 
@@ -60,7 +62,7 @@ class RelayStompChannelInterceptorTest {
     void preSendRegistersRelaySessionAndClosesDuplicateSessionOnConnect() {
         RelayRoomStateResponse roomStateResponse = roomStateResponse();
         Message<byte[]> message = connectMessage();
-        given(relayRoomService.connectRoom(USER_UUID, ROOM_CODE)).willReturn(roomStateResponse);
+        given(relayRoomService.connectRoom(USER_UUID, ROOM_CODE, NEW_SESSION_ID)).willReturn(roomStateResponse);
         given(webSocketSessionRegistry.register(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY, ROOM_CODE, USER_UUID,
             NEW_SESSION_ID))
             .willReturn(Optional.of(new ActiveWebSocketSession(WebSocketSessionAttributes.CONNECTION_TYPE_RELAY,
@@ -86,7 +88,8 @@ class RelayStompChannelInterceptorTest {
     @Test
     void preSendRejectsConnectWhenRoomServiceRejectsConnection() {
         Message<byte[]> message = connectMessage();
-        given(relayRoomService.connectRoom(USER_UUID, ROOM_CODE)).willThrow(new ConflictException("이미 종료된 방입니다."));
+        given(relayRoomService.connectRoom(USER_UUID, ROOM_CODE, NEW_SESSION_ID))
+            .willThrow(new ConflictException("이미 종료된 방입니다."));
 
         assertThatThrownBy(() -> interceptor.preSend(message, mock(MessageChannel.class)))
             .isInstanceOf(MessageDeliveryException.class).hasMessageContaining("릴레이 웹소켓 연결을 허용할 수 없습니다.");

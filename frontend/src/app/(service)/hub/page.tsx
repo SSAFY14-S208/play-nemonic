@@ -1,13 +1,5 @@
-import HubLoader from '@/worlds/hub/HubLoader'
-import { HubOverlay } from '@/features/hub'
-import { PhoneLauncher } from '@/features/phone'
+import { redirect } from 'next/navigation'
 
-export default function Page() {
-  return (
-    <main className="relative min-h-screen overflow-hidden bg-[#b8e8ff]">
-      <HubLoader />
-      <HubOverlay />
-      <PhoneLauncher />
-    </main>
-  )
+export default function HubRouteRedirectPage() {
+  redirect('/nemonic')
 }

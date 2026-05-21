@@ -1,128 +1,119 @@
-import { Copy, Crown, QrCode } from 'lucide-react'
-import { PostItNote } from '@/shared/components'
-import { RELAY_ROOM_CODE, RELAY_TIME_LIMITS_SECONDS } from '../constants'
-import { cn } from '@/shared/libs'
+'use client'
 
-interface RelayLobbyViewProps {
-  onStartGame: () => void
+import { useEffect } from 'react'
+
+import { GameLobbyLayout } from '@/shared/components'
+import type { GameLobbyTheme } from '@/shared/components'
+import { useUserStore } from '@/shared/stores'
+
+import relayDrawingTitle from '../assets/relay-drawing-title.png'
+import { RELAY_ROOM_CODE } from '../constants'
+import { useRelayLobby } from '../hooks'
+import { useRelayDrawingStore, useRelayHowToPlayStore } from '../stores'
+import RelayBgmToggle from './RelayBgmToggle'
+import RelayHowToPlayButton from './RelayHowToPlayButton'
+import { PhoneLauncherButton } from '@/shared/components'
+
+const RELAY_LOBBY_THEME: GameLobbyTheme = {
+  accent: 'var(--color-relay-accent)',
+  accentStrong: 'var(--color-relay-accent-strong)',
+  ink: 'var(--color-relay-ink)',
+  paper: 'var(--color-relay-paper)',
+  paperAlpha: 'rgba(255, 255, 255, 0.78)',
+  active: 'var(--color-relay-active)',
+  line: 'var(--color-relay-line)',
+  muted: 'var(--color-relay-muted)',
+  dash: 'var(--color-relay-dash)',
+  qrDark: '#5b3e2b',
+  qrLight: '#fffaf3',
 }
 
-const LOBBY_PARTICIPANTS = [
-  { id: 'host', name: '여우 (나)', avatar: '🦊', isHost: true },
-  { id: 'cat-1', name: '고양이', avatar: '🦊', isHost: false },
-  { id: 'cat-2', name: '고양이', avatar: '🦊', isHost: false },
-]
-
-const WAITING_SLOT_COUNT = 3
-
-export default function RelayLobbyView({ onStartGame }: RelayLobbyViewProps) {
-  return (
-    <section className="relative min-h-[900px] overflow-hidden border border-relay-border bg-relay-background">
-      <div className="relative mx-auto h-[900px] w-full max-w-[1440px] overflow-hidden">
-        <PostItNote
-          className="absolute left-[6.8%] top-[18.1%] h-[61%] w-[39.5%] text-brand-relay-drawing-primary"
-        />
-
-        <div className="absolute left-[9.7%] top-[32.4%] flex h-[32%] w-[33.1%] flex-col items-center justify-center gap-4 rounded-[32px] px-10 py-[60px]">
-          <p className="h2-b text-relay-ink/80">입장 코드</p>
-          <p
-            className="font-bold tracking-[8px] text-relay-ink"
-            style={{ fontSize: 'clamp(4.5rem, 7vw, 6rem)', lineHeight: 1 }}
-          >
-            {RELAY_ROOM_CODE}
-          </p>
-          <div className="mt-2 flex gap-10">
-            <button
-              type="button"
-              className="body-b inline-flex min-h-[45px] items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong"
-            >
-              <Copy className="size-[17px]" aria-hidden />
-              링크 복사
-            </button>
-            <button
-              type="button"
-              className="body-b inline-flex min-h-[45px] items-center gap-1.5 rounded-full border border-relay-line bg-relay-active px-4 text-relay-accent-strong"
-            >
-              <QrCode className="size-[17px]" aria-hidden />
-              QR 코드
-            </button>
-          </div>
-        </div>
-
-        <div className="absolute left-[49.9%] top-[19.2%] flex h-[65.4%] w-[43.3%] flex-col gap-5">
-          <section className="rounded-[24px] bg-relay-paper px-6 py-5 shadow-[0_4px_16px_10px_rgba(184,121,22,0.1)]">
-            <div className="flex items-center gap-1">
-              <h2 className="h3-b text-relay-ink">참여자</h2>
-              <span className="h3-b text-relay-accent">3/6</span>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {LOBBY_PARTICIPANTS.map((participant) => (
-                <ParticipantTile key={participant.id} participant={participant} />
-              ))}
-              {Array.from({ length: WAITING_SLOT_COUNT }).map((_, waitingSlotIndex) => (
-                <div
-                  key={waitingSlotIndex}
-                  className="caption-b grid min-h-14 place-items-center rounded-[14px] border border-dashed border-relay-accent text-relay-dash"
-                >
-                  초대를 기다리는 중...
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="rounded-[24px] bg-relay-paper px-8 py-5 shadow-[0_4px_16px_10px_rgba(184,121,22,0.1)]">
-            <h2 className="h3-b text-relay-muted">⏱ 제한 시간</h2>
-            <div className="mt-5 grid grid-cols-3 gap-3">
-              {RELAY_TIME_LIMITS_SECONDS.map((seconds) => {
-                const isSelected = seconds === 45
-
-                return (
-                  <button
-                    key={seconds}
-                    type="button"
-                    className={cn(
-                      'body-b min-h-12 rounded-[12px] border border-relay-line bg-relay-active text-relay-accent',
-                      isSelected && 'text-relay-ink',
-                    )}
-                  >
-                    {seconds}초
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-
-          <button
-            type="button"
-            onClick={onStartGame}
-            className="body-b min-h-16 rounded-[16px] bg-relay-accent text-relay-ink shadow-[0_6px_16px_rgba(184,121,22,0.4)]"
-          >
-            🎨 게임 시작 (3명)
-          </button>
-        </div>
-      </div>
-    </section>
+export default function RelayLobbyView() {
+  const roomCode = useRelayDrawingStore((state) => state.roomCode)
+  const roomStatus = useRelayDrawingStore((state) => state.roomStatus)
+  const participants = useRelayDrawingStore((state) => state.participants)
+  const maxParticipants = useRelayDrawingStore(
+    (state) => state.maxParticipants,
   )
-}
+  const minParticipants = useRelayDrawingStore(
+    (state) => state.minParticipants,
+  )
+  const timeLimitSeconds = useRelayDrawingStore(
+    (state) => state.timeLimitSeconds,
+  )
+  const timeLimitAllowedSeconds = useRelayDrawingStore(
+    (state) => state.timeLimitAllowedSeconds,
+  )
+  const currentUserUuid = useUserStore((state) => state.userUuid)
 
-function ParticipantTile({
-  participant,
-}: {
-  participant: (typeof LOBBY_PARTICIPANTS)[number]
-}) {
+  const gameStartPhase = useRelayDrawingStore(
+    (state) => state.gameStartPhase,
+  )
+  const isExiting = gameStartPhase === 'animating'
+
+  const {
+    isHost,
+    canStartGame,
+    isStarting,
+    settingsError,
+    kickingTargetUuid,
+    kickError,
+    startGame,
+    changeTimeLimit,
+    kickParticipant,
+    leaveRoom,
+  } = useRelayLobby()
+
+  // 로비 진입 시 게임 설명 모달을 자동으로 1회 연다. 모달은 layout에 마운트된
+  // 단일 호스트가 렌더하므로 여기서는 store만 갱신.
+  //
+  // roomStatus === 'WAITING' 가드: 결과 화면에서 "로비로" 버튼을 누르면
+  // clearRoom()으로 roomStatus가 null이 된 직후 라우터 전환 전 한 프레임 동안
+  // 이 컴포넌트가 마운트될 수 있다. 가드 없이 호출하면 booth 페이지로 이동한
+  // 뒤에도 모달이 열린 상태로 끌려간다. 실제 로비 상태일 때만 open한다.
+  const openHowToPlay = useRelayHowToPlayStore((state) => state.open)
+  useEffect(() => {
+    if (roomStatus !== 'WAITING') return
+    openHowToPlay()
+  }, [roomStatus, openHowToPlay])
+
+  const startButtonLabel = isStarting
+    ? '시작 중…'
+    : `게임 시작 (${participants.length}명)`
+
   return (
-    <div className="flex min-h-14 items-center gap-3 rounded-[16px] border border-relay-line bg-relay-active px-3.5">
-      <span className="grid size-9 place-items-center rounded-full bg-relay-active text-[18px]">
-        {participant.avatar}
-      </span>
-      <span className="body-b flex-1 text-relay-ink">{participant.name}</span>
-      {participant.isHost && (
-        <span className="caption-b inline-flex items-center gap-1 rounded-full border border-relay-accent bg-relay-accent px-2 py-1 text-relay-ink">
-          <Crown className="size-4" aria-hidden />
-          방장
-        </span>
-      )}
-    </div>
+    <GameLobbyLayout
+      theme={RELAY_LOBBY_THEME}
+      titleImage={relayDrawingTitle}
+      titleImageAlt="네모닉 드로잉"
+      subtitle="친구들이 모이면 바로 시작해요!"
+      roomCode={roomCode ?? RELAY_ROOM_CODE}
+      participants={participants}
+      maxParticipants={maxParticipants}
+      minParticipants={minParticipants}
+      currentUserUuid={currentUserUuid}
+      participantListMaxHeight={320}
+      isHost={isHost}
+      kickingTargetUuid={kickingTargetUuid}
+      kickError={kickError}
+      onKickParticipant={kickParticipant}
+      timeLimitSeconds={timeLimitSeconds}
+      timeLimitAllowedSeconds={timeLimitAllowedSeconds}
+      onChangeTimeLimit={changeTimeLimit}
+      settingsError={settingsError}
+      canStartGame={canStartGame}
+      isStarting={isStarting}
+      startButtonLabel={startButtonLabel}
+      onStartGame={startGame}
+      onLeave={leaveRoom}
+      isExiting={isExiting}
+      headerRightSlot={
+        <>
+          <RelayHowToPlayButton className="size-9 sm:size-10" />
+          <RelayBgmToggle className="size-9 sm:size-10" />
+          <PhoneLauncherButton className="size-9 sm:size-10" />
+        </>
+      }
+    />
   )
 }

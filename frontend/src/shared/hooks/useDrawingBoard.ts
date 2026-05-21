@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
+import { MAX_RECENT_DRAWING_COLOR_COUNT } from '@/shared/constants'
 import type {
   DrawingArea,
   DrawingBoardSize,
@@ -27,10 +28,13 @@ export function useDrawingBoard({
 }: UseDrawingBoardOptions) {
   const [selectedToolKey, setSelectedToolKey] = useState<DrawingToolKey>('pencil')
   const [selectedColor, setSelectedColor] = useState(defaultColor)
+  const [selectedOpacity, setSelectedOpacity] = useState(1)
   const [strokeWidth, setStrokeWidth] = useState(defaultStrokeWidth)
   const [lines, setLines] = useState<DrawingLine[]>([])
   const [redoLines, setRedoLines] = useState<DrawingLine[]>([])
-  const [isDrawing, setIsDrawing] = useState(false)
+  const [recentColors, setRecentColors] = useState<string[]>([])
+  const isDrawingRef = useRef(false)
+  const lastPointerPositionRef = useRef<{ x: number; y: number } | null>(null)
 
   const isEraserSelected = selectedToolKey === 'eraser'
   const drawingColor = selectedColor
@@ -62,13 +66,24 @@ export function useDrawingBoard({
   const replaceLines = useCallback((nextLines: DrawingLine[]) => {
     setLines(nextLines)
     setRedoLines([])
-    setIsDrawing(false)
+    isDrawingRef.current = false
+    lastPointerPositionRef.current = null
+  }, [])
+
+  const addRecentColor = useCallback((color: string) => {
+    setRecentColors((currentRecentColors) => {
+      const uniqueRecentColors = currentRecentColors.filter(
+        (recentColor) => recentColor !== color,
+      )
+
+      return [color, ...uniqueRecentColors].slice(0, MAX_RECENT_DRAWING_COLOR_COUNT)
+    })
   }, [])
 
   const beginDrawing = useCallback(
     (event: DrawingPointerEvent) => {
       const stage = event.target.getStage()
-      const pointerPosition = stage?.getPointerPosition()
+      const pointerPosition = stage?.getRelativePointerPosition()
       if (!pointerPosition) return
       if (!isPointInsideDrawingArea(pointerPosition, boardSize, drawArea)) return
 
@@ -77,18 +92,25 @@ export function useDrawingBoard({
           backgroundColor,
           boardSize,
           fillColor: selectedColor,
+          fillOpacity: selectedOpacity,
+          idPrefix: 'fill',
           lines,
           pointerPosition,
         }).then((fillLine) => {
           if (!fillLine) return
           setRedoLines([])
           setLines((currentLines) => [...currentLines, fillLine])
+          addRecentColor(selectedColor)
         })
         return
       }
 
-      setIsDrawing(true)
+      isDrawingRef.current = true
+      lastPointerPositionRef.current = { x: pointerPosition.x, y: pointerPosition.y }
       setRedoLines([])
+      if (!isEraserSelected) {
+        addRecentColor(drawingColor)
+      }
       setLines((currentLines) => [
         ...currentLines,
         {
@@ -96,6 +118,7 @@ export function useDrawingBoard({
           kind: 'stroke',
           color: drawingColor,
           strokeWidth: activeStrokeWidth,
+          opacity: isEraserSelected ? 1 : selectedOpacity,
           compositeOperation: isEraserSelected ? 'destination-out' : 'source-over',
           points: [{ x: pointerPosition.x, y: pointerPosition.y }],
         },
@@ -107,25 +130,38 @@ export function useDrawingBoard({
       boardSize,
       drawArea,
       drawingColor,
+      addRecentColor,
       isEraserSelected,
       lines,
       selectedColor,
+      selectedOpacity,
       selectedToolKey,
     ],
   )
 
   const continueDrawing = useCallback(
     (event: DrawingPointerEvent) => {
-      if (!isDrawing) return
+      if (!isDrawingRef.current) return
 
       const stage = event.target.getStage()
-      const pointerPosition = stage?.getPointerPosition()
+      const pointerPosition = stage?.getRelativePointerPosition()
       if (!pointerPosition) return
 
       if (!isPointInsideDrawingArea(pointerPosition, boardSize, drawArea)) {
-        setIsDrawing(false)
+        isDrawingRef.current = false
+        lastPointerPositionRef.current = null
         return
       }
+
+      const lastPointerPosition = lastPointerPositionRef.current
+      if (
+        lastPointerPosition &&
+        lastPointerPosition.x === pointerPosition.x &&
+        lastPointerPosition.y === pointerPosition.y
+      ) {
+        return
+      }
+      lastPointerPositionRef.current = { x: pointerPosition.x, y: pointerPosition.y }
 
       setLines((currentLines) => {
         const latestLine = currentLines[currentLines.length - 1]
@@ -139,23 +175,28 @@ export function useDrawingBoard({
         return [...currentLines.slice(0, -1), updatedLine]
       })
     },
-    [boardSize, drawArea, isDrawing],
+    [boardSize, drawArea],
   )
 
   const endDrawing = useCallback(() => {
-    setIsDrawing(false)
+    isDrawingRef.current = false
+    lastPointerPositionRef.current = null
   }, [])
 
   return {
     selectedToolKey,
     selectedColor,
+    selectedOpacity,
     strokeWidth,
+    recentColors,
     lines,
+    canUndoDrawing: lines.length > 0,
     canRedoDrawing: redoLines.length > 0,
     replaceLines,
     setLines,
     setSelectedToolKey,
     setSelectedColor,
+    setSelectedOpacity,
     setStrokeWidth,
     clearDrawing,
     undoDrawing,

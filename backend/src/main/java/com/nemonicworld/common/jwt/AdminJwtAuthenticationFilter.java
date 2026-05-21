@@ -4,13 +4,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.admin.entity.AdminUser;
 import com.nemonicworld.admin.repository.AdminUserRepository;
 import com.nemonicworld.auth.service.AdminTokenStore;
+import com.nemonicworld.common.exception.UnauthorizedException;
 import com.nemonicworld.common.response.ApiResponse;
+import com.nemonicworld.global.logging.StructuredEventLogger;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -29,8 +34,22 @@ public class AdminJwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String ADMIN_API_PREFIX = "/api/v1/admins/";
     private static final String ADMIN_INQUIRY_API_PATH = "/api/v1/admin/inquiries";
     private static final String ADMIN_INQUIRY_API_PREFIX = "/api/v1/admin/inquiries/";
+    private static final String ADMIN_COMMUNITY_MEMO_API_PATH = "/api/v1/admin/community/memos";
+    private static final String ADMIN_COMMUNITY_MEMO_API_PREFIX = "/api/v1/admin/community/memos/";
+    private static final String ADMIN_LOGS_API_PATH = "/api/v1/admin/logs";
+    private static final String ADMIN_LOGS_API_PREFIX = "/api/v1/admin/logs/";
+    private static final String ADMIN_METRICS_API_PATH = "/api/v1/admin/metrics";
+    private static final String ADMIN_METRICS_API_PREFIX = "/api/v1/admin/metrics/";
     private static final String GMS_PROMPT_API_PATH = "/api/v1/backoffice/gms/prompts";
     private static final String GMS_PROMPT_API_PREFIX = "/api/v1/backoffice/gms/prompts/";
+    private static final String SYSTEM_PARAMETER_API_PATH = "/api/v1/backoffice/system-parameters";
+    private static final String SYSTEM_PARAMETER_API_PREFIX = "/api/v1/backoffice/system-parameters/";
+    private static final String BACKOFFICE_RELAY_ROOM_API_PATH = "/api/v1/backoffice/relay-rooms";
+    private static final String BACKOFFICE_RELAY_ROOM_API_PREFIX = "/api/v1/backoffice/relay-rooms/";
+    private static final String BACKOFFICE_FLIPBOOK_ROOM_API_PATH = "/api/v1/backoffice/flipbook-rooms";
+    private static final String BACKOFFICE_FLIPBOOK_ROOM_API_PREFIX = "/api/v1/backoffice/flipbook-rooms/";
+    private static final String BACKOFFICE_INFINITE_CANVAS_API_PATH = "/api/v1/backoffice/infinite-canvas/canvases";
+    private static final String BACKOFFICE_INFINITE_CANVAS_API_PREFIX = "/api/v1/backoffice/infinite-canvas/canvases/";
     private static final String UNAUTHORIZED_MESSAGE = "인증이 필요합니다.";
 
     private final JwtTokenProvider jwtTokenProvider;
@@ -52,8 +71,18 @@ public class AdminJwtAuthenticationFilter extends OncePerRequestFilter {
 
         return !ADMIN_LOGOUT_PATH.equals(servletPath) && !ADMIN_API_PATH.equals(servletPath)
             && !servletPath.startsWith(ADMIN_API_PREFIX) && !ADMIN_INQUIRY_API_PATH.equals(servletPath)
-            && !servletPath.startsWith(ADMIN_INQUIRY_API_PREFIX) && !GMS_PROMPT_API_PATH.equals(servletPath)
-            && !servletPath.startsWith(GMS_PROMPT_API_PREFIX);
+            && !servletPath.startsWith(ADMIN_INQUIRY_API_PREFIX) && !ADMIN_COMMUNITY_MEMO_API_PATH.equals(servletPath)
+            && !servletPath.startsWith(ADMIN_COMMUNITY_MEMO_API_PREFIX) && !ADMIN_LOGS_API_PATH.equals(servletPath)
+            && !servletPath.startsWith(ADMIN_LOGS_API_PREFIX) && !ADMIN_METRICS_API_PATH.equals(servletPath)
+            && !servletPath.startsWith(ADMIN_METRICS_API_PREFIX) && !GMS_PROMPT_API_PATH.equals(servletPath)
+            && !servletPath.startsWith(GMS_PROMPT_API_PREFIX) && !SYSTEM_PARAMETER_API_PATH.equals(servletPath)
+            && !servletPath.startsWith(SYSTEM_PARAMETER_API_PREFIX)
+            && !BACKOFFICE_RELAY_ROOM_API_PATH.equals(servletPath)
+            && !servletPath.startsWith(BACKOFFICE_RELAY_ROOM_API_PREFIX)
+            && !BACKOFFICE_FLIPBOOK_ROOM_API_PATH.equals(servletPath)
+            && !servletPath.startsWith(BACKOFFICE_FLIPBOOK_ROOM_API_PREFIX)
+            && !BACKOFFICE_INFINITE_CANVAS_API_PATH.equals(servletPath)
+            && !servletPath.startsWith(BACKOFFICE_INFINITE_CANVAS_API_PREFIX);
     }
 
     private String resolveRequestPath(HttpServletRequest request) {
@@ -80,10 +109,10 @@ public class AdminJwtAuthenticationFilter extends OncePerRequestFilter {
             String token = authorizationHeader.substring(BEARER_PREFIX.length());
             AdminTokenClaims claims = jwtTokenProvider.parseAccessToken(token);
             if (adminTokenStore.isAccessTokenRevoked(claims)) {
-                throw new IllegalArgumentException("Admin access token is revoked.");
+                throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
             }
             AdminUser adminUser = adminUserRepository.findActiveById(claims.adminId())
-                .orElseThrow(() -> new IllegalArgumentException("Admin account is not active."));
+                .orElseThrow(() -> new UnauthorizedException(UNAUTHORIZED_MESSAGE));
             AdminPrincipal principal = AdminPrincipal.from(adminUser);
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(principal,
                 null, List.of(new SimpleGrantedAuthority("ROLE_%s".formatted(principal.role().name()))));
@@ -92,14 +121,57 @@ public class AdminJwtAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         } catch (RuntimeException e) {
             SecurityContextHolder.clearContext();
-            writeUnauthorizedResponse(response);
+            StructuredEventLogger.auditWarn("admin_token_invalid", "admin token invalid", resolveTraceId(request),
+                StructuredEventLogger.metadata("path", resolveRequestPath(request), "method", request.getMethod(),
+                    "reason_code", e.getClass().getSimpleName()));
+            StructuredEventLogger.apiWarn("api_unauthorized", "api unauthorized", resolveTraceId(request),
+                StructuredEventLogger.metadata("path", resolveRequestPath(request), "method", request.getMethod(),
+                    "status", HttpStatus.UNAUTHORIZED.value(), "result", "failed", "reason_code",
+                    e.getClass().getSimpleName()),
+                e);
+            writeUnauthorizedResponse(request, response);
         }
     }
 
-    private void writeUnauthorizedResponse(HttpServletResponse response) throws IOException {
+    private String resolveTraceId(HttpServletRequest request) {
+        String traceId = request.getHeader("X-Trace-Id");
+        if (traceId == null || traceId.isBlank()) {
+            traceId = request.getHeader("X-Request-Id");
+        }
+
+        return traceId;
+    }
+
+    private void writeUnauthorizedResponse(HttpServletRequest request, HttpServletResponse response)
+        throws IOException {
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
+        if (isAdminLogsPath(request)) {
+            objectMapper.writeValue(response.getWriter(),
+                Map.of("code", "ADMIN_LOGS_UNAUTHORIZED", "message", UNAUTHORIZED_MESSAGE, "timestamp",
+                    OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)));
+            return;
+        }
+        if (isAdminMetricsPath(request)) {
+            objectMapper.writeValue(response.getWriter(),
+                Map.of("success", false, "code", "ADMIN_METRICS_UNAUTHORIZED", "message", UNAUTHORIZED_MESSAGE,
+                    "timestamp", OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)));
+            return;
+        }
+
         objectMapper.writeValue(response.getWriter(), ApiResponse.fail(UNAUTHORIZED_MESSAGE, null));
+    }
+
+    private boolean isAdminLogsPath(HttpServletRequest request) {
+        String path = resolveRequestPath(request);
+
+        return ADMIN_LOGS_API_PATH.equals(path) || path.startsWith(ADMIN_LOGS_API_PREFIX);
+    }
+
+    private boolean isAdminMetricsPath(HttpServletRequest request) {
+        String path = resolveRequestPath(request);
+
+        return ADMIN_METRICS_API_PATH.equals(path) || path.startsWith(ADMIN_METRICS_API_PREFIX);
     }
 }

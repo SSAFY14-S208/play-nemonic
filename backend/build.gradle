@@ -22,17 +22,21 @@ repositories {
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'io.micrometer:micrometer-registry-prometheus'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-database-postgresql'
+	implementation 'com.google.zxing:core:3.5.3'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.17'
 	implementation 'io.minio:minio:8.5.17'
+	implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'org.postgresql:postgresql'
 	annotationProcessor 'org.projectlombok:lombok'
@@ -63,6 +67,27 @@ configurations {
 tasks.named('test') {
 	useJUnitPlatform()
 	systemProperty 'spring.profiles.active', 'test'
+	systemProperty 'user.timezone', 'Asia/Seoul'
+	systemProperty 'spring.test.context.cache.maxSize', '8'
+	// 한 테스트가 90초 넘으면 자동 fail. hang된 외부 호출/무한 루프 차단.
+	systemProperty 'junit.jupiter.execution.timeout.default', '90s'
+	systemProperty 'junit.jupiter.execution.timeout.testable.method.default', '90s'
+	maxHeapSize = '1g'
+	// JVM 재사용을 명시적으로 보장: forkEvery=0이면 worker JVM이 테스트 클래스 사이에서
+	// 재시작되지 않아 Spring TestContext 캐시가 전체 테스트 런에 걸쳐 재사용된다.
+	maxParallelForks = Math.max(1, Runtime.runtime.availableProcessors().intdiv(2))
+	forkEvery = 0
+	jvmArgs(
+		'-XX:+HeapDumpOnOutOfMemoryError',
+		'-XX:HeapDumpPath=build/test-heap-dumps',
+		// GC death spiral 차단: heap이 가득 차서 GC가 98% CPU를 쓰는데도 회수가
+		// 2% 미만이면 OOM 발생 → ExitOnOutOfMemoryError가 JVM을 즉시 종료시켜
+		// Gradle worker가 실패로 인식. 2026-05-19에 GC 누수로 호스트 CPU가
+		// 6시간 동안 200%대로 폭주했던 사건의 재발 방지장치.
+		'-XX:GCTimeLimit=90',
+		'-XX:GCHeapFreeLimit=10',
+		'-XX:+ExitOnOutOfMemoryError'
+	)
 }
 
 tasks.named('bootRun') {

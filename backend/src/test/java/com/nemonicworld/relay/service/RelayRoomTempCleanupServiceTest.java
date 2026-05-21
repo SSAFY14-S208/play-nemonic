@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
@@ -273,6 +274,7 @@ class RelayRoomTempCleanupServiceTest {
         LocalDateTime cutoff = NOW.minusHours(24);
         List<String> oldObjectKeys = List.of("relay/tmp/AB3K9Q/0/face.png", "relay/tmp/CD4L8M/1/body.png");
         given(relayTempFileStorage.findOldTempObjectKeys(cutoff, 1000)).willReturn(oldObjectKeys);
+        given(relayRoomRepository.findByRoomCode(anyString())).willReturn(Optional.empty());
 
         RelayOldTempCleanupResult result = relayRoomTempCleanupService.cleanupOldTempObjects(NOW);
 
@@ -308,6 +310,7 @@ class RelayRoomTempCleanupServiceTest {
     void cleanupOldTempObjectsDoesNotMarkSuccessWhenDeleteFails() {
         List<String> oldObjectKeys = List.of("relay/tmp/AB3K9Q/0/face.png");
         given(relayTempFileStorage.findOldTempObjectKeys(NOW.minusHours(24), 1000)).willReturn(oldObjectKeys);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.empty());
         doThrow(new FileStorageException("storage error", new RuntimeException("boom"))).when(relayTempFileStorage)
             .deleteObjects(oldObjectKeys);
 
@@ -315,6 +318,20 @@ class RelayRoomTempCleanupServiceTest {
 
         assertThat(result.scannedObjectCount()).isEqualTo(1);
         assertThat(result.deletedObjectCount()).isZero();
+    }
+
+    @Test
+    void cleanupOldTempObjectsSkipsActiveRoomObjects() {
+        List<String> oldObjectKeys = List.of("relay/tmp/AB3K9Q/0/face.png");
+        given(relayTempFileStorage.findOldTempObjectKeys(NOW.minusHours(24), 1000)).willReturn(oldObjectKeys);
+        given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(
+            Optional.of(room(ROOM_CODE, RelayRoomStatus.PLAYING, assignment("relay/tmp/AB3K9Q/0/face.png", null))));
+
+        RelayOldTempCleanupResult result = relayRoomTempCleanupService.cleanupOldTempObjects(NOW);
+
+        assertThat(result.scannedObjectCount()).isEqualTo(1);
+        assertThat(result.deletedObjectCount()).isZero();
+        verify(relayTempFileStorage, never()).deleteObjects(anyList());
     }
 
     private RelayRoomState closedRoom(String roomCode, RelayRoomAssignment... assignments) {

@@ -2,20 +2,26 @@ package com.nemonicworld.relay.repository;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nemonicworld.common.exception.InternalServerException;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
-import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
+import com.nemonicworld.relay.redis.RelayRoomParticipant;
+import com.nemonicworld.relay.redis.RelayRoomState;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
@@ -25,10 +31,15 @@ import org.springframework.util.StringUtils;
 @Repository
 public class RedisRelayRoomRepository implements RelayRoomRepository {
 
+    private static final Logger log = LoggerFactory.getLogger(RedisRelayRoomRepository.class);
+
     private static final String ROOM_KEY_PREFIX = "relay:room:";
     private static final String FINALIZATION_LOCK_KEY_PREFIX = "relay:room-finalization-lock:";
     private static final String TEMP_CLEANUP_MARKER_KEY_PREFIX = "relay:room-temp-cleanup:";
     private static final String TEMP_CLEANUP_LOCK_KEY_PREFIX = "relay:room-temp-cleanup-lock:";
+    private static final DefaultRedisScript<Long> RELEASE_LOCK_SCRIPT = new DefaultRedisScript<>(
+        "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+        Long.class);
     private static final String ROOM_STATE_SERIALIZATION_ERROR_MESSAGE = "릴레이 방 상태를 저장할 수 없습니다.";
     private static final String ROOM_STATE_DESERIALIZATION_ERROR_MESSAGE = "릴레이 방 상태를 읽을 수 없습니다.";
 
@@ -118,19 +129,7 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
      */
     @Override
     public List<RelayRoomState> findExpiredPlayingRooms(LocalDateTime now, int limit) {
-        if (limit <= 0) {
-            return List.of();
-        }
-
-        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
-        List<RelayRoomState> expiredRooms = new ArrayList<>();
-        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
-            while (roomKeys.hasNext() && expiredRooms.size() < limit) {
-                findExpiredPlayingRoom(roomKeys.next(), now).ifPresent(expiredRooms::add);
-            }
-        }
-
-        return expiredRooms;
+        return scanRoomKeys("expired_playing", limit, limit, roomKey -> findExpiredPlayingRoom(roomKey, now));
     }
 
     /**
@@ -138,19 +137,33 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
      */
     @Override
     public List<RelayRoomState> findPlayingRoomsForDisconnectGrace(LocalDateTime disconnectCutoff, int limit) {
-        if (limit <= 0) {
-            return List.of();
-        }
+        return scanRoomKeys("disconnect_grace", limit, limit,
+            roomKey -> findPlayingRoomForDisconnectGrace(roomKey, disconnectCutoff));
+    }
 
-        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
-        List<RelayRoomState> candidateRooms = new ArrayList<>();
-        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
-            while (roomKeys.hasNext() && candidateRooms.size() < limit) {
-                findPlayingRoomForDisconnectGrace(roomKeys.next(), disconnectCutoff).ifPresent(candidateRooms::add);
-            }
-        }
+    @Override
+    public List<RelayRoomState> findAbandonedWaitingRooms(LocalDateTime idleCutoff, int limit) {
+        return scanRoomKeys("abandoned_waiting", limit, limit,
+            roomKey -> findAbandonedWaitingRoom(roomKey, idleCutoff));
+    }
 
-        return candidateRooms;
+    @Override
+    public List<RelayRoomState> findAbandonedPlayingRooms(LocalDateTime abandonedCutoff, int limit) {
+        return scanRoomKeys("abandoned_playing", limit, limit,
+            roomKey -> findAbandonedPlayingRoom(roomKey, abandonedCutoff));
+    }
+
+    /**
+     * Redis room key를 SCAN하며 실제 WebSocket 세션 보정이 필요한 WAITING/PLAYING 방만 골라냅니다.
+     */
+    @Override
+    public List<RelayRoomState> findRoomsForConnectionReconciliation(int limit) {
+        return scanRoomKeys("connection_reconciliation", limit, limit, this::findRoomForConnectionReconciliation);
+    }
+
+    @Override
+    public List<RelayRoomState> findEmptyWaitingRooms(int limit) {
+        return scanRoomKeys("empty_waiting", limit, limit, this::findEmptyWaitingRoom);
     }
 
     /**
@@ -158,19 +171,7 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
      */
     @Override
     public List<RelayRoomState> findFinalizingRooms(int limit) {
-        if (limit <= 0) {
-            return List.of();
-        }
-
-        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
-        List<RelayRoomState> finalizingRooms = new ArrayList<>();
-        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
-            while (roomKeys.hasNext() && finalizingRooms.size() < limit) {
-                findFinalizingRoom(roomKeys.next()).ifPresent(finalizingRooms::add);
-            }
-        }
-
-        return finalizingRooms;
+        return scanRoomKeys("finalizing", limit, limit, this::findFinalizingRoom);
     }
 
     /**
@@ -178,19 +179,17 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
      */
     @Override
     public List<RelayRoomState> findClosableFinishedRooms(LocalDateTime closeCutoff, int limit) {
-        if (limit <= 0) {
-            return List.of();
-        }
+        return scanRoomKeys("closable_finished", limit, limit,
+            roomKey -> findClosableFinishedRoom(roomKey, closeCutoff));
+    }
 
-        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
-        List<RelayRoomState> closableRooms = new ArrayList<>();
-        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
-            while (roomKeys.hasNext() && closableRooms.size() < limit) {
-                findClosableFinishedRoom(roomKeys.next(), closeCutoff).ifPresent(closableRooms::add);
-            }
-        }
-
-        return closableRooms;
+    /**
+     * 백오피스 관리 화면용 — Redis room key를 SCAN하며 CLOSED를 제외한 모든 활성 방을 모읍니다.
+     */
+    @Override
+    public List<RelayRoomState> findAllActiveRooms() {
+        // SCAN count는 Redis 내부 페이지 힌트일 뿐 결과 상한이 아닙니다.
+        return scanRoomKeys("active_rooms", 200, Integer.MAX_VALUE, this::findActiveRoom);
     }
 
     /**
@@ -198,27 +197,15 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
      */
     @Override
     public List<RelayRoomState> findClosedRooms(int limit) {
-        if (limit <= 0) {
-            return List.of();
-        }
-
-        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(limit).build();
-        List<RelayRoomState> closedRooms = new ArrayList<>();
-        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
-            while (roomKeys.hasNext() && closedRooms.size() < limit) {
-                findClosedRoom(roomKeys.next()).ifPresent(closedRooms::add);
-            }
-        }
-
-        return closedRooms;
+        return scanRoomKeys("closed_cleanup", limit, limit, this::findClosedRoom);
     }
 
     /**
      * 여러 서버나 스케줄 tick이 같은 방을 동시에 최종화하지 못하도록 lock을 잡습니다.
      */
     @Override
-    public boolean acquireFinalizationLock(String roomCode, Duration ttl) {
-        Boolean locked = redisTemplate.opsForValue().setIfAbsent(createFinalizationLockKey(roomCode), "locked", ttl);
+    public boolean acquireFinalizationLock(String roomCode, String token, Duration ttl) {
+        Boolean locked = redisTemplate.opsForValue().setIfAbsent(createFinalizationLockKey(roomCode), token, ttl);
 
         return Boolean.TRUE.equals(locked);
     }
@@ -227,8 +214,8 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
      * 최종화 시도 후 lock을 해제합니다.
      */
     @Override
-    public void releaseFinalizationLock(String roomCode) {
-        redisTemplate.delete(createFinalizationLockKey(roomCode));
+    public void releaseFinalizationLock(String roomCode, String token) {
+        redisTemplate.execute(RELEASE_LOCK_SCRIPT, List.of(createFinalizationLockKey(roomCode)), token);
     }
 
     /**
@@ -263,6 +250,32 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
     @Override
     public void releaseTempCleanupLock(String roomCode) {
         redisTemplate.delete(createTempCleanupLockKey(roomCode));
+    }
+
+    private List<RelayRoomState> scanRoomKeys(String purpose, int scanCount, int matchedLimit,
+        Function<String, Optional<RelayRoomState>> matcher) {
+        if (scanCount <= 0 || matchedLimit <= 0) {
+            return List.of();
+        }
+
+        long startedNanos = System.nanoTime();
+        int scannedKeyCount = 0;
+        List<RelayRoomState> matchedRooms = new ArrayList<>();
+        ScanOptions scanOptions = ScanOptions.scanOptions().match(ROOM_KEY_PREFIX + "*").count(scanCount).build();
+
+        try (Cursor<String> roomKeys = redisTemplate.scan(scanOptions)) {
+            while (roomKeys.hasNext() && matchedRooms.size() < matchedLimit) {
+                scannedKeyCount++;
+                matcher.apply(roomKeys.next()).ifPresent(matchedRooms::add);
+            }
+        }
+
+        log.debug(
+            "relay room scan completed. purpose={} scanned_key_count={} matched_room_count={} limit={} duration_ms={}",
+            purpose, scannedKeyCount, matchedRooms.size(), matchedLimit,
+            Duration.ofNanos(System.nanoTime() - startedNanos).toMillis());
+
+        return matchedRooms;
     }
 
     private Optional<RelayRoomState> findExpiredPlayingRoom(String roomKey, LocalDateTime now) {
@@ -331,6 +344,120 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
             .anyMatch(participant -> !participant.dropped() && participant.connected());
     }
 
+    private Optional<RelayRoomState> findRoomForConnectionReconciliation(String roomKey) {
+        String roomStateValue = redisTemplate.opsForValue().get(roomKey);
+        if (!StringUtils.hasText(roomStateValue)) {
+            return Optional.empty();
+        }
+
+        RelayRoomState roomState = deserialize(roomStateValue);
+        if (roomState.status() != RelayRoomStatus.WAITING && roomState.status() != RelayRoomStatus.PLAYING) {
+            return Optional.empty();
+        }
+
+        boolean hasConnectedParticipant = roomState.participants().stream().anyMatch(RelayRoomParticipant::connected);
+        return hasConnectedParticipant ? Optional.of(roomState) : Optional.empty();
+    }
+
+    private Optional<RelayRoomState> findEmptyWaitingRoom(String roomKey) {
+        String roomStateValue = redisTemplate.opsForValue().get(roomKey);
+        if (!StringUtils.hasText(roomStateValue)) {
+            return Optional.empty();
+        }
+
+        RelayRoomState roomState = deserialize(roomStateValue);
+        if (roomState.status() == RelayRoomStatus.WAITING && roomState.participants().isEmpty()) {
+            return Optional.of(roomState);
+        }
+
+        return Optional.empty();
+    }
+
+    private Optional<RelayRoomState> findAbandonedWaitingRoom(String roomKey, LocalDateTime idleCutoff) {
+        String roomStateValue = redisTemplate.opsForValue().get(roomKey);
+        if (!StringUtils.hasText(roomStateValue)) {
+            return Optional.empty();
+        }
+
+        RelayRoomState roomState = deserialize(roomStateValue);
+        if (roomState.status() != RelayRoomStatus.WAITING || roomState.participants().isEmpty()) {
+            return Optional.empty();
+        }
+
+        if (!allParticipantsDisconnected(roomState)) {
+            return Optional.empty();
+        }
+
+        LocalDateTime idleSince = latestWaitingInactiveAt(roomState);
+        if (idleSince == null || idleSince.isAfter(idleCutoff)) {
+            return Optional.empty();
+        }
+
+        return Optional.of(roomState);
+    }
+
+    private Optional<RelayRoomState> findAbandonedPlayingRoom(String roomKey, LocalDateTime abandonedCutoff) {
+        String roomStateValue = redisTemplate.opsForValue().get(roomKey);
+        if (!StringUtils.hasText(roomStateValue)) {
+            return Optional.empty();
+        }
+
+        RelayRoomState roomState = deserialize(roomStateValue);
+        if (roomState.status() != RelayRoomStatus.PLAYING || roomState.participants().isEmpty()) {
+            return Optional.empty();
+        }
+
+        if (!allParticipantsInactiveInPlaying(roomState)) {
+            return Optional.empty();
+        }
+
+        LocalDateTime inactiveSince = latestPlayingInactiveAt(roomState);
+        if (inactiveSince == null || inactiveSince.isAfter(abandonedCutoff)) {
+            return Optional.empty();
+        }
+
+        return Optional.of(roomState);
+    }
+
+    private boolean allParticipantsDisconnected(RelayRoomState roomState) {
+        return roomState.participants().stream().allMatch(participant -> !participant.connected());
+    }
+
+    private boolean allParticipantsInactiveInPlaying(RelayRoomState roomState) {
+        return roomState.participants().stream()
+            .allMatch(participant -> participant.dropped() || !participant.connected());
+    }
+
+    private LocalDateTime latestWaitingInactiveAt(RelayRoomState roomState) {
+        LocalDateTime latest = roomState.updatedAt();
+        for (RelayRoomParticipant participant : roomState.participants()) {
+            latest = maxTime(latest, participant.disconnectedAt());
+        }
+
+        return latest;
+    }
+
+    private LocalDateTime latestPlayingInactiveAt(RelayRoomState roomState) {
+        LocalDateTime latest = roomState.updatedAt();
+        for (RelayRoomParticipant participant : roomState.participants()) {
+            latest = maxTime(latest, participant.disconnectedAt());
+            latest = maxTime(latest, participant.droppedAt());
+        }
+
+        return latest;
+    }
+
+    private LocalDateTime maxTime(LocalDateTime left, LocalDateTime right) {
+        if (left == null) {
+            return right;
+        }
+        if (right == null) {
+            return left;
+        }
+
+        return left.isAfter(right) ? left : right;
+    }
+
     /**
      * SCAN으로 발견한 Redis 값이 실제 FINALIZING 방인지 확인합니다.
      */
@@ -342,6 +469,23 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
 
         RelayRoomState roomState = deserialize(roomStateValue);
         if (roomState.status() != RelayRoomStatus.FINALIZING) {
+            return Optional.empty();
+        }
+
+        return Optional.of(roomState);
+    }
+
+    /**
+     * SCAN으로 발견한 Redis 값이 CLOSED를 제외한 활성 방인지 확인합니다.
+     */
+    private Optional<RelayRoomState> findActiveRoom(String roomKey) {
+        String roomStateValue = redisTemplate.opsForValue().get(roomKey);
+        if (!StringUtils.hasText(roomStateValue)) {
+            return Optional.empty();
+        }
+
+        RelayRoomState roomState = deserialize(roomStateValue);
+        if (roomState.status() == RelayRoomStatus.CLOSED) {
             return Optional.empty();
         }
 
@@ -412,7 +556,7 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
         try {
             return objectMapper.writeValueAsString(roomState);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException(ROOM_STATE_SERIALIZATION_ERROR_MESSAGE, e);
+            throw new InternalServerException(ROOM_STATE_SERIALIZATION_ERROR_MESSAGE, e);
         }
     }
 
@@ -423,7 +567,7 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
         try {
             return objectMapper.readValue(roomStateValue, RelayRoomState.class);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException(ROOM_STATE_DESERIALIZATION_ERROR_MESSAGE, e);
+            throw new InternalServerException(ROOM_STATE_DESERIALIZATION_ERROR_MESSAGE, e);
         }
     }
 }

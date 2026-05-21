@@ -1,4 +1,6 @@
 export {
+  AdminAuthGuard,
+  AdminLoginModal,
   AdminPageHeader,
   AdminSidebar,
   AdminTopBar,
@@ -9,6 +11,7 @@ export {
   type AdminNavGroup,
   type AdminNavItem,
 } from "./constants";
+export { useAdminLogin, useAdminLogout } from "./hooks";
 export {
   useNotificationStore,
   type AdminNotification,

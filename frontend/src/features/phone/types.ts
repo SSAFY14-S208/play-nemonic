@@ -1,6 +1,8 @@
-export type PhoneScreenKey = 'home' | 'drawing' | 'gallery'
+export type PhoneScreenKey = 'home' | 'drawing' | 'gallery' | 'inquiry'
 
 export type PhoneDrawingToolKey = 'pen' | 'eraser'
+
+export type PhoneDrawingAction = 'save' | 'print'
 
 export type PhoneGalleryItemKind =
   | 'phone'
@@ -13,6 +15,7 @@ export type PhoneGalleryFilterKey = 'all' | PhoneGalleryItemKind
 
 export interface PhoneGalleryItem {
   id: string
+  artifactId: string
   kind: PhoneGalleryItemKind
   title: string
   createdAtLabel: string
