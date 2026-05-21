@@ -1,0 +1,28 @@
+* text=auto
+
+.gitattributes text eol=lf
+*.java text eol=lf
+*.gradle text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sql text eol=lf
+*.http text eol=lf
+*.ps1 text eol=lf
+*.sh text eol=lf
+*.dockerignore text eol=lf
+*.env.example text eol=lf
+*.gitignore text eol=lf
+Dockerfile text eol=lf
+Jenkinsfile* text eol=lf
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+*.jar binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary

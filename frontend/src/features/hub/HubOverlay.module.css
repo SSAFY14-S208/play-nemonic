@@ -1,0 +1,333 @@
+.brandPanel {
+  position: fixed;
+  top: 1.5rem;
+  left: 1.5rem;
+  z-index: 30;
+  color: #362d50;
+  pointer-events: none;
+}
+
+.brandMark {
+  display: block;
+  width: 8.75rem;
+  filter: drop-shadow(0 0.55rem 1.15rem rgb(0 0 0 / 18%));
+}
+
+.brandLogo {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+}
+
+.utilityCluster {
+  position: fixed;
+  top: 1.4rem;
+  right: 1.4rem;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.utilityButton {
+  display: inline-flex;
+  height: 2.72rem;
+  width: 2.72rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(255 247 235 / 74%);
+  border-radius: 0.8rem;
+  background: rgb(255 250 242 / 72%);
+  box-shadow: 0 0.8rem 2rem rgb(54 45 80 / 12%);
+  color: #5b4a82;
+  cursor: pointer;
+  backdrop-filter: blur(16px);
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.utilityButton:hover {
+  background: rgb(255 252 247 / 88%);
+  transform: translateY(-1px);
+}
+
+.utilityButton:active {
+  transform: scale(0.96);
+}
+
+.musicButton {
+  display: inline-flex;
+  height: 2.72rem;
+  width: 4.35rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.34rem;
+  border: 1px solid rgb(255 247 235 / 74%);
+  border-radius: 0.8rem;
+  background: rgb(255 250 242 / 72%);
+  box-shadow: 0 0.8rem 2rem rgb(54 45 80 / 12%);
+  color: #5b4a82;
+  cursor: pointer;
+  backdrop-filter: blur(16px);
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.musicButton[data-muted='true'] {
+  background: rgb(255 250 242 / 56%);
+  color: #746a85;
+  opacity: 0.82;
+}
+
+.musicButton:hover {
+  background: rgb(255 252 247 / 86%);
+  transform: translateY(-1px);
+}
+
+.musicButton:active {
+  transform: scale(0.96);
+}
+
+.musicSignal {
+  height: 1rem;
+  width: 1rem;
+  flex: 0 0 auto;
+  color: #7d63bc;
+}
+
+.musicButton[data-playing='true'] .musicSignal {
+  animation: hubMusicPulse 1.45s ease-in-out infinite;
+}
+
+.focusControls {
+  position: fixed;
+  left: 50%;
+  right: auto;
+  top: auto;
+  bottom: 1.4rem;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: calc(100vw - 8rem);
+  overflow-x: auto;
+  border: 1px solid rgb(255 247 235 / 74%);
+  border-radius: 0.95rem;
+  background: rgb(255 250 242 / 76%);
+  box-shadow: 0 0.9rem 2.2rem rgb(54 45 80 / 14%);
+  padding: 0.48rem;
+  transform: translateX(-50%);
+  backdrop-filter: blur(18px);
+}
+
+.focusButton {
+  display: inline-flex;
+  height: 2.35rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.38rem;
+  border: 0;
+  border-radius: 0.68rem;
+  background: transparent;
+  padding: 0 0.78rem;
+  color: #5f5578;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.focusButton:hover {
+  transform: translateY(-1px);
+  background: rgb(255 255 255 / 66%);
+}
+
+.focusButtonActive {
+  background: linear-gradient(135deg, #a98bed, #8ed2ef);
+  color: #ffffff;
+  box-shadow:
+    0 0.4rem 1rem rgb(91 77 155 / 20%),
+    inset 0 1px 0 rgb(255 255 255 / 34%);
+}
+
+.printerPrompt {
+  position: fixed;
+  left: 50%;
+  bottom: 5.05rem;
+  z-index: 32;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.46rem;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: hubPrinterPromptIn 220ms ease-out both;
+}
+
+.printerPromptButton {
+  display: inline-flex;
+  min-height: 2.6rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.44rem;
+  border: 1px solid rgb(255 247 235 / 82%);
+  border-radius: 0.8rem;
+  background: rgb(255 250 242 / 86%);
+  box-shadow:
+    0 0.75rem 1.8rem rgb(54 45 80 / 16%),
+    inset 0 1px 0 rgb(255 255 255 / 58%);
+  color: #4e426c;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 900;
+  padding: 0 0.85rem;
+  pointer-events: auto;
+  backdrop-filter: blur(18px);
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.printerPromptButton:hover {
+  background: rgb(255 252 247 / 94%);
+  color: #312747;
+  transform: translateY(-1px);
+}
+
+.printerPromptButton:active {
+  transform: scale(0.97);
+}
+
+.printerPromptIcon {
+  height: 1rem;
+  width: 1rem;
+  color: #8e6ce0;
+  animation: hubPrinterPromptTap 1.28s ease-in-out infinite;
+}
+
+.printerPromptBeam {
+  height: 2.25rem;
+  width: 1px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to top,
+    rgb(142 108 224 / 0),
+    rgb(142 108 224 / 56%),
+    rgb(142 108 224 / 0)
+  );
+  opacity: 0.82;
+  animation: hubPrinterPromptBeam 1.28s ease-in-out infinite;
+}
+
+@keyframes hubMusicPulse {
+  0%,
+  100% {
+    opacity: 0.68;
+    transform: scale(0.96);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes hubPrinterPromptIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 0.45rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes hubPrinterPromptTap {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  48% {
+    transform: translateY(0.08rem) scale(0.94);
+  }
+}
+
+@keyframes hubPrinterPromptBeam {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: scaleY(0.72);
+  }
+
+  50% {
+    opacity: 0.86;
+    transform: scaleY(1);
+  }
+}
+
+@media (max-width: 860px) {
+  .brandPanel {
+    top: 1rem;
+    left: 1rem;
+  }
+
+  .utilityCluster {
+    top: 1rem;
+    right: 1rem;
+    gap: 0.4rem;
+  }
+
+  .utilityButton {
+    height: 2.55rem;
+    width: 2.55rem;
+  }
+
+  .musicButton {
+    height: 2.55rem;
+    width: 3.9rem;
+  }
+
+  .focusControls {
+    bottom: 1rem;
+    max-width: calc(100vw - 6.5rem);
+    border-radius: 0.8rem;
+  }
+
+  .focusButton span {
+    display: none;
+  }
+
+  .printerPrompt {
+    bottom: 4.65rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .brandMark {
+    width: 7.5rem;
+  }
+
+  .focusButton {
+    padding: 0 0.68rem;
+  }
+
+  .printerPromptButton {
+    min-height: 2.45rem;
+    padding: 0 0.76rem;
+  }
+}

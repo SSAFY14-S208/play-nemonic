@@ -1,0 +1,54 @@
+{
+  "policy": {
+    "policy_id": "nemonic-app-logs-policy",
+    "description": "App logs lifecycle: hot 7d -> warm 30d -> delete. Cluster only; MinIO snapshot은 별도 SM policy.",
+    "default_state": "hot",
+    "states": [
+      {
+        "name": "hot",
+        "actions": [],
+        "transitions": [
+          {
+            "state_name": "warm",
+            "conditions": {
+              "min_index_age": "7d"
+            }
+          }
+        ]
+      },
+      {
+        "name": "warm",
+        "actions": [
+          {
+            "force_merge": {
+              "max_num_segments": 1
+            }
+          }
+        ],
+        "transitions": [
+          {
+            "state_name": "delete",
+            "conditions": {
+              "min_index_age": "37d"
+            }
+          }
+        ]
+      },
+      {
+        "name": "delete",
+        "actions": [
+          {
+            "delete": {}
+          }
+        ],
+        "transitions": []
+      }
+    ],
+    "ism_template": [
+      {
+        "index_patterns": ["nemonic-app-logs-*"],
+        "priority": 100
+      }
+    ]
+  }
+}

@@ -1,0 +1,170 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.5.13'
+	id 'io.spring.dependency-management' version '1.1.7'
+	id 'checkstyle'
+	id 'com.diffplug.spotless' version '6.25.0'
+}
+
+group = 'com.nemonicworld'
+version = '0.0.1-SNAPSHOT'
+description = 'backend'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'io.micrometer:micrometer-registry-prometheus'
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	implementation 'org.springframework.boot:spring-boot-starter-websocket'
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
+	implementation 'org.flywaydb:flyway-core'
+	implementation 'org.flywaydb:flyway-database-postgresql'
+	implementation 'com.google.zxing:core:3.5.3'
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.17'
+	implementation 'io.minio:minio:8.5.17'
+	implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+	compileOnly 'org.projectlombok:lombok'
+	runtimeOnly 'org.postgresql:postgresql'
+	annotationProcessor 'org.projectlombok:lombok'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.security:spring-security-test'
+	testImplementation 'org.testcontainers:junit-jupiter'
+	testImplementation 'org.testcontainers:postgresql'
+	testRuntimeOnly 'com.h2database:h2'
+	testCompileOnly 'org.projectlombok:lombok'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testAnnotationProcessor 'org.projectlombok:lombok'
+}
+
+sourceSets {
+	migrationTest {
+		java.srcDir file('src/migrationTest/java')
+		resources.srcDir file('src/migrationTest/resources')
+		compileClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
+		runtimeClasspath += output + compileClasspath
+	}
+}
+
+configurations {
+	migrationTestImplementation.extendsFrom testImplementation
+	migrationTestRuntimeOnly.extendsFrom testRuntimeOnly
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+	systemProperty 'spring.profiles.active', 'test'
+	systemProperty 'user.timezone', 'Asia/Seoul'
+	systemProperty 'spring.test.context.cache.maxSize', '8'
+	// 한 테스트가 90초 넘으면 자동 fail. hang된 외부 호출/무한 루프 차단.
+	systemProperty 'junit.jupiter.execution.timeout.default', '90s'
+	systemProperty 'junit.jupiter.execution.timeout.testable.method.default', '90s'
+	maxHeapSize = '1g'
+	// JVM 재사용을 명시적으로 보장: forkEvery=0이면 worker JVM이 테스트 클래스 사이에서
+	// 재시작되지 않아 Spring TestContext 캐시가 전체 테스트 런에 걸쳐 재사용된다.
+	maxParallelForks = Math.max(1, Runtime.runtime.availableProcessors().intdiv(2))
+	forkEvery = 0
+	jvmArgs(
+		'-XX:+HeapDumpOnOutOfMemoryError',
+		'-XX:HeapDumpPath=build/test-heap-dumps',
+		// GC death spiral 차단: heap이 가득 차서 GC가 98% CPU를 쓰는데도 회수가
+		// 2% 미만이면 OOM 발생 → ExitOnOutOfMemoryError가 JVM을 즉시 종료시켜
+		// Gradle worker가 실패로 인식. 2026-05-19에 GC 누수로 호스트 CPU가
+		// 6시간 동안 200%대로 폭주했던 사건의 재발 방지장치.
+		'-XX:GCTimeLimit=90',
+		'-XX:GCHeapFreeLimit=10',
+		'-XX:+ExitOnOutOfMemoryError'
+	)
+}
+
+tasks.named('bootRun') {
+	def envFileName = providers.gradleProperty('envFile')
+		.orElse(providers.environmentVariable('ENV_FILE'))
+		.orElse('.env')
+		.get()
+	def envFile = file(envFileName)
+
+	if (!envFile.exists()) {
+		throw new GradleException("Environment file not found: ${envFile.path}")
+	}
+
+	println "Using bootRun environment file: ${envFile.path}"
+
+	envFile.readLines()
+		.findAll { it ==~ /^[^#=]+=.*$/ }
+		.each {
+			def (name, value) = it.split('=', 2)
+			environment name, value
+		}
+}
+
+tasks.register('migrationTest', Test) {
+	description = 'Runs Flyway migrations against a real PostgreSQL container.'
+	group = 'verification'
+	testClassesDirs = sourceSets.migrationTest.output.classesDirs
+	classpath = sourceSets.migrationTest.runtimeClasspath
+	shouldRunAfter tasks.named('test')
+	useJUnitPlatform()
+	systemProperty 'spring.profiles.active', 'migration-test'
+}
+
+spotless {
+	lineEndings 'GIT_ATTRIBUTES'
+
+	java {
+		eclipse().configFile('config/formatter/eclipse-java-formatter.xml')
+		removeUnusedImports()
+		trimTrailingWhitespace()
+		endWithNewline()
+	}
+
+	format 'misc', {
+		target '*.gradle',
+			'*.md',
+			'.dockerignore',
+			'.editorconfig',
+			'.gitattributes',
+			'.gitignore',
+			'../.gitattributes',
+			'../.gitlab/**/*.md',
+			'../AGENTS.md',
+			'../CONTRIBUTING.md',
+			'AGENTS.md',
+			'CONTRIBUTING.md',
+			'docker-compose.local.yml',
+			'docs/**/*.http',
+			'docs/**/*.md',
+			'scripts/**/*.ps1',
+			'src/main/resources/**/*.sql',
+			'src/main/resources/**/*.yaml',
+			'src/main/resources/**/*.yml',
+			'src/test/resources/**/*.yaml',
+			'src/test/resources/**/*.yml'
+		trimTrailingWhitespace()
+		endWithNewline()
+	}
+}
+
+checkstyle {
+	toolVersion = '10.12.5'
+	configFile = file('config/checkstyle/checkstyle.xml')
+	maxWarnings = 0
+	ignoreFailures = false
+}
+
+tasks.named('check') {
+	dependsOn 'spotlessCheck'
+}

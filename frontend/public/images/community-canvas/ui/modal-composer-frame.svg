@@ -1,0 +1,16 @@
+<svg width="1600" height="860" viewBox="0 0 1600 860" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="drop" x="-35" y="-30" width="1670" height="925" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="24" stdDeviation="18" flood-color="#655874" flood-opacity="0.24"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#drop)">
+    <rect x="10" y="10" width="1580" height="840" rx="42" fill="#B9B1CE"/>
+    <rect x="32" y="32" width="1536" height="796" rx="32" fill="#EEEAF7"/>
+    <rect x="54" y="54" width="1492" height="752" rx="26" stroke="#FBFAFF" stroke-opacity="0.94" stroke-width="6"/>
+
+    <rect x="76" y="70" width="1448" height="112" rx="20" fill="#FBFAFF"/>
+    <rect x="76" y="70" width="1448" height="112" rx="20" stroke="#C8C0D8" stroke-opacity="0.78" stroke-width="4"/>
+  </g>
+</svg>

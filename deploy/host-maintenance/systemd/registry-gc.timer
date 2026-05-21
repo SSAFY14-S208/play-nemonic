@@ -1,0 +1,12 @@
+[Unit]
+Description=Weekly docker registry GC (Sun 04:30 KST)
+Documentation=https://lab.ssafy.com/s14-final/S14P31S208/-/tree/infra/dev/deploy/host-maintenance
+
+[Timer]
+# 일요일 04:30 KST — docker-prune.timer(04:00) 직후. tag 정리되고 나서 blob GC.
+OnCalendar=Sun *-*-* 04:30:00
+Persistent=true
+RandomizedDelaySec=5m
+
+[Install]
+WantedBy=timers.target

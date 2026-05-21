@@ -1,0 +1,34 @@
+{
+  "description": "Daily snapshot of biz/system/error log indices to MinIO. Retention 90d (min 5 snapshots). access-logs는 단명(14d)이라 snapshot 제외.",
+  "creation": {
+    "schedule": {
+      "cron": {
+        "expression": "0 0 * * *",
+        "timezone": "Asia/Seoul"
+      }
+    },
+    "time_limit": "1h"
+  },
+  "deletion": {
+    "schedule": {
+      "cron": {
+        "expression": "30 0 * * *",
+        "timezone": "Asia/Seoul"
+      }
+    },
+    "condition": {
+      "max_age": "90d",
+      "min_count": 5
+    },
+    "time_limit": "1h"
+  },
+  "snapshot_config": {
+    "date_format": "yyyy-MM-dd-HH-mm",
+    "timezone": "Asia/Seoul",
+    "indices": "biz-events-*,system-logs-*,error-logs-*",
+    "repository": "nemonic-logs-repo",
+    "ignore_unavailable": "true",
+    "include_global_state": "false",
+    "partial": "false"
+  }
+}

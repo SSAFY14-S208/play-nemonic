@@ -1,0 +1,64 @@
+import ky from 'ky'
+
+import { runtime } from '@/shared/config'
+import { useLogFlowStore, useUserStore } from '@/shared/stores'
+
+type Query = Record<string, string | number | boolean>
+type RequestOptions = {
+  timeout?: number | false
+}
+
+const client = ky.create({
+  prefix: `${runtime.apiUrl}/api/v1`,
+  timeout: 30_000,
+  hooks: {
+    beforeRequest: [
+      ({ request }) => {
+        const userUuid = useUserStore.getState().userUuid
+        if (userUuid) {
+          request.headers.set('Anonymous-User-UUID', userUuid)
+        }
+      },
+      ({ request }) => {
+        // 로그 ingest 요청 자체에는 trace/flow 헤더를 넣지 않는다
+        if (request.url.includes('logs/client/ingest')) return
+
+        request.headers.set('X-Trace-Id', crypto.randomUUID())
+
+        const flowId = useLogFlowStore.getState().flowId
+        if (flowId) {
+          request.headers.set('X-Flow-Id', flowId)
+        }
+      },
+    ],
+  },
+})
+
+export const api = {
+  get: <T>(path: string, searchParams?: Query) =>
+    client.get(path, searchParams ? { searchParams } : undefined).json<T>(),
+  // 이미지/파일 등 binary 응답 — JSON 봉투(ApiResponse) 없이 raw Blob을 반환.
+  // 호출 측에서 직접 다운로드 트리거 또는 추가 처리.
+  getBlob: (path: string, searchParams?: Query) =>
+    client.get(path, searchParams ? { searchParams } : undefined).blob(),
+  post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
+    client
+      .post(path, {
+        ...(body !== undefined && { json: body }),
+        ...(options?.timeout !== undefined && { timeout: options.timeout }),
+      })
+      .json<T>(),
+  put: <T>(path: string, body?: unknown) =>
+    client.put(path, body !== undefined ? { json: body } : undefined).json<T>(),
+  patch: <T>(path: string, body?: unknown) =>
+    client.patch(path, body !== undefined ? { json: body } : undefined).json<T>(),
+  delete: <T>(path: string, searchParams?: Query) =>
+    client.delete(path, searchParams ? { searchParams } : undefined).json<T>(),
+  postForm: <T>(path: string, formData: FormData, searchParams?: Query) =>
+    client
+      .post(path, {
+        body: formData,
+        ...(searchParams && { searchParams }),
+      })
+      .json<T>(),
+}

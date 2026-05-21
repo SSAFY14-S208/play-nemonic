@@ -1,0 +1,81 @@
+package com.nemonicworld.flipbook.service.submission;
+
+import com.nemonicworld.global.storage.minio.MinioStorageProperties;
+import com.nemonicworld.global.logging.StructuredEventLogger;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+
+/**
+ * 플립북 프레임 객체 키를 브라우저에서 접근 가능한 공개 URL로 변환합니다.
+ */
+@Component
+public class FlipbookFrameImageUrlResolver {
+
+    private static final Logger log = LoggerFactory.getLogger(FlipbookFrameImageUrlResolver.class);
+
+    private final MinioStorageProperties minioStorageProperties;
+
+    public FlipbookFrameImageUrlResolver(MinioStorageProperties minioStorageProperties) {
+        this.minioStorageProperties = minioStorageProperties;
+    }
+
+    /**
+     * MinIO 파일 존재 확인이나 사전 서명 URL 발급 없이 설정값과 객체 키만 조합합니다.
+     */
+    public String resolve(String objectKey) {
+        if (!StringUtils.hasText(objectKey)) {
+            return null;
+        }
+
+        String publicUrl = trimTrailingSlashes(minioStorageProperties.publicUrl());
+        String bucket = trimSlashes(minioStorageProperties.bucket());
+        String normalizedObjectKey = trimSlashes(objectKey.trim());
+        if (!StringUtils.hasText(publicUrl) || !StringUtils.hasText(bucket)
+            || !StringUtils.hasText(normalizedObjectKey)) {
+            log.warn("플립북 프레임 이미지 URL을 생성할 수 없습니다. publicUrlConfigured={} bucketConfigured={} objectKeyHash={}",
+                StringUtils.hasText(publicUrl), StringUtils.hasText(bucket),
+                StructuredEventLogger.sha256Prefix(objectKey));
+
+            return null;
+        }
+
+        try {
+            return "%s/%s/%s".formatted(publicUrl, encodePathSegment(bucket), encodeObjectKey(normalizedObjectKey));
+        } catch (RuntimeException e) {
+            log.warn("플립북 프레임 이미지 URL 생성 중 오류가 발생했습니다. objectKeyHash={}", StructuredEventLogger.sha256Prefix(objectKey),
+                e);
+
+            return null;
+        }
+    }
+
+    private String encodeObjectKey(String objectKey) {
+        return Arrays.stream(objectKey.split("/")).map(this::encodePathSegment)
+            .reduce((left, right) -> left + "/" + right).orElse("");
+    }
+
+    private String encodePathSegment(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+    }
+
+    private String trimSlashes(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        return value.replaceAll("^/+", "").replaceAll("/+$", "");
+    }
+
+    private String trimTrailingSlashes(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        return value.replaceAll("/+$", "");
+    }
+}

@@ -1,0 +1,36 @@
+# Grafana datasource auto-provisioning
+# 기동 시 Prometheus를 자동으로 등록 — UI에서 수동 추가 불필요
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    # uid를 명시 — provisioned dashboard JSON에서 "uid": "prometheus" 로 참조한다.
+    # 명시 안 하면 Grafana가 자동 생성하는데 매 환경마다 달라져서 import 시 panel이 깨짐.
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+
+  # OpenSearch — frontend heartbeat (client_alive 이벤트) 집계로 실시간 동시
+  # 접속자/콘텐츠별 활성 사용자 패널에서 query. plugin은 grafana 컨테이너의
+  # GF_INSTALL_PLUGINS 로 자동 설치됨.
+  #
+  # database = 인덱스 패턴. observability-frontend.md §6.1 의 query는 biz-events-*
+  # 를 대상으로 함. timeField 는 표준 스키마의 @timestamp.
+  - name: OpenSearch
+    uid: opensearch
+    type: grafana-opensearch-datasource
+    access: proxy
+    url: http://opensearch:9200
+    editable: false
+    jsonData:
+      database: "biz-events-*"
+      timeField: "@timestamp"
+      version: "2.15.0"
+      flavor: "opensearch"
+      # security plugin이 꺼져 있어서 basic auth 없음.
+      # 운영 OpenSearch에 보안 켜지면 secureJsonData.basicAuthPassword 추가.
+      maxConcurrentShardRequests: 5

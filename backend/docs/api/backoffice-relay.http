@@ -1,0 +1,223 @@
+@host = http://localhost:8080
+@roomCode = AB3K9Q
+
+### Admin login
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "loginId": "admin",
+  "password": "password"
+}
+
+> {% client.global.set("adminAccessToken", response.body.data.accessToken); %}
+
+### Update community canvas max memo count
+# Included typed fields are updated in one transaction.
+# Changed value is applied from the next community memo create/FIFO check.
+PATCH {{host}}/api/v1/backoffice/system-parameters
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "communityMaxMemoCount": {
+    "value": 30,
+    "unit": "count",
+    "description": "커뮤니티 캔버스 표시 메모 수 제한"
+  }
+}
+
+### Update community report hide threshold
+# Included typed fields are updated in one transaction.
+# Changed value is applied from the next community memo report request.
+PATCH {{host}}/api/v1/backoffice/system-parameters
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "communityReportHideThreshold": {
+    "value": 5,
+    "unit": "count",
+    "description": "커뮤니티 메모 자동 숨김 신고 기준"
+  }
+}
+
+### Update relay room participant limit
+# Included typed fields are updated in one transaction.
+# Changed min/max values are applied to newly created relay rooms.
+PATCH {{host}}/api/v1/backoffice/system-parameters
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "relayRoomParticipantLimit": {
+    "min": 3,
+    "max": 8,
+    "unit": "people",
+    "description": "릴레이 방 참여 인원 제한"
+  }
+}
+
+### Update relay room time limit options
+# Included typed fields are updated in one transaction.
+# Changed default is applied to newly created relay rooms.
+# Changed allowed values are applied to subsequent waiting-room setting changes.
+PATCH {{host}}/api/v1/backoffice/system-parameters
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "relayRoomTimeLimitSeconds": {
+    "default": 60,
+    "allowed": [45, 60, 90],
+    "unit": "seconds",
+    "description": "릴레이 방 그리기 제한 시간"
+  }
+}
+
+### Update relay reconnect grace seconds
+# Included typed fields are updated in one transaction.
+# Changed value is applied to subsequent REST rejoin, WebSocket reconnect, and disconnect-grace scheduler checks.
+PATCH {{host}}/api/v1/backoffice/system-parameters
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "relayReconnectGraceSeconds": {
+    "value": 30,
+    "unit": "seconds",
+    "description": "릴레이 진행 중 재연결 유예 시간"
+  }
+}
+
+### Update all editable system parameters by typed fields
+PATCH {{host}}/api/v1/backoffice/system-parameters
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "communityMaxMemoCount": {
+    "value": 50,
+    "unit": "count",
+    "description": "커뮤니티 캔버스 표시 메모 수 제한"
+  },
+  "communityReportHideThreshold": {
+    "value": 5,
+    "unit": "count",
+    "description": "커뮤니티 메모 자동 숨김 신고 기준"
+  },
+  "relayRoomParticipantLimit": {
+    "min": 3,
+    "max": 8,
+    "unit": "people",
+    "description": "릴레이 방 참여 인원 제한"
+  },
+  "relayRoomTimeLimitSeconds": {
+    "default": 45,
+    "allowed": [30, 45, 60],
+    "unit": "seconds",
+    "description": "릴레이 방 그리기 제한 시간"
+  },
+  "relayReconnectGraceSeconds": {
+    "value": 10,
+    "unit": "seconds",
+    "description": "릴레이 진행 중 재연결 유예 시간"
+  },
+  "flipbookRoomParticipantLimit": {
+    "min": 2,
+    "max": 6,
+    "unit": "people",
+    "description": "플립북 방 참여 인원 제한"
+  },
+  "flipbookRoomTimeLimitSeconds": {
+    "default": 45,
+    "allowed": [30, 45, 60],
+    "unit": "seconds",
+    "description": "플립북 방 그리기 제한 시간"
+  },
+  "flipbookMinFramesPerFlipbook": {
+    "value": 8,
+    "unit": "frames",
+    "description": "완성 플립북 최소 프레임 수"
+  },
+  "flipbookReconnectGraceSeconds": {
+    "value": 10,
+    "unit": "seconds",
+    "description": "플립북 진행 중 재연결 유예 시간"
+  },
+  "fortuneDailyLimit": {
+    "value": 1,
+    "unit": "count",
+    "description": "익명 사용자별 일일 운세 생성 제한"
+  },
+  "csInquiryUnresolvedAlertThresholdHours": {
+    "value": 24,
+    "unit": "hours",
+    "description": "미해결 고객 문의 알림 기준 시간"
+  }
+}
+
+### Update relay room participant limit - invalid min/max
+PATCH {{host}}/api/v1/backoffice/system-parameters
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "relayRoomParticipantLimit": {
+    "min": 1,
+    "max": 0,
+    "unit": "people",
+    "description": "릴레이 방 참여 인원 제한"
+  }
+}
+
+### Update system parameters - empty body
+PATCH {{host}}/api/v1/backoffice/system-parameters
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+}
+
+### Update system parameters - unauthorized
+PATCH {{host}}/api/v1/backoffice/system-parameters
+Content-Type: application/json
+
+{
+  "relayRoomParticipantLimit": {
+    "min": 3,
+    "max": 8,
+    "unit": "people",
+    "description": "릴레이 방 참여 인원 제한"
+  }
+}
+
+### List active relay rooms
+# status 생략 시 WAITING/PLAYING/FINALIZING만 조회합니다.
+GET {{host}}/api/v1/backoffice/relay-rooms
+Authorization: Bearer {{adminAccessToken}}
+
+### List active relay rooms - status filter
+GET {{host}}/api/v1/backoffice/relay-rooms?status=PLAYING&page=0&size=20
+Authorization: Bearer {{adminAccessToken}}
+
+### List active relay rooms - in progress filter
+GET {{host}}/api/v1/backoffice/relay-rooms?status=IN_PROGRESS&page=0&size=20
+Authorization: Bearer {{adminAccessToken}}
+
+### List relay rooms - finished filter
+GET {{host}}/api/v1/backoffice/relay-rooms?status=FINISHED&page=0&size=20
+Authorization: Bearer {{adminAccessToken}}
+
+### Delete active relay room
+# Active rooms in WAITING/PLAYING/FINALIZING/FINISHED are changed to CLOSED.
+DELETE {{host}}/api/v1/backoffice/relay-rooms/{{roomCode}}
+Authorization: Bearer {{adminAccessToken}}
+
+### Delete active relay room - invalid room code
+DELETE {{host}}/api/v1/backoffice/relay-rooms/not-a-room
+Authorization: Bearer {{adminAccessToken}}
+
+### Delete active relay room - not found
+DELETE {{host}}/api/v1/backoffice/relay-rooms/ZZZZZZ
+Authorization: Bearer {{adminAccessToken}}

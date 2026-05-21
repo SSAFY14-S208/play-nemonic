@@ -1,0 +1,25 @@
+/* ---------------------------------------------------------------------------
+   shared/styles/index.css - global CSS entrypoint
+   Imported once from app/layout.tsx.
+
+   Load order:
+   1. Tailwind core
+   2. Primitive tokens
+   3. Semantic tokens
+   4. Tailwind theme
+   5. Base
+   6. Utilities
+--------------------------------------------------------------------------- */
+
+@import "tailwindcss";
+
+@import "./tokens/primitive/colors.css";
+@import "./tokens/primitive/brand-palettes.css";
+@import "./tokens/primitive/spacing.css";
+
+@import "./tokens/semantic/colors.css";
+@import "./tokens/semantic/brand-palettes.css";
+
+@import "./layers/theme.css";
+@import "./layers/base.css";
+@import "./layers/utilities.css";

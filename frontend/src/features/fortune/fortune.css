@@ -1,0 +1,540 @@
+@font-face {
+  font-family: "GangwonEduModu";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/fortune/GangwonEduModu-Bold-Web.ttf") format("truetype");
+}
+
+.fortune-template-text {
+  font-family: "GangwonEduModu", "LeeSeoyun", var(--font-paperlogy);
+  font-weight: 700;
+}
+
+@font-face {
+  font-family: "GraceSerif";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/fortune/GraceSerif-Regular.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "GraceSerif";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/fortune/GraceSerif-Bold.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "LeeSeoyun";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/fortune/LeeSeoyun.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Eulyoo1945";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/fortune/Eulyoo1945-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Eulyoo1945";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/fortune/Eulyoo1945-SemiBold.woff2") format("woff2");
+}
+
+/* fortune feature tokens (--font-fortune-* / --animate-fortune-*) are
+   registered in shared/styles/layers/theme.css so Tailwind's main bundle
+   generates the matching utility classes. Only @font-face + @keyframes
+   live here (feature-scoped per ADR 0003). */
+
+@keyframes fortune-sparkle-drift {
+  0% {
+    opacity: 0.42;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(0.9);
+  }
+
+  50% {
+    opacity: 0.92;
+    transform: translate3d(0.18rem, -0.45rem, 0) rotate(16deg) scale(1.08);
+  }
+
+  100% {
+    opacity: 0.42;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(0.9);
+  }
+}
+
+@keyframes fortune-sigil-glow {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: translateX(-50%) scaleX(0.94);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scaleX(1.04);
+  }
+}
+
+@keyframes fortune-entry-blackout {
+  0%,
+  14% {
+    opacity: 1;
+  }
+
+  64% {
+    opacity: 1;
+  }
+
+  82% {
+    opacity: 0.42;
+  }
+
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@keyframes fortune-dialogue-entry-reveal {
+  0%,
+  62% {
+    opacity: 0;
+    transform: translateY(1.1rem) scale(0.985);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fortune-dialogue-glyph-tap {
+  0% {
+    opacity: 0;
+    transform: translateY(0.16rem) scale(0.92);
+  }
+
+  70% {
+    opacity: 1;
+    transform: translateY(-0.03rem) scale(1.04);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fortune-dialogue-caret-blink {
+  0%,
+  48% {
+    opacity: 1;
+  }
+
+  49%,
+  100% {
+    opacity: 0.26;
+  }
+}
+
+@keyframes fortune-2d-stage-drift {
+  0%,
+  100% {
+    transform: translate3d(-50%, -50%, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(-50.14%, -50.16%, 0) scale(1.004);
+  }
+}
+
+@keyframes fortune-2d-moon-drift {
+  0%,
+  100% {
+    transform: translate3d(-50%, -50%, 0) rotate(20deg) scale(1);
+    filter: drop-shadow(0 0 2.4rem rgba(161, 79, 255, 0.54)) saturate(1.08);
+  }
+
+  50% {
+    transform: translate3d(-50.25%, -50.2%, 0) rotate(28deg) scale(1.006);
+    filter: drop-shadow(0 0 3.2rem rgba(186, 105, 255, 0.72)) saturate(1.16);
+  }
+}
+
+@keyframes fortune-2d-popo-breathe {
+  0%,
+  100% {
+    transform: translate3d(-50%, -50%, 0) rotate(-0.28deg) scale(1);
+  }
+
+  50% {
+    transform: translate3d(-50%, -50.8%, 0) rotate(0.2deg) scale(1.012);
+  }
+}
+
+@keyframes fortune-2d-arm-breathe {
+  0%,
+  100% {
+    transform: translate3d(-50%, -50%, 0) rotate(var(--fortune-arm-rest-rotate));
+  }
+
+  38% {
+    transform:
+      translate3d(-50%, calc(-50% + var(--fortune-arm-lift-y)), 0)
+      rotate(calc(var(--fortune-arm-rest-rotate) + var(--fortune-arm-swing-rotate)));
+  }
+
+  68% {
+    transform:
+      translate3d(-50%, calc(-50% + var(--fortune-arm-settle-y)), 0)
+      rotate(calc(var(--fortune-arm-rest-rotate) + var(--fortune-arm-settle-rotate)));
+  }
+}
+
+@keyframes fortune-2d-hanging-sway {
+  0%,
+  100% {
+    transform: translate3d(-50%, 0, 0) rotate(-0.35deg);
+  }
+
+  50% {
+    transform: translate3d(-49.82%, 0.24%, 0) rotate(0.45deg);
+  }
+}
+
+@keyframes fortune-2d-curtain-tap-ripple {
+  0% {
+    transform:
+      translate3d(var(--fortune-curtain-rest-x), var(--fortune-curtain-rest-y), 0)
+      rotate(var(--fortune-curtain-rest-rotate))
+      skewX(0deg)
+      scaleX(1)
+      scaleY(1);
+  }
+
+  14% {
+    transform:
+      translate3d(
+        calc(var(--fortune-curtain-rest-x) + var(--fortune-curtain-hover-x)),
+        calc(var(--fortune-curtain-rest-y) + var(--fortune-curtain-hover-y)),
+        0
+      )
+      rotate(calc(var(--fortune-curtain-rest-rotate) + var(--fortune-curtain-hover-rotate)))
+      skewX(var(--fortune-curtain-pull-skew-x))
+      scaleX(var(--fortune-curtain-pull-scale-x))
+      scaleY(var(--fortune-curtain-pull-scale-y));
+  }
+
+  32% {
+    transform:
+      translate3d(
+        calc(var(--fortune-curtain-rest-x) + var(--fortune-curtain-sway-x)),
+        calc(var(--fortune-curtain-rest-y) + var(--fortune-curtain-sway-y)),
+        0
+      )
+      rotate(calc(var(--fortune-curtain-rest-rotate) + var(--fortune-curtain-sway-rotate)))
+      skewX(var(--fortune-curtain-recoil-skew-x))
+      scaleX(var(--fortune-curtain-recoil-scale-x))
+      scaleY(var(--fortune-curtain-recoil-scale-y));
+  }
+
+  62% {
+    transform:
+      translate3d(
+        calc(var(--fortune-curtain-rest-x) + var(--fortune-curtain-settle-x)),
+        calc(var(--fortune-curtain-rest-y) + var(--fortune-curtain-settle-y)),
+        0
+      )
+      rotate(calc(var(--fortune-curtain-rest-rotate) + var(--fortune-curtain-settle-rotate)))
+      skewX(var(--fortune-curtain-settle-skew-x))
+      scaleX(var(--fortune-curtain-settle-scale-x))
+      scaleY(var(--fortune-curtain-settle-scale-y));
+  }
+
+  100% {
+    transform:
+      translate3d(var(--fortune-curtain-rest-x), var(--fortune-curtain-rest-y), 0)
+      rotate(var(--fortune-curtain-rest-rotate))
+      skewX(0deg)
+      scaleX(1)
+      scaleY(1);
+  }
+}
+
+@keyframes fortune-2d-curtain-soft-tap-ripple {
+  0% {
+    transform:
+      translate3d(var(--fortune-curtain-rest-x), var(--fortune-curtain-rest-y), 0)
+      rotate(var(--fortune-curtain-rest-rotate))
+      skewX(0deg)
+      scaleX(1)
+      scaleY(1);
+  }
+
+  22% {
+    transform:
+      translate3d(
+        calc(var(--fortune-curtain-rest-x) + var(--fortune-curtain-soft-x)),
+        calc(var(--fortune-curtain-rest-y) + var(--fortune-curtain-soft-y)),
+        0
+      )
+      rotate(calc(var(--fortune-curtain-rest-rotate) + var(--fortune-curtain-soft-rotate)))
+      skewX(var(--fortune-curtain-soft-skew-x))
+      scaleX(var(--fortune-curtain-soft-scale-x))
+      scaleY(var(--fortune-curtain-soft-scale-y));
+  }
+
+  52% {
+    transform:
+      translate3d(
+        calc(var(--fortune-curtain-rest-x) - var(--fortune-curtain-soft-x)),
+        calc(var(--fortune-curtain-rest-y) - var(--fortune-curtain-soft-y)),
+        0
+      )
+      rotate(calc(var(--fortune-curtain-rest-rotate) - var(--fortune-curtain-soft-rotate)))
+      skewX(0deg)
+      scaleX(1.0004)
+      scaleY(0.9996);
+  }
+
+  100% {
+    transform:
+      translate3d(var(--fortune-curtain-rest-x), var(--fortune-curtain-rest-y), 0)
+      rotate(var(--fortune-curtain-rest-rotate))
+      skewX(0deg)
+      scaleX(1)
+      scaleY(1);
+  }
+}
+
+@keyframes fortune-2d-cube-pulse {
+  0%,
+  100% {
+    transform: translate3d(-50%, -50%, 0) scale(1);
+    filter: drop-shadow(0 0 1.2rem rgba(171, 86, 255, 0.8)) drop-shadow(0 0 2.9rem rgba(125, 76, 255, 0.42));
+  }
+
+  50% {
+    transform: translate3d(-50%, -50.45%, 0) scale(1.014);
+    filter: drop-shadow(0 0 1.9rem rgba(223, 182, 255, 0.96)) drop-shadow(0 0 4.4rem rgba(151, 93, 255, 0.72));
+  }
+}
+
+@keyframes fortune-2d-print-cube {
+  0%,
+  100% {
+    transform: translate3d(-50%, -50%, 0) scale(1.02) rotate(0deg);
+  }
+
+  24% {
+    transform: translate3d(-50%, -52.2%, 0) scale(1.12) rotate(-1.2deg);
+  }
+
+  54% {
+    transform: translate3d(-50%, -50.3%, 0) scale(1.04) rotate(1deg);
+  }
+
+  78% {
+    transform: translate3d(-50%, -51.1%, 0) scale(1.1) rotate(-0.5deg);
+  }
+}
+
+@keyframes fortune-2d-flare-pulse {
+  0%,
+  100% {
+    opacity: 0.14;
+    transform: translate3d(-50%, -50%, 0) scale(0.9);
+  }
+
+  50% {
+    opacity: 0.62;
+    transform: translate3d(-50%, -50%, 0) scale(1.16);
+  }
+}
+
+@keyframes fortune-2d-note-print {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, -58%, 0) rotateX(48deg) scale(0.72);
+  }
+
+  28% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.94;
+    transform: translate3d(-50%, 18%, 0) rotateX(0deg) scale(1);
+  }
+}
+
+@keyframes fortune-2d-eye-open {
+  0%,
+  91.4%,
+  95.2%,
+  100% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+
+  92.2%,
+  94.2% {
+    opacity: 0;
+    transform: scaleY(0.08);
+  }
+}
+
+@keyframes fortune-2d-eye-closed {
+  0%,
+  91.8%,
+  94.8%,
+  100% {
+    opacity: 0;
+    transform: scaleY(0.68);
+  }
+
+  92.4%,
+  94% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes fortune-2d-sparkle-twinkle {
+  0%,
+  100% {
+    opacity: 0.18;
+    transform: translate3d(0, 0, 0) scale(0.82) rotate(0deg);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translate3d(0.12rem, -0.28rem, 0) scale(1.18) rotate(22deg);
+  }
+}
+
+@keyframes fortune-postit-land {
+  0% {
+    opacity: 0;
+    transform: translateY(1.45rem) rotate(-1.8deg) scale(0.96);
+  }
+
+  62% {
+    opacity: 1;
+    transform: translateY(-0.22rem) rotate(-0.35deg) scale(1.012);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotate(-0.55deg) scale(1);
+  }
+}
+
+@keyframes fortune-sticker-pop {
+  0% {
+    opacity: 0;
+    scale: 0.72;
+  }
+
+  70% {
+    opacity: 1;
+    scale: 1.08;
+  }
+
+  100% {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes fortune-stamp-press {
+  0%,
+  44% {
+    opacity: 0;
+    scale: 1.35;
+  }
+
+  58% {
+    opacity: 1;
+    scale: 0.9;
+  }
+
+  100% {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes fortune-draw-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0.6rem);
+    filter: blur(2.5px);
+  }
+  60% {
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes fortune-draw-actions-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0.6rem);
+    filter: blur(2.5px);
+  }
+  60% {
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes fortune-birth-element-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0.7rem);
+    filter: blur(3px);
+  }
+  60% {
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes fortune-2d-print-video-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Resize freeze — drop expensive filters/animations while the viewport is actively resizing.
+   useResizeFreeze toggles body.is-resizing; effects come back ~200ms after the last resize event.
+   Scope is the stage root so non-stage UI (modals, forms) keep their filters during resize. */
+body.is-resizing [data-fortune-stage-root] *,
+body.is-resizing [data-fortune-stage-root] {
+  filter: none !important;
+  mix-blend-mode: normal !important;
+  animation-play-state: paused !important;
+}

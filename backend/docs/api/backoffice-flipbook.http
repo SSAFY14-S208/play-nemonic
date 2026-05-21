@@ -1,0 +1,41 @@
+@host = http://localhost:8080
+
+### Admin login
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "loginId": "admin",
+  "password": "password"
+}
+
+> {% client.global.set("adminAccessToken", response.body.data.accessToken); %}
+
+### List active flipbook rooms
+# status 생략 시 WAITING/PLAYING/FINALIZING만 조회합니다.
+GET {{host}}/api/v1/backoffice/flipbook-rooms
+Authorization: Bearer {{adminAccessToken}}
+
+### List active flipbook rooms - status filter
+GET {{host}}/api/v1/backoffice/flipbook-rooms?status=PLAYING&page=0&size=20
+Authorization: Bearer {{adminAccessToken}}
+
+### List active flipbook rooms - in progress filter
+GET {{host}}/api/v1/backoffice/flipbook-rooms?status=IN_PROGRESS&page=0&size=20
+Authorization: Bearer {{adminAccessToken}}
+
+### List flipbook rooms - finished filter
+GET {{host}}/api/v1/backoffice/flipbook-rooms?status=FINISHED&page=0&size=20
+Authorization: Bearer {{adminAccessToken}}
+
+### List active flipbook rooms - invalid status
+GET {{host}}/api/v1/backoffice/flipbook-rooms?status=CLOSED
+Authorization: Bearer {{adminAccessToken}}
+
+### Delete active flipbook room
+DELETE {{host}}/api/v1/backoffice/flipbook-rooms/AB3K9Q
+Authorization: Bearer {{adminAccessToken}}
+
+### Delete active flipbook room - invalid room code
+DELETE {{host}}/api/v1/backoffice/flipbook-rooms/not-a-room
+Authorization: Bearer {{adminAccessToken}}

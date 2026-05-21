@@ -1,0 +1,27 @@
+{
+  "policy": {
+    "policy_id": "audit-logs-policy",
+    "description": "Audit log lifecycle: hot 30d -> warm forever (per observability.md). NO delete phase. 영구 보존. 긴급 정리는 Curator CLI 또는 수동 스냅샷 후 삭제.",
+    "default_state": "hot",
+    "states": [
+      {
+        "name": "hot",
+        "actions": [],
+        "transitions": [
+          {"state_name": "warm", "conditions": {"min_index_age": "30d"}}
+        ]
+      },
+      {
+        "name": "warm",
+        "actions": [
+          {"force_merge": {"max_num_segments": 1}},
+          {"read_only": {}}
+        ],
+        "transitions": []
+      }
+    ],
+    "ism_template": [
+      {"index_patterns": ["audit-logs-*"], "priority": 100}
+    ]
+  }
+}

@@ -1,0 +1,49 @@
+# Grafana dashboard auto-provisioning
+#
+# 같은 provisioning 마운트(./monitoring/grafana/provisioning → /etc/grafana/provisioning)
+# 안의 dashboards/json/ 디렉토리에서 *.json을 자동 로드.
+# 신규 dashboard 추가 절차:
+#   1) grafana.com에서 JSON 다운로드 (또는 UI에서 export → JSON)
+#   2) monitoring/grafana/provisioning/dashboards/json/<name>.json 으로 commit
+#   3) docker compose -f docker-compose.monitoring.yml restart grafana
+#
+# datasource 변수(${DS_*}) 처리:
+#   - 모던 dashboard(예: 1860)는 templating.list에 datasource var가 있어 그대로 OK
+#   - 레거시 dashboard(예: 3662)는 "datasource": "${DS_FOO}" 리터럴 → 'Prometheus'로
+#     sed 치환 후 commit (datasources/prometheus.yml의 name과 일치시켜야 함)
+#
+# 현재 등록된 dashboard:
+#   - 1860 (Node Exporter Full) → node-exporter-full.json
+#   - 3662 (Prometheus 2.0 Stats) → prometheus-stats.json
+#   - Nemonic Overview (자체 작성) → nemonic-overview.json
+#     · ① 서비스 up 상태 (prometheus/node/cadvisor/spring-app/moderation/nginx)
+#     · ② 요청·응답 (Nginx RPS, Spring HTTP RPS by status, latency p50/95/99, 에러율)
+#     · ③ 실시간 활동 — OpenSearch biz-events-* 집계 + Prometheus WebSocket Gauge
+#         (동시 사용자 uuid, 동시 세션, 콘텐츠 타입별 활성, WS 세션,
+#          신규 세션 entry_type별, funnel started/goal/abandoned, 클라이언트 오류율)
+#     · ④ 콘텐츠 활성 + 사용자 액션
+#         (nemonic_content_active_rooms = backend Gauge,
+#          주요 사용자 액션 rate = OpenSearch terms — backend Counter 불필요)
+#     · ⑤ 서버 리소스 (host CPU/Mem/Disk/Net)
+#     · datasource uid: "prometheus" + "opensearch" 두 개 참조.
+#   - Nemonic Marketing Live (자체 작성) → nemonic-marketing-live.json
+#     · 마케팅 페르소나 전용 — 5초 refresh, 30분 윈도우. 운영 panel 없음.
+#     · 🎯 핵심 KPI: 동시 사용자 / 진입 / 완주 / 실시간 완주율 게이지
+#     · 📡 유입·채널: entry_type donut + 컨텐츠별 활성 사용자 stacked area
+#     · 🎨 Funnel 흐름: started/step/goal/abandoned + 단계별 이탈 stacked
+#     · 🔍 화면·에러: 인기 path Top 10 + 클라이언트 에러 timeseries
+#     · OpenSearch datasource 단일 (prometheus panel 없음).
+
+apiVersion: 1
+
+providers:
+  - name: default
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/json
+      foldersFromFilesStructure: false
