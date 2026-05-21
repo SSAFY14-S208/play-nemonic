@@ -5,16 +5,25 @@ import {
   ApiError,
   deleteGallery,
   getAnonymousProfile,
+  getArtifactDownload,
   getGallery,
   getGalleryList,
   patchAnonymousNickname,
 } from '@/shared/apis'
-import { useHubPrintStore, useHubRoomStore, useUserStore } from '@/shared/stores'
+import {
+  useCanvasPauseStore,
+  useUserStore,
+} from '@/shared/stores'
 import type {
   AnonymousUserProfileResponse,
   GalleryDetailResponse,
   PhoneDrawingSaveResponse,
 } from '@/shared/types'
+import {
+  downloadBlob,
+  inferImageExtensionFromBlob,
+  sanitizeDownloadFilename,
+} from '@/shared/utils'
 import type { PhoneGalleryItem, PhoneScreenKey } from './types'
 import { mapGalleryItemResponseToPhoneItem } from './utils'
 
@@ -57,6 +66,10 @@ interface PhoneStore {
   galleryDetailStatus: AsyncStatus
   galleryDetailError: string | null
 
+  // gallery download — 진행 중인 항목 ID. 동시 다운로드 방지 + 버튼 로딩 상태에
+  // 사용. null이면 진행 중인 다운로드 없음.
+  galleryDownloadingId: string | null
+
   // drawing save
   isSavingDrawing: boolean
 
@@ -83,6 +96,7 @@ interface PhoneStore {
   loadGalleryDetail: (galleryId: string) => Promise<void>
   clearGalleryDetail: () => void
   deleteGalleryItem: (galleryId: string) => Promise<void>
+  downloadGalleryItem: (galleryId: string) => Promise<void>
 
   // drawing actions
   setSavingDrawing: (isSaving: boolean) => void
@@ -96,6 +110,7 @@ interface PhoneStore {
       | {
           action: 'print'
           imageDataUrl: string
+          saveResponse: PhoneDrawingSaveResponse
         },
   ) => void
 }
@@ -121,6 +136,7 @@ function createSavedDrawingItem(
 ): PhoneGalleryItem {
   return {
     id: saveResponse.galleryId,
+    artifactId: saveResponse.artifactId,
     kind: 'phone',
     title: '내가 그린 메모',
     createdAtLabel: '방금 전',
@@ -155,6 +171,8 @@ export const usePhoneStore = create<PhoneStore>((set, get) => ({
   galleryDetailStatus: 'idle',
   galleryDetailError: null,
 
+  galleryDownloadingId: null,
+
   isSavingDrawing: false,
 
   closeGalleryItem: () =>
@@ -164,7 +182,8 @@ export const usePhoneStore = create<PhoneStore>((set, get) => ({
       galleryDetailStatus: 'idle',
       galleryDetailError: null,
     }),
-  closePhone: () =>
+  closePhone: () => {
+    useCanvasPauseStore.getState().setPaused(false)
     set({
       activeScreen: 'home',
       isPhoneOpen: false,
@@ -173,16 +192,19 @@ export const usePhoneStore = create<PhoneStore>((set, get) => ({
       galleryDetail: null,
       galleryDetailStatus: 'idle',
       galleryDetailError: null,
-    }),
+    })
+  },
   dismissToast: () => set({ toastMessage: null }),
   setToast: (toastMessage) => set({ toastMessage }),
   goHome: () => set({ activeScreen: 'home', selectedGalleryItemId: null }),
-  openPhone: () =>
+  openPhone: () => {
+    useCanvasPauseStore.getState().setPaused(true)
     set({
       activeScreen: 'home',
       isPhoneOpen: true,
       selectedGalleryItemId: null,
-    }),
+    })
+  },
   selectGalleryItem: (itemId) => set({ selectedGalleryItemId: itemId }),
   showDrawing: () => set({ activeScreen: 'drawing', selectedGalleryItemId: null }),
   showGallery: () => set({ activeScreen: 'gallery', selectedGalleryItemId: null }),
@@ -353,21 +375,51 @@ export const usePhoneStore = create<PhoneStore>((set, get) => ({
     }
   },
 
+  // 갤러리 항목을 사용자 디바이스로 다운로드. GET /artifacts/{artifactId}/download
+  // 가 raw Blob을 반환하므로 브라우저 a[download] 트리거로 OS 저장 다이얼로그를
+  // 띄운다. artifactId는 갤러리 상세에 있으므로, 시트가 닫혀서 detail이 비어
+  // 있는 경우를 대비해 함수 안에서 detail을 재조회해 어디서 호출돼도 동작하도록.
+  downloadGalleryItem: async (galleryId) => {
+    const state = get()
+    if (state.galleryDownloadingId) return
+    set({ galleryDownloadingId: galleryId })
+    try {
+      const cachedDetail = state.galleryDetail
+      const detail =
+        cachedDetail && cachedDetail.galleryId === galleryId
+          ? cachedDetail
+          : await getGallery(galleryId)
+      const blob = await getArtifactDownload(detail.artifactId)
+      const item = state.galleryItems.find((galleryItem) => galleryItem.id === galleryId)
+      const baseFilename = sanitizeDownloadFilename(item?.title ?? `gallery-${galleryId}`)
+      const extension = inferImageExtensionFromBlob(blob)
+      downloadBlob(blob, `${baseFilename}.${extension}`)
+      set({ toastMessage: '저장했어요.' })
+    } catch (error) {
+      set({ toastMessage: toErrorMessage(error, '저장에 실패했어요.') })
+    } finally {
+      set({ galleryDownloadingId: null })
+    }
+  },
+
   setSavingDrawing: (isSavingDrawing) => set({ isSavingDrawing }),
 
   addDrawingArtifact: (params) => {
     if (params.action === 'print') {
-      useHubPrintStore
-        .getState()
-        .requestPrint(params.imageDataUrl, '내가 그린 메모')
-      useHubRoomStore.getState().setFocus('printer')
+      useCanvasPauseStore.getState().setPaused(false)
 
-      set({
+      set((state) => ({
         activeScreen: 'home',
         isPhoneOpen: false,
+        galleryItems: [
+          createSavedDrawingItem(params.saveResponse, params.imageDataUrl),
+          ...state.galleryItems,
+        ],
+        galleryTotal: state.galleryTotal + 1,
         selectedGalleryItemId: null,
-        toastMessage: '네모닉 출력 요청을 보냈어요.',
-      })
+        toastMessage: null,
+      }))
+      void get().loadGallery({ force: true })
       return
     }
 

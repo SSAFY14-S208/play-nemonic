@@ -48,7 +48,12 @@ export function LobbyShareButtons({ theme, roomCode }: LobbyShareButtonsProps) {
 
   const runAction = (actionKey: ShareActionKey) => {
     if (!roomCode || typeof window === 'undefined') return
-    const shareUrl = createShareUrl(roomCode)
+    // QR로 진입한 사용자는 카메라→브라우저로 점프해 document.referrer가 비어
+    // detectEntryType이 direct로 떨어지는 문제가 있다. QR 코드에 들어가는 URL에만
+    // ?qr=1 마커를 붙여 LogBootstrap이 entry_type='qr'로 분류할 수 있게 한다.
+    // 링크 복사 흐름은 카톡/메신저 등 다양한 매체에서 사용되므로 referrer 기반
+    // 분류를 유지한다.
+    const shareUrl = createShareUrl(roomCode, { qr: actionKey === 'qrCode' })
 
     void (async () => {
       try {
@@ -173,9 +178,15 @@ export function LobbyShareButtons({ theme, roomCode }: LobbyShareButtonsProps) {
   )
 }
 
-function createShareUrl(roomCode: string): string {
+function createShareUrl(
+  roomCode: string,
+  options: { qr?: boolean } = {},
+): string {
   const shareUrl = new URL(window.location.href)
   shareUrl.searchParams.set('roomCode', roomCode)
+  if (options.qr) {
+    shareUrl.searchParams.set('qr', '1')
+  }
   shareUrl.hash = ''
   return shareUrl.toString()
 }

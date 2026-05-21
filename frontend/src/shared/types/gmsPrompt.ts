@@ -1,3 +1,10 @@
+import type {
+  FortuneCreateDesignSection,
+  FortuneCreateFortuneSection,
+  FortuneCreateRequest,
+  FortuneCreateSajuSection,
+} from './fortune'
+
 // GMS Prompts 도메인 (OpenAPI: tag "GMS Prompts")
 //
 // 실제 GET 응답(2026-05-12 확인) 기준:
@@ -13,6 +20,8 @@
 //   - 'sticker' : 무한캔버스의 생성형 AI 이미지(스티커) 프롬프트
 // 대문자로 비교하면 필터·select가 매치되지 않으므로 lowercase로 통일.
 export type GmsFeatureType = 'fortune' | 'sticker'
+export type GmsPromptStatus = 'active' | 'not_active'
+export type GmsPromptListStatus = GmsPromptStatus | 'all'
 
 export interface GmsPromptResponse {
   id: number
@@ -22,6 +31,10 @@ export interface GmsPromptResponse {
   createdBy: number | null
   createdAt: string
   updatedAt: string
+  isActive: boolean
+  status: GmsPromptStatus
+  activatedAt: string | null
+  activatedBy: number | null
 }
 
 export interface GmsPromptListResponse {
@@ -44,9 +57,28 @@ export interface GmsPromptUpdateRequest {
   featureType?: GmsFeatureType
 }
 
+export interface GmsPromptTestRequest {
+  sampleSaju: FortuneCreateRequest
+}
+
+export interface GmsPromptPreviewRequest {
+  featureType: GmsFeatureType
+  content: string
+  sampleSaju: FortuneCreateRequest
+}
+
+export interface GmsPromptPreviewResponse {
+  featureType: GmsFeatureType
+  fortune: FortuneCreateFortuneSection
+  saju: FortuneCreateSajuSection
+  design: FortuneCreateDesignSection
+  previewImageBase64: string
+}
+
 export interface GmsPromptListParams {
   keyword?: string
   featureType?: GmsFeatureType
+  status?: GmsPromptListStatus
   page?: number
   size?: number
 }

@@ -1,39 +1,90 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
-import {
-  DEFAULT_HUB_PERFORMANCE_MODE,
-  getHubPerformanceModeFromSearch,
-} from '@/shared/constants'
-import type { HubPerformanceMode } from '@/shared/types'
+import { getHubFocusKeyFromSearch } from '@/shared/constants'
+import { useCanvasPauseStore, useHubRoomStore } from '@/shared/stores'
+import HubLoadingOverlay from './HubLoadingOverlay'
 
-const HubCanvas = dynamic(() => import('./HubCanvas'), { ssr: false })
-
-function readHubPerformanceMode(): HubPerformanceMode {
-  if (typeof window === 'undefined') {
-    return DEFAULT_HUB_PERFORMANCE_MODE
-  }
-
-  return getHubPerformanceModeFromSearch(window.location.search)
-}
+const RoomPreviewCanvas = dynamic(
+  () => import('../room-preview/RoomPreviewCanvas'),
+  { ssr: false },
+)
 
 export default function HubLoader() {
-  const [performanceMode, setPerformanceMode] = useState<HubPerformanceMode>(
-    readHubPerformanceMode,
-  )
+  const setFocus = useHubRoomStore((state) => state.setFocus)
+  const [isCanvasReady, setIsCanvasReady] = useState(false)
+  const [shouldMountCanvas, setShouldMountCanvas] = useState(false)
+  const handleCanvasReady = useCallback(() => {
+    setIsCanvasReady(true)
+  }, [])
 
+  // Pause the R3F frameloop while the loading overlay is up so the 60fps
+  // render loop (shadow pass + scene draw) doesn't compete with the bar's
+  // rAF for main thread time. useGLTF still downloads/parses the GLB in the
+  // background — only the per-frame WebGL render is gated. The overlay hook
+  // unpauses once the bar has filled and the pop has played.
   useEffect(() => {
-    const syncPerformanceMode = () => {
-      setPerformanceMode(readHubPerformanceMode())
-    }
-
-    window.addEventListener('popstate', syncPerformanceMode)
-
+    useCanvasPauseStore.getState().setPaused(true)
     return () => {
-      window.removeEventListener('popstate', syncPerformanceMode)
+      useCanvasPauseStore.getState().setPaused(false)
     }
   }, [])
 
-  return <HubCanvas key={performanceMode} performanceMode={performanceMode} />
+  useEffect(() => {
+    let firstPaintFrameId = 0
+    let secondPaintFrameId = 0
+    let cancelled = false
+
+    firstPaintFrameId = window.requestAnimationFrame(() => {
+      secondPaintFrameId = window.requestAnimationFrame(() => {
+        if (!cancelled) {
+          setShouldMountCanvas(true)
+        }
+      })
+    })
+
+    return () => {
+      cancelled = true
+      window.cancelAnimationFrame(firstPaintFrameId)
+      window.cancelAnimationFrame(secondPaintFrameId)
+    }
+  }, [])
+
+  useEffect(() => {
+    const syncHubRuntimeSearch = () => {
+      const nextFocusKey = getHubFocusKeyFromSearch(window.location.search)
+      setFocus(nextFocusKey ?? 'overview')
+    }
+
+    let cancelled = false
+
+    ;(async () => {
+      await Promise.resolve()
+
+      if (!cancelled) {
+        syncHubRuntimeSearch()
+      }
+    })()
+
+    window.addEventListener('popstate', syncHubRuntimeSearch)
+
+    return () => {
+      cancelled = true
+      window.removeEventListener('popstate', syncHubRuntimeSearch)
+    }
+  }, [setFocus])
+
+  return (
+    <>
+      {shouldMountCanvas && (
+        <RoomPreviewCanvas
+          className="z-[1]"
+          onCanvasReady={handleCanvasReady}
+          variant="hub"
+        />
+      )}
+      <HubLoadingOverlay isCanvasReady={isCanvasReady} />
+    </>
+  )
 }

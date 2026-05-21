@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 
-import type { AdminCreateRequest } from '@/shared/types'
+import type { AdminCreateRequest, AssignableAdminRole } from '@/shared/types'
 
 interface AdminCreateModalProps {
   open: boolean
@@ -11,6 +11,11 @@ interface AdminCreateModalProps {
   onSubmit: (payload: AdminCreateRequest) => void
   onClose: () => void
 }
+
+const ROLE_OPTIONS: { value: AssignableAdminRole; label: string }[] = [
+  { value: 'admin', label: '관리자' },
+  { value: 'viewer', label: '뷰어' },
+]
 
 export function AdminCreateModal({
   open,
@@ -22,6 +27,7 @@ export function AdminCreateModal({
   const [password, setPassword] = useState('')
   const [nickname, setNickname] = useState('')
   const [email, setEmail] = useState('')
+  const [role, setRole] = useState<AssignableAdminRole>('admin')
 
   useEffect(() => {
     let cancelled = false
@@ -31,6 +37,7 @@ export function AdminCreateModal({
         setPassword('')
         setNickname('')
         setEmail('')
+        setRole('admin')
       }
     })()
     return () => {
@@ -42,7 +49,8 @@ export function AdminCreateModal({
 
   const isFormValid =
     loginId.trim() !== '' &&
-    password.trim() !== '' &&
+    password.trim().length >= 8 &&
+    password.trim().length <= 72 &&
     nickname.trim() !== '' &&
     email.trim() !== ''
 
@@ -54,6 +62,7 @@ export function AdminCreateModal({
       password: password.trim(),
       nickname: nickname.trim(),
       email: email.trim(),
+      role,
     })
   }
 
@@ -104,8 +113,15 @@ export function AdminCreateModal({
               onChange={(event) => setPassword(event.target.value)}
               placeholder="비밀번호를 입력하세요"
               autoComplete="new-password"
+              minLength={8}
+              maxLength={72}
               className="body-r rounded-[var(--radius-md)] border border-border-default bg-surface-default px-3 py-2 text-fg-primary placeholder:text-fg-disabled focus:outline-none focus:ring-1 focus:ring-primary-1"
             />
+            {password.trim() !== '' && password.trim().length < 8 && (
+              <span className="caption-r text-red-500">
+                비밀번호는 8자 이상이어야 합니다.
+              </span>
+            )}
           </label>
 
           <label className="flex flex-col gap-1.5">
@@ -130,6 +146,24 @@ export function AdminCreateModal({
               autoComplete="off"
               className="body-r rounded-[var(--radius-md)] border border-border-default bg-surface-default px-3 py-2 text-fg-primary placeholder:text-fg-disabled focus:outline-none focus:ring-1 focus:ring-primary-1"
             />
+          </label>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="caption-b text-fg-secondary">역할</span>
+            <select
+              value={role}
+              onChange={(event) =>
+                setRole(event.target.value as AssignableAdminRole)
+              }
+              disabled={isSubmitting}
+              className="body-r rounded-[var(--radius-md)] border border-border-default bg-surface-default px-3 py-2 text-fg-primary focus:outline-none focus:ring-1 focus:ring-primary-1 disabled:opacity-50"
+            >
+              {ROLE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </label>
         </div>
 

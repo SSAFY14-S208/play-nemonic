@@ -5,8 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import {
   ColorPanel,
   DrawingCompleteButton,
-  MobileColorGrid,
-  MobileToolGrid,
+  MobileBrushOpacityBar,
+  MobileColorBar,
+  MobileToolBar,
   ProgressRail,
   ToolPanel,
   TopStatusBar,
@@ -27,6 +28,10 @@ import { useRelayDrawingGame } from "../hooks/useRelayDrawingGame";
 import { useRelayTimer } from "../hooks/useRelayTimer";
 import { useRelayDrawingStore } from "../stores";
 import PartTimeUpOverlay from "./PartTimeUpOverlay";
+import { PhoneLauncherButton } from "@/shared/components";
+
+import RelayBgmToggle from "./RelayBgmToggle";
+import RelayHowToPlayButton from "./RelayHowToPlayButton";
 
 const RelayDrawingStage = dynamic(() => import("../RelayDrawingStage"), {
   ssr: false,
@@ -147,6 +152,12 @@ export default function RelayDrawingView() {
       aria-label="릴레이 드로잉"
     >
       <div className="relative z-10 grid w-full gap-4 px-3 py-4 lg:hidden">
+        <div className="flex items-center justify-end gap-2">
+          <RelayHowToPlayButton className="size-11" />
+          <RelayBgmToggle className="size-11" />
+          <PhoneLauncherButton className="size-11" />
+        </div>
+
         <div className="rounded-[22px] border border-[#ead7c9] bg-white/90 p-4 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
           <div className="flex items-center justify-between gap-3">
             <p className="h2-b text-[#f45d8d]">
@@ -159,7 +170,7 @@ export default function RelayDrawingView() {
           <p className="body-b mt-3 text-[#30343b]">{activeRound.helperText}</p>
         </div>
 
-        <MobileToolGrid
+        <MobileToolBar
           selectedToolKey={selectedToolKey}
           canUndoDrawing={canUndoDrawing}
           canRedoDrawing={canRedoDrawing}
@@ -168,18 +179,6 @@ export default function RelayDrawingView() {
           onUndoDrawing={undoLine}
           onRedoDrawing={redoLine}
           onClearDrawing={clearRoundLines}
-        />
-
-        <MobileColorGrid
-          colors={DRAWING_COLORS}
-          selectedColor={selectedColor}
-          selectedOpacity={selectedOpacity}
-          strokeWidth={strokeWidth}
-          strokeWidthOptions={DRAWING_STROKE_WIDTH_OPTIONS}
-          isDrawingLocked={isDrawingLocked}
-          onSelectColor={setSelectedColor}
-          onOpacityChange={setSelectedOpacity}
-          onStrokeWidthChange={setStrokeWidth}
         />
 
         <div className="min-w-0 rounded-[18px] border border-[#ead7c9] bg-white p-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
@@ -198,6 +197,22 @@ export default function RelayDrawingView() {
             )}
           </div>
         </div>
+
+        <MobileColorBar
+          colors={DRAWING_COLORS}
+          selectedColor={selectedColor}
+          isDrawingLocked={isDrawingLocked}
+          onSelectColor={setSelectedColor}
+        />
+
+        <MobileBrushOpacityBar
+          strokeWidth={strokeWidth}
+          strokeWidthOptions={DRAWING_STROKE_WIDTH_OPTIONS}
+          selectedOpacity={selectedOpacity}
+          isDrawingLocked={isDrawingLocked}
+          onStrokeWidthChange={setStrokeWidth}
+          onOpacityChange={setSelectedOpacity}
+        />
 
         <DrawingCompleteButton
           onComplete={handleSubmitClick}

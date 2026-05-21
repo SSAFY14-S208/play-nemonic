@@ -10,9 +10,9 @@ import {
   getRelayRoomResults,
   postInvite,
 } from "@/shared/apis";
-import type { RelaySocketStatus } from "@/shared/libs";
+import { completeFunnelStep, type RelaySocketStatus } from "@/shared/libs";
 import { useUserStore } from "@/shared/stores";
-import type { RelayBlockedReason } from "@/shared/types";
+import type { RelayBlockedReason, RelayRoomStatus } from "@/shared/types";
 
 import { PART_TO_ROUND_KEY } from "../constants";
 import { relayToast } from "../utils";
@@ -26,6 +26,22 @@ const BLOCKED_REASON_MESSAGE: Record<RelayBlockedReason, string> = {
   ROOM_FINISHED: "이미 종료된 방이에요",
   ROOM_CLOSED: "종료된 방이에요",
 };
+
+function getNonParticipantBlockedReason(
+  roomStatus: RelayRoomStatus,
+): RelayBlockedReason | null {
+  if (roomStatus === "PLAYING" || roomStatus === "FINALIZING") {
+    return "GAME_IN_PROGRESS";
+  }
+  if (roomStatus === "FINISHED") {
+    return "ROOM_FINISHED";
+  }
+  if (roomStatus === "CLOSED") {
+    return "ROOM_CLOSED";
+  }
+  return null;
+}
+
 import { useRelayDrawingStore } from "../stores";
 import { useRelaySocket } from "./useRelaySocket";
 
@@ -109,13 +125,17 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         if (cancelled) return;
 
         // ── 비참여자 입장 차단 ──
-        // 참여자가 아니면서 입장도 불가능한 경우(CLOSED·FINISHED·게임 진행 중·
-        // 정원 초과·강퇴 등) store를 hydrate하지 않고 부스로 즉시 복귀한다.
-        if (!room.viewer.participant && !room.viewer.canJoin) {
+        // 참여자가 아니면서 이미 시작/종료된 방이거나 입장도 불가능한 경우
+        // store를 hydrate하지 않고 부스로 즉시 복귀한다.
+        const statusBlockedReason = getNonParticipantBlockedReason(room.status);
+        if (
+          !room.viewer.participant &&
+          (statusBlockedReason !== null || !room.viewer.canJoin)
+        ) {
+          const blockedReason = statusBlockedReason ?? room.viewer.blockedReason;
           markRoomDismissed(roomCode);
           relayToast(
-            BLOCKED_REASON_MESSAGE[room.viewer.blockedReason] ??
-              "입장할 수 없는 방이에요",
+            BLOCKED_REASON_MESSAGE[blockedReason] ?? "입장할 수 없는 방이에요",
           );
           router.replace("/relay-drawing");
           return;
@@ -311,6 +331,16 @@ export function useRelayRoom(roomCode: string | null): UseRelayRoomReturn {
         // 비호스트는 여기서 'animating'으로 전환해 로비 패널 슬라이드 아웃 +
         // 게임 시작 이미지를 보여준다. RelayRoomPage의 effect가 일정 시간 후
         // 'idle'로 되돌리면 RelayDrawingView로 자연스럽게 전환된다.
+        //
+        // funnel: lobby step 완료는 방장의 startGame()에서도 emit되지만 게스트는
+        // 그 함수를 호출하지 않아 lobby 잔존 카운트에서 빠진다. WS GAME_STARTED는
+        // 방장·게스트 모두에게 broadcast되므로 여기서 한 번 더 emit해 게스트의
+        // funnel_step_completed 누락을 메운다. distinct uuid 집계라 방장의 이중
+        // emit은 카운트에 영향 없음.
+        completeFunnelStep('lobby', 3, {
+          content_type: 'relay',
+          room_id: roomCode,
+        });
         useRelayDrawingStore.getState().setGameStartPhase('animating');
         // roomStatus 'PLAYING'으로 전환.
         setRoomStatus(event.data.status);

@@ -14,11 +14,10 @@ export const FORTUNE_EMPTY_BIRTH_INFO: FortuneBirthInfo = {
 }
 
 export const FORTUNE_PRINT_DURATION_SECONDS = 4.2
+export const FORTUNE_PRINT_SOUND_VIDEO_TIME_SECONDS = 5.25
 export const FORTUNE_REDUCED_MOTION_DURATION_SECONDS = 0.9
 export const FORTUNE_PRINT_FALLBACK_TIMEOUT_SECONDS = 14
 export const FORTUNE_PRINT_VIDEO_PATH = '/videos/fortune/printing-aura.mp4'
-export const FORTUNE_POPO_MODEL_PATH = '/models/mnemonic_witch_asset.glb'
-export const FORTUNE_POPO_MODEL_HEIGHT = 3.75
 
 export const FORTUNE_SOUND_PATHS = {
   print: '/sounds/print_label.mp3',
@@ -51,6 +50,8 @@ export const FORTUNE_TITLES = [
 ] as const
 
 export const FORTUNE_KEYWORDS = ['정리', '연결', '집중', '균형', '시작'] as const
+
+export const FORTUNE_LUCKY_DIRECTIONS = ['동쪽', '서쪽', '남쪽', '북쪽', '남동쪽'] as const
 
 export const FORTUNE_LUCKY_COLORS = [
   { name: '라벤더 밀크', hex: '#cdb7f6' },

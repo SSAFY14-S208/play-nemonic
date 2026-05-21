@@ -20,20 +20,38 @@ export function toFlipbookPrintParticipants({
       sortedFrames.find((frame) => frame.frameIndex === 0)?.drawnByNickname ??
       sortedFrames[0]?.drawnByNickname ??
       `작품 ${flipbookIndex + 1}`
+    const accentColor = DEFAULT_PRINT_ACCENT_COLORS[flipbookIndex % DEFAULT_PRINT_ACCENT_COLORS.length]
+    const printedFrames = sortedFrames.map((frame) => ({
+      id: `${resultItem.artifactId || flipbookIndex}-${frame.frameIndex}`,
+      title: ownerName,
+      frameNumber: frame.frameIndex + 1,
+      drawnByName: frame.drawnByNickname,
+      imageUrl: frame.imageUrl,
+      accentColor,
+      outputMode: 'nemonic-print' as const,
+    }))
+    const frames = resultItem.gifUrl
+      ? [
+          ...printedFrames,
+          {
+            id: `${resultItem.artifactId || flipbookIndex}-gif`,
+            title: `${ownerName} GIF`,
+            frameNumber: printedFrames.length + 1,
+            drawnByName: ownerName,
+            imageUrl: resultItem.gifUrl,
+            accentColor,
+            outputMode: 'gif-playback' as const,
+          },
+        ]
+      : printedFrames
 
-      return {
-        id: resultItem.artifactId || `flipbook-result-${flipbookIndex}`,
-        name: ownerName,
-        firstStartedWorkId: resultItem.artifactId || String(flipbookIndex),
-        firstStartedWorkTitle: ownerName,
-        accentColor: DEFAULT_PRINT_ACCENT_COLORS[flipbookIndex % DEFAULT_PRINT_ACCENT_COLORS.length],
-        frames: sortedFrames.map((frame) => ({
-          id: `${resultItem.artifactId || flipbookIndex}-${frame.frameIndex}`,
-          title: ownerName,
-          frameNumber: frame.frameIndex + 1,
-          imageUrl: frame.imageUrl,
-          accentColor: DEFAULT_PRINT_ACCENT_COLORS[flipbookIndex % DEFAULT_PRINT_ACCENT_COLORS.length],
-      })),
+    return {
+      id: resultItem.artifactId || `flipbook-result-${flipbookIndex}`,
+      name: ownerName,
+      firstStartedWorkId: resultItem.artifactId || String(flipbookIndex),
+      firstStartedWorkTitle: ownerName,
+      accentColor,
+      frames,
     }
   })
 }

@@ -8,6 +8,7 @@ import type {
   DrawingLine,
   DrawingPointerEvent,
 } from '@/shared/types'
+import { cn } from '@/shared/libs'
 import RasterFillImage from './RasterFillImage'
 
 interface DrawingBoardProps {
@@ -62,18 +63,34 @@ export default function DrawingBoard({
     }
   }
 
+  const handleTouchStart = (event: DrawingPointerEvent) => {
+    preventNativeTouchScroll(event)
+    onDrawStart(event)
+  }
+
+  const handleTouchMove = (event: DrawingPointerEvent) => {
+    preventNativeTouchScroll(event)
+    onDrawMove(event)
+  }
+
+  const handleTouchEnd = (event: DrawingPointerEvent) => {
+    preventNativeTouchScroll(event)
+    onDrawEnd()
+  }
+
   return (
     <Stage
       width={boardSize.width}
       height={boardSize.height}
-      className={className}
+      className={cn('touch-none select-none', className)}
       onMouseDown={onDrawStart}
       onMouseMove={onDrawMove}
       onMouseUp={onDrawEnd}
       onMouseLeave={onDrawEnd}
-      onTouchStart={onDrawStart}
-      onTouchMove={onDrawMove}
-      onTouchEnd={onDrawEnd}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
       <Layer listening={false}>
         <Rect
@@ -135,6 +152,13 @@ export default function DrawingBoard({
   )
 }
 
+function preventNativeTouchScroll(event: DrawingPointerEvent) {
+  const nativeEvent = event.evt
+  if ('touches' in nativeEvent && nativeEvent.cancelable) {
+    nativeEvent.preventDefault()
+  }
+}
+
 function DrawingLineGroup({
   lines,
   boardSize,
@@ -155,6 +179,7 @@ function DrawingLineGroup({
                 imageDataUrl={line.imageDataUrl}
                 width={boardSize.width}
                 height={boardSize.height}
+                compositeOperation={line.compositeOperation}
               />
             )
           }
@@ -167,6 +192,7 @@ function DrawingLineGroup({
               opacity={line.opacity ?? 1}
               closed
               listening={false}
+              globalCompositeOperation={line.compositeOperation ?? 'source-over'}
             />
           )
         }

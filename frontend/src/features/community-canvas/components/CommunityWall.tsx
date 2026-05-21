@@ -1,17 +1,37 @@
 'use client'
 
-import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type WheelEvent as ReactWheelEvent,
+} from 'react'
 import Image from 'next/image'
-import { RotateCw, X } from 'lucide-react'
+import { RotateCw } from 'lucide-react'
 import { PostItNote } from '@/shared/components/PostItNote'
+import {
+  COMMUNITY_CANVAS_ATTACHABLE_SURFACE_BOUNDS,
+  COMMUNITY_CANVAS_MEMO_HEIGHT,
+  COMMUNITY_CANVAS_MEMO_WIDTH,
+  COMMUNITY_CANVAS_WALL_HEIGHT,
+  COMMUNITY_CANVAS_WALL_WIDTH,
+} from '@/shared/constants'
 import { cn } from '@/shared/libs'
 import type { CommunityMemoItemResponse } from '@/shared/types'
 import type { CommunityMemoLayoutDraft, CommunityPendingMemoPlacement } from '../hooks'
-import { getCommunityMemoColor } from '../utils'
+import {
+  getCommunityMemoColor,
+  getStaticCommunityImageUrl,
+  getStaticCommunityMemoImageUrl,
+} from '../utils'
 import { CommunityMemoCard } from './CommunityMemoCard'
 
 interface CommunityWallProps {
   memos: CommunityMemoItemResponse[]
+  memoPlaybackImageUrls: Record<string, string>
   selectedMemoUuid: string | null
   memoStatus: 'idle' | 'loading' | 'success' | 'error'
   memoError: string | null
@@ -21,30 +41,42 @@ interface CommunityWallProps {
   nextZIndex: number
   isAttachingMemo: boolean
   isSavingLayout: boolean
+  isPlaybackPaused: boolean
   onSelectMemo: (memo: CommunityMemoItemResponse) => void
   onClearSelection: () => void
   onOpenMemoDetail: (memoUuid: string) => void
   onAttachPendingMemo: (placement: CommunityMemoLayoutDraft) => void
-  onCancelPendingMemo: () => void
   onEditingLayoutChange: (partialLayout: Partial<CommunityMemoLayoutDraft>) => void
   onSaveEditingLayout: (layout?: CommunityMemoLayoutDraft) => void
   onRetry: () => void
 }
 
-const WALL_WIDTH = 1672
-const WALL_HEIGHT = 941
-const MEMO_WIDTH = 160
-const MEMO_HEIGHT = 160
+const WALL_WIDTH = COMMUNITY_CANVAS_WALL_WIDTH
+const WALL_HEIGHT = COMMUNITY_CANVAS_WALL_HEIGHT
+const MEMO_WIDTH = COMMUNITY_CANVAS_MEMO_WIDTH
+const MEMO_HEIGHT = COMMUNITY_CANVAS_MEMO_HEIGHT
 const MEMO_VISUAL_SAFE_PADDING = 24
-const WALL_BACKGROUND_IMAGE = '/images/community-canvas/wall-bg-studio.png'
+const WALL_BACKGROUND_IMAGE = '/images/community-canvas/wall-bg-studio-nemonic-board-large-v8.png'
 const BOUNDARY_EPSILON = 0.5
-const ATTACHABLE_SURFACE_BOUNDS = {
-  left: -590,
-  top: -550,
-  right: 630,
-  bottom: 550,
-}
+const ATTACHABLE_SURFACE_BOUNDS = COMMUNITY_CANVAS_ATTACHABLE_SURFACE_BOUNDS
+const ATTACHABLE_SURFACE_LEFT = WALL_WIDTH / 2 + ATTACHABLE_SURFACE_BOUNDS.left
+const ATTACHABLE_SURFACE_TOP = WALL_HEIGHT / 2 + ATTACHABLE_SURFACE_BOUNDS.top
+const ATTACHABLE_SURFACE_STYLE = {
+  left: ATTACHABLE_SURFACE_LEFT,
+  top: ATTACHABLE_SURFACE_TOP,
+  width: ATTACHABLE_SURFACE_BOUNDS.right - ATTACHABLE_SURFACE_BOUNDS.left,
+  height: ATTACHABLE_SURFACE_BOUNDS.bottom - ATTACHABLE_SURFACE_BOUNDS.top,
+} satisfies CSSProperties
+const ATTACHABLE_MEMO_LAYER_STYLE = {
+  left: -ATTACHABLE_SURFACE_LEFT,
+  top: -ATTACHABLE_SURFACE_TOP,
+  width: WALL_WIDTH,
+  height: WALL_HEIGHT,
+} satisfies CSSProperties
 const MEMO_PLACEMENT_ANIMATION_DURATION_MS = 720
+const MEMO_SELECT_DELAY_MS = 220
+const MEMO_DETAIL_DOUBLE_TAP_DELAY_MS = 500
+const MEMO_DETAIL_TAP_MOVE_THRESHOLD = 8
 
 type WallPoint = {
   x: number
@@ -59,9 +91,9 @@ type WallBounds = {
 }
 
 type WallInteraction =
-  | { type: 'drag-edit'; pointerOffsetX: number; pointerOffsetY: number }
-  | { type: 'rotate-edit' }
-  | { type: 'rotate-pending' }
+  | { type: 'drag-edit'; pointerId: number; pointerOffsetX: number; pointerOffsetY: number }
+  | { type: 'rotate-edit'; pointerId: number }
+  | { type: 'rotate-pending'; pointerId: number }
 
 type MemoPlacementMotion = 'attach' | 'detach' | 'lift' | 'release'
 
@@ -73,14 +105,39 @@ type ExitingMemo = {
 type WallPanState = {
   pointerId: number
   startX: number
-  startY: number
   scrollLeft: number
-  scrollTop: number
+}
+
+type MemoTapState = {
+  memoUuid: string
+  tappedAt: number
+}
+
+type EditableDetailTapState = {
+  memoUuid: string
+  pointerId: number
+  startClientX: number
+  startClientY: number
 }
 
 function normalizeRotation(rotationDeg: number) {
   const normalized = ((((rotationDeg + 180) % 360) + 360) % 360) - 180
   return Math.round(normalized * 10) / 10
+}
+
+function getCenteredScrollOffset(scrollSize: number, clientSize: number) {
+  return Math.max(0, (scrollSize - clientSize) / 2)
+}
+
+function lockWallVerticalScroll(visibleArea: HTMLElement) {
+  const lockedScrollTop = getCenteredScrollOffset(
+    visibleArea.scrollHeight,
+    visibleArea.clientHeight,
+  )
+
+  if (Math.abs(visibleArea.scrollTop - lockedScrollTop) > BOUNDARY_EPSILON) {
+    visibleArea.scrollTop = lockedScrollTop
+  }
 }
 
 function getRotationFromPoint(point: WallPoint, layout: CommunityMemoLayoutDraft) {
@@ -211,6 +268,7 @@ function getDisplayMemo(memo: CommunityMemoItemResponse): CommunityMemoItemRespo
 
 export function CommunityWall({
   memos,
+  memoPlaybackImageUrls,
   selectedMemoUuid,
   memoStatus,
   memoError,
@@ -220,11 +278,11 @@ export function CommunityWall({
   nextZIndex,
   isAttachingMemo,
   isSavingLayout,
+  isPlaybackPaused,
   onSelectMemo,
   onClearSelection,
   onOpenMemoDetail,
   onAttachPendingMemo,
-  onCancelPendingMemo,
   onEditingLayoutChange,
   onSaveEditingLayout,
   onRetry,
@@ -232,6 +290,10 @@ export function CommunityWall({
   const visibleAreaRef = useRef<HTMLElement>(null)
   const wallRef = useRef<HTMLDivElement>(null)
   const memoClickTimerRef = useRef<number | null>(null)
+  const memoClickTargetUuidRef = useRef<string | null>(null)
+  const lastMemoTapRef = useRef<MemoTapState | null>(null)
+  const lastMemoDetailOpenRef = useRef<MemoTapState | null>(null)
+  const editableDetailTapRef = useRef<EditableDetailTapState | null>(null)
   const interactionRef = useRef<WallInteraction | null>(null)
   const interactionChangedRef = useRef(false)
   const editingLayoutDraftRef = useRef<CommunityMemoLayoutDraft | null>(null)
@@ -287,13 +349,18 @@ export function CommunityWall({
 
   useEffect(() => {
     const visibleArea = visibleAreaRef.current
-    if (!visibleArea || hasCenteredWallScrollRef.current) return
+    if (!visibleArea) return
     if (viewportSize.width <= 0 || viewportSize.height <= 0) return
 
     const frameId = window.requestAnimationFrame(() => {
-      visibleArea.scrollLeft = Math.max(0, (visibleArea.scrollWidth - visibleArea.clientWidth) / 2)
-      visibleArea.scrollTop = Math.max(0, (visibleArea.scrollHeight - visibleArea.clientHeight) / 2)
-      hasCenteredWallScrollRef.current = true
+      if (!hasCenteredWallScrollRef.current) {
+        visibleArea.scrollLeft = getCenteredScrollOffset(
+          visibleArea.scrollWidth,
+          visibleArea.clientWidth,
+        )
+        hasCenteredWallScrollRef.current = true
+      }
+      lockWallVerticalScroll(visibleArea)
     })
 
     return () => window.cancelAnimationFrame(frameId)
@@ -346,9 +413,29 @@ export function CommunityWall({
   }, [onSaveEditingLayout])
 
   useEffect(() => {
-    const handleMouseUp = () => {
+    const handlePointerEnd = (event: globalThis.PointerEvent) => {
       const currentInteraction = interactionRef.current
       if (!currentInteraction) return
+      if (currentInteraction.pointerId !== event.pointerId) return
+
+      const editableDetailTap = editableDetailTapRef.current
+      if (
+        event.type === 'pointerup' &&
+        currentInteraction.type === 'drag-edit' &&
+        editableDetailTap?.pointerId === event.pointerId
+      ) {
+        editableDetailTapRef.current = null
+        lastMemoTapRef.current = null
+        interactionRef.current = null
+        interactionChangedRef.current = false
+        setInteraction(null)
+        lastMemoDetailOpenRef.current = {
+          memoUuid: editableDetailTap.memoUuid,
+          tappedAt: window.performance.now(),
+        }
+        onOpenMemoDetail(editableDetailTap.memoUuid)
+        return
+      }
 
       if (
         (currentInteraction.type === 'drag-edit' || currentInteraction.type === 'rotate-edit') &&
@@ -359,20 +446,28 @@ export function CommunityWall({
         saveEditingLayoutRef.current(editingLayoutDraftRef.current)
       }
 
+      editableDetailTapRef.current = null
       interactionRef.current = null
       interactionChangedRef.current = false
       setInteraction(null)
     }
 
-    window.addEventListener('mouseup', handleMouseUp)
-    return () => window.removeEventListener('mouseup', handleMouseUp)
-  }, [])
+    window.addEventListener('pointerup', handlePointerEnd)
+    window.addEventListener('pointercancel', handlePointerEnd)
+    return () => {
+      window.removeEventListener('pointerup', handlePointerEnd)
+      window.removeEventListener('pointercancel', handlePointerEnd)
+    }
+  }, [onOpenMemoDetail])
 
   useEffect(() => {
     const memoPlacementAnimationTimers = memoPlacementAnimationTimerRefs.current
 
     return () => {
       if (memoClickTimerRef.current) window.clearTimeout(memoClickTimerRef.current)
+      memoClickTargetUuidRef.current = null
+      lastMemoTapRef.current = null
+      editableDetailTapRef.current = null
       memoPlacementAnimationTimers.forEach((timerId) => window.clearTimeout(timerId))
     }
   }, [])
@@ -468,9 +563,11 @@ export function CommunityWall({
   }, [memos])
 
   const clearMemoClickTimer = () => {
-    if (!memoClickTimerRef.current) return
-    window.clearTimeout(memoClickTimerRef.current)
+    if (memoClickTimerRef.current) {
+      window.clearTimeout(memoClickTimerRef.current)
+    }
     memoClickTimerRef.current = null
+    memoClickTargetUuidRef.current = null
   }
 
   const getWallPoint = (clientX: number, clientY: number): WallPoint | null => {
@@ -598,14 +695,24 @@ export function CommunityWall({
     }
   }
 
-  const handleWallMouseMove = (event: MouseEvent<HTMLDivElement>) => {
+  const handleWallPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (isWallManipulating && event.cancelable) {
+      event.preventDefault()
+    }
+
     const point = getWallPoint(event.clientX, event.clientY)
     if (!point) return
 
-    if (interaction?.type === 'rotate-edit' && editingLayoutDraft) {
+    const currentInteraction = interactionRef.current
+    if (
+      currentInteraction?.type === 'rotate-edit' &&
+      currentInteraction.pointerId === event.pointerId &&
+      editingLayoutDraftRef.current
+    ) {
+      const currentEditingLayoutDraft = editingLayoutDraftRef.current
       const nextLayout = {
-        ...editingLayoutDraft,
-        rotationDeg: getRotationFromPoint(point, editingLayoutDraft),
+        ...currentEditingLayoutDraft,
+        rotationDeg: getRotationFromPoint(point, currentEditingLayoutDraft),
       }
       const boundedLayout = getBoundedMemoLayout(nextLayout)
       if (!boundedLayout) return
@@ -616,10 +723,27 @@ export function CommunityWall({
       return
     }
 
-    if (interaction?.type === 'drag-edit' && isEditingLayout && !isSavingLayout) {
+    if (
+      currentInteraction?.type === 'drag-edit' &&
+      currentInteraction.pointerId === event.pointerId &&
+      isEditingLayout &&
+      !isSavingLayout
+    ) {
+      const editableDetailTap = editableDetailTapRef.current
+      if (editableDetailTap?.pointerId === event.pointerId) {
+        const movedDistance = Math.hypot(
+          event.clientX - editableDetailTap.startClientX,
+          event.clientY - editableDetailTap.startClientY,
+        )
+
+        if (movedDistance > MEMO_DETAIL_TAP_MOVE_THRESHOLD) {
+          editableDetailTapRef.current = null
+        }
+      }
+
       const nextPlacement = getEditingPlacementFromPoint(point, {
-        x: interaction.pointerOffsetX,
-        y: interaction.pointerOffsetY,
+        x: currentInteraction.pointerOffsetX,
+        y: currentInteraction.pointerOffsetY,
       })
       if (nextPlacement && isMemoLayoutInsideVisibleArea(nextPlacement)) {
         editingLayoutDraftRef.current = nextPlacement
@@ -629,7 +753,10 @@ export function CommunityWall({
       return
     }
 
-    if (interaction?.type === 'rotate-pending') {
+    if (
+      currentInteraction?.type === 'rotate-pending' &&
+      currentInteraction.pointerId === event.pointerId
+    ) {
       const currentPlacement = cursorPlacementRef.current ?? cursorPlacement
       updateCursorPlacement({
         ...currentPlacement,
@@ -677,19 +804,49 @@ export function CommunityWall({
   }
 
   const handleMemoSelect = (memo: CommunityMemoItemResponse) => {
+    const tappedAt = window.performance.now()
+    const lastMemoTap = lastMemoTapRef.current
+    const isSameMemoDoubleTap =
+      lastMemoTap?.memoUuid === memo.memoUuid &&
+      tappedAt - lastMemoTap.tappedAt <= MEMO_DETAIL_DOUBLE_TAP_DELAY_MS
+
+    if (
+      isSameMemoDoubleTap &&
+      (!memoClickTimerRef.current || memoClickTargetUuidRef.current === memo.memoUuid)
+    ) {
+      lastMemoTapRef.current = { memoUuid: memo.memoUuid, tappedAt }
+      handleMemoOpenDetail(memo.memoUuid)
+      return
+    }
+
     clearMemoClickTimer()
+    lastMemoTapRef.current = { memoUuid: memo.memoUuid, tappedAt }
+    memoClickTargetUuidRef.current = memo.memoUuid
     memoClickTimerRef.current = window.setTimeout(() => {
       onSelectMemo(memo)
       memoClickTimerRef.current = null
-    }, 220)
+      memoClickTargetUuidRef.current = null
+    }, MEMO_SELECT_DELAY_MS)
   }
 
   const handleMemoOpenDetail = (memoUuid: string) => {
+    const openedAt = window.performance.now()
+    const lastMemoDetailOpen = lastMemoDetailOpenRef.current
+    if (
+      lastMemoDetailOpen?.memoUuid === memoUuid &&
+      openedAt - lastMemoDetailOpen.tappedAt <= MEMO_DETAIL_DOUBLE_TAP_DELAY_MS
+    ) {
+      return
+    }
+
+    lastMemoDetailOpenRef.current = { memoUuid, tappedAt: openedAt }
     clearMemoClickTimer()
+    lastMemoTapRef.current = null
+    editableDetailTapRef.current = null
     onOpenMemoDetail(memoUuid)
   }
 
-  const handleBeginEditingMove = (event: MouseEvent<HTMLDivElement>) => {
+  const handleBeginEditingMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!isEditingLayout || isSavingLayout || event.button !== 0) return
     const point = getWallPoint(event.clientX, event.clientY)
     if (!point) return
@@ -697,10 +854,26 @@ export function CommunityWall({
 
     event.preventDefault()
     event.stopPropagation()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    const lastMemoTap = lastMemoTapRef.current
+    const shouldOpenDetailOnTap =
+      editingMemo !== null &&
+      lastMemoTap?.memoUuid === editingMemo.memoUuid &&
+      window.performance.now() - lastMemoTap.tappedAt <= MEMO_DETAIL_DOUBLE_TAP_DELAY_MS
+
+    editableDetailTapRef.current = shouldOpenDetailOnTap
+      ? {
+          memoUuid: editingMemo.memoUuid,
+          pointerId: event.pointerId,
+          startClientX: event.clientX,
+          startClientY: event.clientY,
+        }
+      : null
     editingLayoutDraftRef.current = boundedEditingLayout
     onEditingLayoutChange(boundedEditingLayout)
     const nextInteraction = {
       type: 'drag-edit' as const,
+      pointerId: event.pointerId,
       pointerOffsetX: point.x - boundedEditingLayout.positionX,
       pointerOffsetY: point.y - boundedEditingLayout.positionY,
     }
@@ -709,30 +882,32 @@ export function CommunityWall({
     setInteraction(nextInteraction)
   }
 
-  const handleBeginEditingRotate = (event: MouseEvent<HTMLButtonElement>) => {
+  const handleBeginEditingRotate = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (!isEditingLayout || isSavingLayout || event.button !== 0) return
     const boundedEditingLayout = getBoundedMemoLayout(editingLayoutDraft) ?? editingLayoutDraft
 
     event.preventDefault()
     event.stopPropagation()
+    event.currentTarget.setPointerCapture(event.pointerId)
     editingLayoutDraftRef.current = boundedEditingLayout
     onEditingLayoutChange(boundedEditingLayout)
-    interactionRef.current = { type: 'rotate-edit' }
+    interactionRef.current = { type: 'rotate-edit', pointerId: event.pointerId }
     interactionChangedRef.current = false
-    setInteraction({ type: 'rotate-edit' })
+    setInteraction({ type: 'rotate-edit', pointerId: event.pointerId })
   }
 
-  const handleBeginPendingRotate = (event: MouseEvent<HTMLButtonElement>) => {
+  const handleBeginPendingRotate = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (isAttachingMemo || event.button !== 0) return
     event.preventDefault()
     event.stopPropagation()
-    interactionRef.current = { type: 'rotate-pending' }
+    event.currentTarget.setPointerCapture(event.pointerId)
+    interactionRef.current = { type: 'rotate-pending', pointerId: event.pointerId }
     interactionChangedRef.current = false
-    setInteraction({ type: 'rotate-pending' })
+    setInteraction({ type: 'rotate-pending', pointerId: event.pointerId })
   }
 
-  const handleWallViewportPointerDown = (event: PointerEvent<HTMLElement>) => {
-    if (isWallManipulating || event.button !== 0) return
+  const handleWallViewportPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+    if (pendingMemo || event.button !== 0) return
     if (!(event.target instanceof Element)) return
     if (event.target.closest('[data-community-memo-interactive="true"]')) return
 
@@ -742,26 +917,46 @@ export function CommunityWall({
     panStateRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
-      startY: event.clientY,
       scrollLeft: visibleArea.scrollLeft,
-      scrollTop: visibleArea.scrollTop,
     }
     visibleArea.setPointerCapture(event.pointerId)
   }
 
-  const handleWallViewportPointerMove = (event: PointerEvent<HTMLElement>) => {
+  const handleWallViewportPointerMove = (event: ReactPointerEvent<HTMLElement>) => {
     const panState = panStateRef.current
     const visibleArea = visibleAreaRef.current
     if (!panState || !visibleArea || panState.pointerId !== event.pointerId) return
 
     visibleArea.scrollLeft = panState.scrollLeft - (event.clientX - panState.startX)
-    visibleArea.scrollTop = panState.scrollTop - (event.clientY - panState.startY)
+    lockWallVerticalScroll(visibleArea)
   }
 
-  const handleWallViewportPointerEnd = (event: PointerEvent<HTMLElement>) => {
+  const handleWallViewportPointerEnd = (event: ReactPointerEvent<HTMLElement>) => {
     if (panStateRef.current?.pointerId === event.pointerId) {
       panStateRef.current = null
     }
+  }
+
+  const handleWallViewportWheel = (event: ReactWheelEvent<HTMLElement>) => {
+    if (event.ctrlKey) return
+
+    const visibleArea = visibleAreaRef.current
+    if (!visibleArea) return
+
+    const horizontalDelta =
+      Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY
+    if (horizontalDelta === 0) return
+
+    event.preventDefault()
+    visibleArea.scrollLeft += horizontalDelta
+    lockWallVerticalScroll(visibleArea)
+  }
+
+  const handleWallViewportScroll = () => {
+    const visibleArea = visibleAreaRef.current
+    if (!visibleArea) return
+
+    lockWallVerticalScroll(visibleArea)
   }
 
   const scaledWallWidth = WALL_WIDTH * wallScale
@@ -780,9 +975,12 @@ export function CommunityWall({
       onPointerMove={handleWallViewportPointerMove}
       onPointerUp={handleWallViewportPointerEnd}
       onPointerCancel={handleWallViewportPointerEnd}
+      onWheel={handleWallViewportWheel}
+      onScroll={handleWallViewportScroll}
       className={cn(
-        'absolute inset-0 z-0 overflow-auto overscroll-contain bg-surface-default [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-        !isWallManipulating && 'cursor-grab active:cursor-grabbing',
+        'absolute inset-0 z-0 overflow-x-auto overflow-y-hidden overscroll-x-contain overscroll-y-none bg-surface-default [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        !isWallManipulating && 'cursor-grab active:cursor-grabbing [touch-action:pan-x]',
+        isWallManipulating && 'touch-none',
       )}
     >
       <div
@@ -795,7 +993,7 @@ export function CommunityWall({
       <div
         ref={wallRef}
         role="presentation"
-        onMouseMove={handleWallMouseMove}
+        onPointerMove={handleWallPointerMove}
         onClick={handleWallClick}
         className={cn(
           'absolute overflow-visible rounded-[0.45rem] bg-surface-default shadow-[0_24px_60px_rgb(53_45_32_/_24%)]',
@@ -820,70 +1018,84 @@ export function CommunityWall({
           alt=""
           fill
           priority
+          unoptimized
           sizes={`${WALL_WIDTH}px`}
           aria-hidden="true"
-          className="pointer-events-none z-0 select-none object-cover"
+          draggable={false}
+          onDragStart={(event) => event.preventDefault()}
+          className="pointer-events-none z-0 select-none object-cover [-webkit-user-drag:none]"
         />
 
-        {memos
-          .filter((memo) => memo.memoUuid !== editingMemo?.memoUuid)
-          .map((memo) => {
-            const displayMemo = getDisplayMemo(memo)
+        <div
+          aria-hidden={memoStatus === 'loading'}
+          className="absolute overflow-hidden"
+          style={ATTACHABLE_SURFACE_STYLE}
+        >
+          <div className="absolute" style={ATTACHABLE_MEMO_LAYER_STYLE}>
+            {memos
+              .filter((memo) => memo.memoUuid !== editingMemo?.memoUuid)
+              .map((memo) => {
+                const displayMemo = getDisplayMemo(memo)
 
-            return (
+                return (
+                  <CommunityMemoCard
+                    key={memo.memoUuid}
+                    memo={displayMemo}
+                    isActive={selectedMemoUuid === memo.memoUuid}
+                    playbackImageUrl={memoPlaybackImageUrls[memo.memoUuid]}
+                    isPlaybackPaused={isPlaybackPaused}
+                    placementMotion={enteringMemoUuids.has(memo.memoUuid) ? 'attach' : undefined}
+                    isInteractionDisabled={isWallManipulating}
+                    onSelect={handleMemoSelect}
+                    onOpenDetail={handleMemoOpenDetail}
+                  />
+                )
+              })}
+
+            {exitingMemos.map(({ memo, removalKey }) => (
               <CommunityMemoCard
-                key={memo.memoUuid}
-                memo={displayMemo}
-                isActive={selectedMemoUuid === memo.memoUuid}
-                placementMotion={enteringMemoUuids.has(memo.memoUuid) ? 'attach' : undefined}
-                isInteractionDisabled={isWallManipulating}
+                key={removalKey}
+                memo={getDisplayMemo(memo)}
+                isActive={false}
+                playbackImageUrl={memoPlaybackImageUrls[memo.memoUuid]}
+                isPlaybackPaused={isPlaybackPaused}
+                placementMotion="detach"
+                isInteractionDisabled
                 onSelect={handleMemoSelect}
                 onOpenDetail={handleMemoOpenDetail}
               />
-            )
-          })}
+            ))}
 
-        {exitingMemos.map(({ memo, removalKey }) => (
-          <CommunityMemoCard
-            key={removalKey}
-            memo={memo}
-            isActive={false}
-            placementMotion="detach"
-            isInteractionDisabled
-            onSelect={handleMemoSelect}
-            onOpenDetail={handleMemoOpenDetail}
-          />
-        ))}
+            {isEditingLayout && (
+              <EditableMemoPreview
+                memo={editingMemo}
+                playbackImageUrl={memoPlaybackImageUrls[editingMemo.memoUuid]}
+                isPlaybackPaused={isPlaybackPaused}
+                layout={clampMemoLayoutToAttachableSurface(editingLayoutDraft)}
+                disabled={isSavingLayout}
+                isFluttering={
+                  interaction?.type === 'drag-edit' || interaction?.type === 'rotate-edit'
+                }
+                placementMotion={isSavingLayout ? 'attach' : 'release'}
+                onBeginMove={handleBeginEditingMove}
+                onBeginRotate={handleBeginEditingRotate}
+              />
+            )}
 
-        {isEditingLayout && (
-          <EditableMemoPreview
-            memo={editingMemo}
-            layout={clampMemoLayoutToAttachableSurface(editingLayoutDraft)}
-            disabled={isSavingLayout}
-            isFluttering={interaction?.type === 'drag-edit' || interaction?.type === 'rotate-edit'}
-            placementMotion={isSavingLayout ? 'attach' : 'release'}
-            onBeginMove={handleBeginEditingMove}
-            onBeginRotate={handleBeginEditingRotate}
-          />
-        )}
-
-        {pendingMemo && (
-          <>
-            <PendingCancelButton
-              isAttachingMemo={isAttachingMemo}
-              onCancelPendingMemo={onCancelPendingMemo}
-            />
-            <PendingMemoPreview
-              pendingMemo={pendingMemo}
-              placement={cursorPlacement}
-              isAttachingMemo={isAttachingMemo}
-              isPlacementInsideVisibleArea={isPendingPlacementInsideVisibleArea}
-              isFluttering={interaction?.type === 'rotate-pending' || !isAttachingMemo}
-              placementMotion={isAttachingMemo ? 'attach' : undefined}
-              onBeginRotate={handleBeginPendingRotate}
-            />
-          </>
-        )}
+            {pendingMemo && (
+              <PendingMemoPreview
+                pendingMemo={pendingMemo}
+                placement={cursorPlacement}
+                isPlaybackPaused={isPlaybackPaused}
+                isAttachingMemo={isAttachingMemo}
+                isPlacementInsideVisibleArea={isPendingPlacementInsideVisibleArea}
+                isFluttering={interaction?.type === 'rotate-pending' || !isAttachingMemo}
+                placementMotion={isAttachingMemo ? 'attach' : undefined}
+                onBeginRotate={handleBeginPendingRotate}
+              />
+            )}
+          </div>
+        </div>
 
         {memoStatus === 'loading' && !isWallManipulating && (
           <div className="absolute inset-0 z-[11000] grid place-items-center bg-white/45 backdrop-blur-[1px]">
@@ -924,31 +1136,10 @@ export function CommunityWall({
   )
 }
 
-function PendingCancelButton({
-  isAttachingMemo,
-  onCancelPendingMemo,
-}: {
-  isAttachingMemo: boolean
-  onCancelPendingMemo: () => void
-}) {
-  return (
-    <button
-      type="button"
-      aria-label="메모 부착 취소"
-      onClick={(event) => {
-        event.stopPropagation()
-        onCancelPendingMemo()
-      }}
-      disabled={isAttachingMemo}
-      className="absolute right-5 top-5 z-[10001] grid size-10 place-items-center rounded-full bg-white text-fg-secondary shadow-[0_10px_22px_rgb(71_68_112_/_16%)] disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      <X className="size-5" />
-    </button>
-  )
-}
-
 function EditableMemoPreview({
   memo,
+  playbackImageUrl,
+  isPlaybackPaused,
   layout,
   disabled,
   isFluttering,
@@ -957,16 +1148,22 @@ function EditableMemoPreview({
   onBeginRotate,
 }: {
   memo: CommunityMemoItemResponse
+  playbackImageUrl?: string | null
+  isPlaybackPaused: boolean
   layout: CommunityMemoLayoutDraft
   disabled: boolean
   isFluttering: boolean
   placementMotion?: MemoPlacementMotion
-  onBeginMove: (event: MouseEvent<HTMLDivElement>) => void
-  onBeginRotate: (event: MouseEvent<HTMLButtonElement>) => void
+  onBeginMove: (event: ReactPointerEvent<HTMLDivElement>) => void
+  onBeginRotate: (event: ReactPointerEvent<HTMLButtonElement>) => void
 }) {
   return (
     <MemoSurface
-      imageUrl={memo.memoThumbnailImageUrl || memo.memoImageUrl}
+      imageUrl={
+        isPlaybackPaused
+          ? getStaticCommunityMemoImageUrl(memo)
+          : playbackImageUrl || memo.memoThumbnailImageUrl || memo.memoImageUrl
+      }
       tone={getMemoTone(memo)}
       layout={layout}
       disabled={disabled}
@@ -981,6 +1178,7 @@ function EditableMemoPreview({
 function PendingMemoPreview({
   pendingMemo,
   placement,
+  isPlaybackPaused,
   isAttachingMemo,
   isPlacementInsideVisibleArea,
   isFluttering,
@@ -989,15 +1187,20 @@ function PendingMemoPreview({
 }: {
   pendingMemo: CommunityPendingMemoPlacement
   placement: CommunityMemoLayoutDraft
+  isPlaybackPaused: boolean
   isAttachingMemo: boolean
   isPlacementInsideVisibleArea: boolean
   isFluttering: boolean
   placementMotion?: MemoPlacementMotion
-  onBeginRotate: (event: MouseEvent<HTMLButtonElement>) => void
+  onBeginRotate: (event: ReactPointerEvent<HTMLButtonElement>) => void
 }) {
   return (
     <MemoSurface
-      imageUrl={pendingMemo.previewUrl}
+      imageUrl={
+        isPlaybackPaused
+          ? getStaticCommunityImageUrl(pendingMemo.previewUrl)
+          : pendingMemo.previewUrl
+      }
       tone={getMemoTone(pendingMemo)}
       layout={placement}
       disabled={isAttachingMemo}
@@ -1020,26 +1223,26 @@ function MemoSurface({
   onBeginMove,
   onBeginRotate,
 }: {
-  imageUrl: string
+  imageUrl: string | null
   tone: string
   layout: CommunityMemoLayoutDraft
   disabled: boolean
   isPlacementInsideVisibleArea?: boolean
   isFluttering: boolean
   placementMotion?: MemoPlacementMotion
-  onBeginMove?: (event: MouseEvent<HTMLDivElement>) => void
-  onBeginRotate: (event: MouseEvent<HTMLButtonElement>) => void
+  onBeginMove?: (event: ReactPointerEvent<HTMLDivElement>) => void
+  onBeginRotate: (event: ReactPointerEvent<HTMLButtonElement>) => void
 }) {
   return (
     <div
       data-community-memo-interactive="true"
-      onMouseDown={onBeginMove}
+      onPointerDown={onBeginMove}
       onClick={(event) => {
         if (onBeginMove) event.stopPropagation()
       }}
       aria-invalid={!isPlacementInsideVisibleArea}
       className={cn(
-        'group absolute h-[160px] w-[160px]',
+        'group absolute h-[160px] w-[160px] touch-none select-none',
         onBeginMove && !disabled && 'cursor-grab active:cursor-grabbing',
         (disabled || !isPlacementInsideVisibleArea) && 'opacity-60',
       )}
@@ -1065,24 +1268,26 @@ function MemoSurface({
           data-post-it-art-motion={disabled ? undefined : isFluttering ? 'active' : 'hover'}
           className="post-it-note-art absolute inset-x-4 bottom-5 top-7 overflow-hidden rounded-[0.35rem]"
         >
-          <Image
-            src={imageUrl}
-            alt=""
-            fill
-            sizes="160px"
-            unoptimized
-            draggable={false}
-            className="object-contain"
-          />
+          {imageUrl && (
+            <Image
+              src={imageUrl}
+              alt=""
+              fill
+              sizes="160px"
+              unoptimized
+              draggable={false}
+              className="object-contain"
+            />
+          )}
         </span>
       </span>
       <button
         type="button"
         aria-label="메모 회전"
-        onMouseDown={onBeginRotate}
+        onPointerDown={onBeginRotate}
         onClick={(event) => event.stopPropagation()}
         disabled={disabled}
-        className="pointer-events-auto absolute left-1/2 top-0 grid size-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-border-default bg-white text-fg-secondary shadow-[0_8px_16px_rgb(71_68_112_/_18%)] disabled:cursor-not-allowed disabled:opacity-60"
+        className="pointer-events-auto absolute left-1/2 top-0 grid size-8 -translate-x-1/2 -translate-y-1/2 touch-none place-items-center rounded-full border border-border-default bg-white text-fg-secondary shadow-[0_8px_16px_rgb(71_68_112_/_18%)] disabled:cursor-not-allowed disabled:opacity-60"
       >
         <RotateCw className="size-4" />
       </button>

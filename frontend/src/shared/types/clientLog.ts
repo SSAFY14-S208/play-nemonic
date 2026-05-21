@@ -72,6 +72,7 @@ type FunnelEventName =
   | 'funnel_goal_reached'
   | 'funnel_abandoned'
   | 'cta_clicked'
+  | 'result_shared'
 
 // 이탈 (§6)
 type ChurnEventName =
@@ -88,6 +89,7 @@ type UiEventName =
   | 'tool_selected'
   | 'canvas_interaction_started'
   | 'canvas_interaction_paused'
+  | 'phone_official_store_clicked'
 
 // 성능/오류 (§8)
 type QualityEventName =
@@ -156,6 +158,7 @@ export type FunnelName =
   | 'community_memo_posting'
   | 'fortune_creation'
   | 'gallery_save_share'
+  | 'infinite_canvas_creation'
   | (string & {}) // 추후 추가 funnel 허용
 
 // ── sendBeacon 우선순위 ──

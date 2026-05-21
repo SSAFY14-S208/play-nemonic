@@ -65,6 +65,7 @@ export function mapGalleryItemResponseToPhoneItem(
   const kind = normalizeKind(item.kind)
   return {
     id: item.galleryId,
+    artifactId: item.artifactId,
     kind,
     title: DEFAULT_TITLE_BY_KIND[kind],
     createdAtLabel: formatRelativeTime(item.createdAt),

@@ -85,7 +85,10 @@ export function PhoneGalleryItemSheet({
   const loadGalleryDetail = usePhoneStore((state) => state.loadGalleryDetail)
   const clearGalleryDetail = usePhoneStore((state) => state.clearGalleryDetail)
   const deleteGalleryItem = usePhoneStore((state) => state.deleteGalleryItem)
+  const downloadGalleryItem = usePhoneStore((state) => state.downloadGalleryItem)
+  const galleryDownloadingId = usePhoneStore((state) => state.galleryDownloadingId)
   const setToast = usePhoneStore((state) => state.setToast)
+  const closePhone = usePhoneStore((state) => state.closePhone)
   const shareInfo = useShareStore((state) => state.shareInfo)
   const shareStatus = useShareStore((state) => state.shareStatus)
   const shareError = useShareStore((state) => state.shareError)
@@ -94,6 +97,10 @@ export function PhoneGalleryItemSheet({
   const isSharing = shareStatus === 'loading'
 
   const isLoading = galleryDetailStatus === 'loading'
+  const isDownloading = galleryDownloadingId === item.id
+  // detail이 로드되지 않았어도 액션 내부에서 재조회하지만, UX상 detail 로딩 중에는
+  // 다운로드 시도를 막아 사용자 혼란을 줄인다.
+  const canDownload = !isLoading && !isDownloading
   const detailImageUrl =
     galleryDetail && galleryDetail.galleryId === item.id
       ? galleryDetail.contentUrl || galleryDetail.thumbnailUrl
@@ -107,7 +114,11 @@ export function PhoneGalleryItemSheet({
   } = useNemonicImagePrint({
     imageUrl: printImageUrl,
     isImageLoading: isLoading,
+    onPrintedToNemonicRoom: closePhone,
     onPrintBlocked: setToast,
+    sourceContentKind: item.kind,
+    sourceGalleryId: item.id,
+    title: item.title,
   })
 
   useEffect(() => {
@@ -136,7 +147,7 @@ export function PhoneGalleryItemSheet({
       return
     }
 
-    writeCommunityCanvasHandoffDraft({
+    const isHandoffWritten = writeCommunityCanvasHandoffDraft({
       sourceKind: 'GALLERY',
       title: item.title,
       imageUrl: printImageUrl,
@@ -144,6 +155,13 @@ export function PhoneGalleryItemSheet({
       sourceGalleryId: item.id,
       sourceContentKind: item.kind,
     })
+
+    if (!isHandoffWritten) {
+      setToast('커뮤니티 캔버스로 보낼 메모를 준비하지 못했어요.')
+      return
+    }
+
+    closePhone()
     router.push('/community-canvas')
   }
 
@@ -157,16 +175,16 @@ export function PhoneGalleryItemSheet({
         style={{ background: PHONE_COLORS.gallerySheetBackdrop }}
       />
       <section
-        className="relative w-full rounded-t-[1rem] border-t border-border-default px-5 pb-7 pt-3"
+        className="relative w-full rounded-t-xl border-t border-border-default px-3 pb-5 pt-2"
         style={{
           background: PHONE_COLORS.galleryBackground,
           boxShadow: PHONE_COLORS.gallerySheetShadow,
         }}
       >
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-border-default" />
-        <header className="mb-3 flex items-center justify-between">
+        <div className="mx-auto mb-3 h-0.5 w-8 rounded-full bg-border-default" />
+        <header className="mb-2 flex items-center justify-between">
           <span
-            className="caption-b inline-flex items-center gap-1.5 rounded-[0.45rem] px-2.5 py-1.5"
+            className="phone-caption-b inline-flex items-center gap-1 rounded-[0.35rem] px-2 py-1"
             style={{
               background: itemStyle.background,
               color: itemStyle.color,
@@ -183,14 +201,14 @@ export function PhoneGalleryItemSheet({
             type="button"
             aria-label="닫기"
             onClick={onClose}
-            className="grid size-9 place-items-center rounded-full bg-white text-fg-secondary transition hover:text-fg-primary"
+            className="grid size-7 place-items-center rounded-full bg-white text-fg-secondary transition hover:text-fg-primary"
           >
-            <X className="size-5" />
+            <X className="size-3.5" />
           </button>
         </header>
 
         <div
-          className="relative mb-4 aspect-square overflow-hidden rounded-[0.45rem] bg-white"
+          className="relative mb-3 aspect-square overflow-hidden rounded-[0.35rem] bg-white"
           style={{ boxShadow: PHONE_COLORS.gallerySheetPreviewShadow }}
         >
           {isLoading && !detailImageUrl ? (
@@ -199,44 +217,49 @@ export function PhoneGalleryItemSheet({
             <PhoneGalleryPreview item={item} detailImageUrl={detailImageUrl} />
           )}
           {item.badgeLabel && (
-            <span className="caption-b absolute left-3 top-3 rounded-[0.35rem] bg-white/90 px-2 py-1 text-fg-primary">
+            <span className="phone-caption-b absolute left-2 top-2 rounded-sm bg-white/90 px-1.5 py-0.5 text-fg-primary">
               {item.badgeLabel}
             </span>
           )}
         </div>
 
-        <h3 className="h3-b text-fg-primary">{item.title}</h3>
-        <p className="caption-r mt-1 text-fg-secondary">
+        <h3 className="phone-h3-b text-fg-primary">{item.title}</h3>
+        <p className="phone-caption-r mt-0.5 text-fg-secondary">
           {item.createdAtLabel}
           {item.contributorLabel ? ` · ${item.contributorLabel}` : ''}
         </p>
 
-        <div className="mt-5 grid grid-cols-3 gap-3">
+        <div className="mt-3 grid grid-cols-3 gap-2">
           <button
             type="button"
-            className="body-b flex h-11 items-center justify-center gap-2 rounded-[0.45rem] border border-border-default bg-white text-fg-primary transition hover:bg-surface-subtle"
+            onClick={() => void downloadGalleryItem(item.id)}
+            disabled={!canDownload}
+            className={cn(
+              'phone-body-b flex h-8 items-center justify-center gap-1.5 rounded-[0.35rem] border border-border-default bg-white text-fg-primary transition hover:bg-surface-subtle',
+              !canDownload && 'cursor-not-allowed opacity-60 hover:bg-white',
+            )}
           >
-            <Download className="size-4" />
-            저장
+            <Download className="size-3" />
+            {isDownloading ? '저장 중' : '저장'}
           </button>
           <button
             type="button"
-            onClick={() => void createShare(item.id)}
+            onClick={() => void createShare(item.artifactId)}
             disabled={isSharing}
             className={cn(
-              'body-b flex h-11 items-center justify-center gap-2 rounded-[0.45rem] border border-border-default bg-white text-fg-primary transition hover:bg-surface-subtle',
+              'phone-body-b flex h-8 items-center justify-center gap-1.5 rounded-[0.35rem] border border-border-default bg-white text-fg-primary transition hover:bg-surface-subtle',
               isSharing && 'cursor-not-allowed opacity-60 hover:bg-white',
             )}
           >
-            <Share2 className="size-4" />
+            <Share2 className="size-3" />
             {isSharing ? '준비 중' : '공유'}
           </button>
           <button
             type="button"
             onClick={handleDelete}
-            className="body-b flex h-11 items-center justify-center gap-2 rounded-[0.45rem] border border-red-200 bg-white text-red-500 transition hover:bg-red-50"
+            className="phone-body-b flex h-8 items-center justify-center gap-1.5 rounded-[0.35rem] border border-red-200 bg-white text-red-500 transition hover:bg-red-50"
           >
-            <Trash2 className="size-4" />
+            <Trash2 className="size-3" />
             삭제
           </button>
         </div>
@@ -247,19 +270,19 @@ export function PhoneGalleryItemSheet({
           disabled={isPrintDisabled}
           aria-describedby={printMessage ? 'phone-gallery-print-status' : undefined}
           className={cn(
-            'body-l-b mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] transition',
+            'phone-body-l-b mt-2 flex h-9 w-full items-center justify-center gap-1.5 rounded-[0.35rem] transition',
             isPrintDisabled
               ? 'cursor-not-allowed bg-surface-subtle text-fg-secondary'
               : 'bg-primary-1 text-fg-inverse hover:-translate-y-0.5',
           )}
         >
-          <Printer className="size-5" />
+          <Printer className="size-3.5" />
           {isPreparingPrint ? '인쇄창 준비 중' : '네모닉 출력'}
         </button>
         {printMessage && (
           <p
             id="phone-gallery-print-status"
-            className="caption-r mt-2 text-center text-fg-secondary"
+            className="phone-caption-r mt-1.5 text-center text-fg-secondary"
           >
             {printMessage}
           </p>
@@ -270,14 +293,14 @@ export function PhoneGalleryItemSheet({
           onClick={handleCommunityAttach}
           disabled={!printImageUrl}
           className={cn(
-            'body-l-b mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-[0.45rem] bg-fg-primary text-fg-inverse transition hover:-translate-y-0.5',
+            'phone-body-l-b mt-2 flex h-9 w-full items-center justify-center gap-1.5 rounded-[0.35rem] bg-fg-primary text-fg-inverse transition hover:-translate-y-0.5',
             !printImageUrl && 'cursor-not-allowed opacity-60',
           )}
         >
           커뮤니티 캔버스에 붙이기
-          <ArrowRight className="size-5" />
+          <ArrowRight className="size-3.5" />
         </button>
-        <p className="caption-r mt-3 text-center text-fg-secondary">
+        <p className="phone-caption-r mt-2 text-center text-fg-secondary">
           월드 캔버스에 메모지로 부착됩니다.
         </p>
       </section>

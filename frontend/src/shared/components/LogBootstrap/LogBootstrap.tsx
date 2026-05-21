@@ -151,6 +151,12 @@ function detectEntryType(): string {
 
   try {
     const referrerHost = new URL(referrer).hostname
+    // 자체 도메인 referrer — 페이지 내 navigation, 새로고침, 새 탭으로 우리 사이트를
+    // 다시 연 경우에 자체 호스트가 referrer로 잡힌다. 외부 유입이 아니므로 direct로
+    // 분류해 unknown 노이즈를 줄인다.
+    if (referrerHost === window.location.hostname) {
+      return 'direct'
+    }
     // 검색 엔진
     const searchEngines = ['google.', 'naver.', 'daum.', 'bing.', 'yahoo.', 'duckduckgo.']
     if (searchEngines.some((engine) => referrerHost.includes(engine))) {

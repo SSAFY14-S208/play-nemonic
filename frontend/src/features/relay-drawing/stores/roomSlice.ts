@@ -20,7 +20,7 @@ export const createRoomSlice: StateCreator<
   [],
   [],
   RoomSlice
-> = (set) => ({
+> = (set, get) => ({
   roomCode: null,
   roomStatus: null,
   hostUserUuid: null,
@@ -33,6 +33,10 @@ export const createRoomSlice: StateCreator<
   gameStartPhase: 'idle' as const,
 
   hydrateRoomState: (payload) => {
+    // 새 roomCode로 hydrate되는 경우 이전 방의 게임 진행 상태를 강제 청소.
+    // clearRoom 호출이 누락되는 경로(부스 createRoom/joinRoom, 공유 URL 직접 진입)
+    // 에서도 roundSubmitted 같은 가드가 stale로 살아남아 자동제출이 막히는 것을 방지.
+    const isDifferentRoom = get().roomCode !== payload.roomCode;
     set({
       roomCode: payload.roomCode,
       roomStatus: payload.status,
@@ -45,6 +49,29 @@ export const createRoomSlice: StateCreator<
       // 존재할 때만 갱신한다.
       ...(payload.timeLimitAllowedSeconds && {
         timeLimitAllowedSeconds: payload.timeLimitAllowedSeconds,
+      }),
+      ...(isDifferentRoom && {
+        activeRoundKey: "face" as const,
+        roundLines: { face: [], body: [], legs: [] },
+        roundRedoStack: { face: [], body: [], legs: [] },
+        canvasIndex: null,
+        currentPart: null,
+        partDeadlineAt: null,
+        hintImageUrl: null,
+        isSubmitting: false,
+        isSubmitted: false,
+        submittedCount: 0,
+        totalCount: 0,
+        submittedUserUuids: [],
+        roundSubmitted: { face: false, body: false, legs: false },
+        roundDeadlines: { face: null, body: null, legs: null },
+        isPartTimeUp: false,
+        isTransitioning: false,
+        partFetchTrigger: 0,
+        pendingAutoSubmitTrigger: 0,
+        completedAt: null,
+        resultItems: [],
+        activeResultIndex: 0,
       }),
     });
   },
@@ -92,6 +119,10 @@ export const createRoomSlice: StateCreator<
       isPartTimeUp: false,
       partFetchTrigger: 0,
       pendingAutoSubmitTrigger: 0,
+      // 라운드별 누적 가드 — 빠뜨리면 다음 방의 PART_TIME_UP에서 자동제출이 막힌다.
+      submittedUserUuids: [],
+      roundSubmitted: { face: false, body: false, legs: false },
+      roundDeadlines: { face: null, body: null, legs: null },
       // 결과 슬라이스 리셋
       completedAt: null,
       resultItems: [],

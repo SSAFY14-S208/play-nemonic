@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { Copy, X } from 'lucide-react'
 import { cn } from '@/shared/libs'
 import type { ShareCreateResponse } from '@/shared/types'
+import { shareExternalImage, type ExternalImageShareResult } from '@/shared/utils'
 
 interface ShareSheetProps {
   shareInfo: ShareCreateResponse
@@ -13,19 +14,40 @@ interface ShareSheetProps {
 
 type CopyFeedback = { tone: 'success' | 'error'; message: string } | null
 
+const SHARE_TITLE = 'NEMONIC 공유 이미지'
+const SHARE_TEXT = '네모닉 산출물 공유 이미지를 공유해요.'
+const GIF_LINK_COPIED_MESSAGE = 'QR GIF 공유 링크를 복사했어요.'
+const IMAGE_COPIED_MESSAGE =
+  'QR 공유 이미지를 복사했어요. 채팅창에 붙여넣어 주세요.'
+const IMAGE_LINK_COPIED_MESSAGE = 'QR 공유 이미지 링크를 복사했어요.'
+
+function getShareSuccessMessage(shareResult: ExternalImageShareResult) {
+  if (shareResult === 'copied-gif-link') return GIF_LINK_COPIED_MESSAGE
+  if (shareResult === 'copied-image') return IMAGE_COPIED_MESSAGE
+  if (shareResult === 'copied-image-link') return IMAGE_LINK_COPIED_MESSAGE
+
+  return null
+}
+
 export function ShareSheet({ shareInfo, onClose }: ShareSheetProps) {
   const [copyFeedback, setCopyFeedback] = useState<CopyFeedback>(null)
 
   const handleCopy = async () => {
-    const targetUrl = shareInfo.kakaoUrl || shareInfo.siteUrl
     try {
-      if (!navigator.clipboard) throw new Error('clipboard unavailable')
-      await navigator.clipboard.writeText(targetUrl)
-      setCopyFeedback({ tone: 'success', message: '링크를 복사했어요.' })
+      const shareResult = await shareExternalImage({
+        title: SHARE_TITLE,
+        text: SHARE_TEXT,
+        imageUrl: shareInfo.imageUrl,
+        fileNameBase: `artifact-share-${shareInfo.shareToken}`,
+      })
+      const successMessage = getShareSuccessMessage(shareResult)
+      if (successMessage) {
+        setCopyFeedback({ tone: 'success', message: successMessage })
+      }
     } catch {
       setCopyFeedback({
         tone: 'error',
-        message: '링크를 복사하지 못했어요.',
+        message: 'QR 공유 이미지를 복사하지 못했어요.',
       })
     }
     window.setTimeout(() => setCopyFeedback(null), 2000)
@@ -56,7 +78,7 @@ export function ShareSheet({ shareInfo, onClose }: ShareSheetProps) {
         <div className="relative mb-5 aspect-square overflow-hidden rounded-[var(--radius-md)] bg-surface-subtle">
           <Image
             src={shareInfo.imageUrl}
-            alt="공유할 산출물 미리보기"
+            alt="공유용 산출물 미리보기"
             fill
             unoptimized
             sizes="100vw"
@@ -70,7 +92,7 @@ export function ShareSheet({ shareInfo, onClose }: ShareSheetProps) {
           className="body-l-b flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-primary-1 text-fg-inverse transition hover:-translate-y-0.5"
         >
           <Copy className="size-5" />
-          링크 복사
+          이미지 복사
         </button>
 
         {copyFeedback && (

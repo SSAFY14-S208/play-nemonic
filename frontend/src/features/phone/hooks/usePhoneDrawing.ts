@@ -1,9 +1,14 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import type Konva from 'konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import { ApiError } from '@/shared/apis'
+import {
+  writeCommunityCanvasHandoffDraft,
+  writeNemonicRoomPrintDraft,
+} from '@/shared/utils'
 import {
   PHONE_BRUSH_SIZES,
   PHONE_DRAWING_COLORS,
@@ -28,7 +33,17 @@ function getStagePointerPosition(event: KonvaEventObject<MouseEvent | TouchEvent
   return event.target.getStage()?.getPointerPosition() ?? null
 }
 
+function isNemonicRoomPath() {
+  if (typeof window === 'undefined') return false
+
+  return (
+    window.location.pathname === '/nemonic' ||
+    window.location.pathname.startsWith('/nemonic/')
+  )
+}
+
 export function usePhoneDrawing() {
+  const router = useRouter()
   const stageRef = useRef<Konva.Stage>(null)
   const isDrawingRef = useRef(false)
   const [activeTool, setActiveTool] = useState<PhoneDrawingToolKey>('pen')
@@ -147,7 +162,7 @@ export function usePhoneDrawing() {
 
       if (!hasDrawing) {
         if (action === 'print') {
-          setToast('출력할 그림이 없어요.')
+          setToast('커뮤니티에 붙일 그림이 없어요.')
         }
         return
       }
@@ -157,16 +172,36 @@ export function usePhoneDrawing() {
 
       setSavingDrawing(true)
       try {
-        if (action === 'print') {
-          addDrawingArtifact({ action, imageDataUrl })
-          clearDrawing()
-          return
-        }
-
         const blob = await dataUrlToBlob(imageDataUrl)
         const saveResponse = await uploadDrawingArtifact(blob)
         addDrawingArtifact({ saveResponse, imageDataUrl, action })
         clearDrawing()
+
+        if (action === 'print') {
+          if (isNemonicRoomPath()) {
+            writeNemonicRoomPrintDraft({
+              sourceKind: 'PHONE_DRAWING',
+              title: '내가 그린 메모',
+              imageUrl: imageDataUrl,
+              thumbnailUrl: imageDataUrl,
+              sourceGalleryId: saveResponse.galleryId,
+              sourceContentKind: 'phone',
+            })
+            return
+          }
+
+          const printImageUrl = saveResponse.thumbnailUrl || imageDataUrl
+
+          writeCommunityCanvasHandoffDraft({
+            sourceKind: 'GALLERY',
+            title: '내가 그린 메모',
+            imageUrl: printImageUrl,
+            thumbnailUrl: printImageUrl,
+            sourceGalleryId: saveResponse.galleryId,
+            sourceContentKind: 'phone',
+          })
+          router.push('/community-canvas')
+        }
       } catch (error) {
         const message =
           error instanceof ApiError
@@ -183,6 +218,7 @@ export function usePhoneDrawing() {
       getDrawingImageDataUrl,
       hasDrawing,
       isSaving,
+      router,
       setSavingDrawing,
       setToast,
     ],

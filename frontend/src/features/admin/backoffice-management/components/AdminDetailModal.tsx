@@ -11,6 +11,7 @@ interface AdminDetailModalProps {
   open: boolean
   admin: AdminResponse | null
   isSubmitting: boolean
+  canChangePassword: boolean
   onChangePassword: (
     adminId: number,
     payload: AdminPasswordChangeRequest,
@@ -23,6 +24,7 @@ export function AdminDetailModal({
   open,
   admin,
   isSubmitting,
+  canChangePassword,
   onChangePassword,
   onClose,
 }: AdminDetailModalProps) {
@@ -46,7 +48,7 @@ export function AdminDetailModal({
 
   const handlePasswordSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!newPassword.trim() || isSubmitting) return
+    if (!canChangePassword || !newPassword.trim() || isSubmitting) return
     onChangePassword(admin.id, { password: newPassword.trim() }, () => {
       setIsPasswordMode(false)
       setNewPassword('')
@@ -111,6 +113,7 @@ export function AdminDetailModal({
                     onChange={(event) => setNewPassword(event.target.value)}
                     placeholder="새 비밀번호를 입력하세요"
                     autoComplete="new-password"
+                    disabled={isSubmitting || !canChangePassword}
                     className="body-r rounded-[var(--radius-md)] border border-border-default bg-surface-default px-3 py-2 text-fg-primary placeholder:text-fg-disabled focus:outline-none focus:ring-1 focus:ring-primary-1"
                   />
                 </label>
@@ -128,7 +131,9 @@ export function AdminDetailModal({
                   </button>
                   <button
                     type="submit"
-                    disabled={!newPassword.trim() || isSubmitting}
+                    disabled={
+                      !canChangePassword || !newPassword.trim() || isSubmitting
+                    }
                     className="caption-b rounded-[var(--radius-md)] bg-primary-1 px-3 py-1.5 text-fg-inverse transition-opacity hover:opacity-90 disabled:opacity-50"
                   >
                     {isSubmitting ? '변경 중…' : '변경'}
@@ -139,7 +144,13 @@ export function AdminDetailModal({
               <button
                 type="button"
                 onClick={() => setIsPasswordMode(true)}
-                className="body-b w-full rounded-[var(--radius-md)] border border-border-default bg-surface-default px-4 py-2 text-fg-primary transition-colors hover:bg-surface-subtle"
+                disabled={!canChangePassword}
+                title={
+                  canChangePassword
+                    ? undefined
+                    : '슈퍼 관리자만 비밀번호를 변경할 수 있습니다.'
+                }
+                className="body-b w-full rounded-[var(--radius-md)] border border-border-default bg-surface-default px-4 py-2 text-fg-primary transition-colors hover:bg-surface-subtle disabled:opacity-50"
               >
                 비밀번호 변경
               </button>

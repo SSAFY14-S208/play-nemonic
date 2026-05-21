@@ -10,14 +10,15 @@ export default function LightingSetup({
   performanceMode: HubPerformanceMode
 }) {
   const performanceProfile = HUB_PERFORMANCE_PROFILES[performanceMode]
+  const isQualityMode = performanceMode === 'quality'
 
   if (!performanceProfile.environment) {
     return (
       <>
-        <ambientLight color="#f7f1ff" intensity={0.7} />
+        <ambientLight color="#f8f3ff" intensity={0.72} />
         <directionalLight
-          color="#fff6ec"
-          intensity={1.15}
+          color="#fff8f0"
+          intensity={1.08}
           position={[4, 6, 4]}
         />
       </>
@@ -27,20 +28,35 @@ export default function LightingSetup({
   return (
     <>
       <Suspense fallback={null}>
-        <Environment preset="apartment" environmentIntensity={0.16} />
+        <Environment
+          background={performanceProfile.environmentBackground}
+          backgroundBlurriness={performanceProfile.environmentBackgroundBlurriness}
+          backgroundIntensity={performanceProfile.environmentBackgroundIntensity}
+          backgroundRotation={performanceProfile.environmentBackgroundRotation}
+          environmentIntensity={performanceProfile.environmentIntensity}
+          environmentRotation={performanceProfile.environmentRotation}
+          preset={performanceProfile.environmentPreset}
+        />
       </Suspense>
-      <hemisphereLight args={['#fff0ff', '#b8e5ff', 0.28]} />
-      <ambientLight color="#ccb5ff" intensity={0.07} />
+      <hemisphereLight
+        args={['#fff9fb', '#dbe8ff', isQualityMode ? 0.16 : 0.22]}
+      />
+      <ambientLight
+        color="#f8f1ff"
+        intensity={isQualityMode ? 0.035 : 0.06}
+      />
       <directionalLight
         castShadow={performanceProfile.shadows}
-        color="#fff6ec"
-        intensity={performanceProfile.shadows ? 0.48 : 0.72}
+        color="#fff3e4"
+        intensity={performanceProfile.shadows ? 0.18 : 0.42}
         position={[4.6, 7.2, 5.4]}
         shadow-bias={-0.00018}
-        shadow-mapSize-height={1024}
-        shadow-mapSize-width={1024}
+        shadow-mapSize-height={performanceProfile.shadowMapSize}
+        shadow-mapSize-width={performanceProfile.shadowMapSize}
       />
-      {performanceMode === 'quality' && <BlenderRoomLights />}
+      <BlenderRoomLights
+        mode={performanceMode === 'quality' ? 'quality' : 'balanced'}
+      />
     </>
   )
 }

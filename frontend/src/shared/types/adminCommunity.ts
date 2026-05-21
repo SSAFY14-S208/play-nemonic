@@ -42,7 +42,10 @@ export interface AdminCommunityMemoResponse {
   hiddenAt: string | null
   moderationStatus: AdminMemoModerationStatus
   ocrText: string | null
-  /** OCR 분류 결과 — Swagger 설명은 "JSON 문자열"이지만 응답 예시는 string[]. 배열로 받음. */
+  /**
+   * OCR 분류 결과. 백엔드는 JSON 문자열·배열·null 등 들쭉날쭉한 형태로 내려주지만
+   * `adminCommunityApi`의 응답 정규화 단계에서 항상 `string[]`로 변환된다.
+   */
   ocrCategories: string[]
   /** 마지막 검토 관리자 ID (없으면 null). */
   reviewedBy: number | null

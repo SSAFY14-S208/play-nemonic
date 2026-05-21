@@ -3,6 +3,7 @@
 import { Mail, X } from 'lucide-react'
 
 import { cn } from '@/shared/libs'
+import { formatKoreanDateTime } from '@/shared/utils'
 import type {
   AdminInquiryDetailResponse,
   AdminInquiryStatus,
@@ -18,6 +19,7 @@ interface InquiryDetailModalProps {
   error: string | null
   open: boolean
   isMutating: boolean
+  canHandle: boolean
   onClose: () => void
   onChangeStatus: (inquiryId: number, next: AdminInquiryStatus) => void
   onRequestReply: (inquiryId: number, title: string) => void
@@ -32,10 +34,7 @@ const STATUS_LABEL: Record<AdminInquiryStatus, string> = {
 }
 
 function formatDate(value: string | null): string {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('ko-KR', {
+  return formatKoreanDateTime(value, {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -50,6 +49,7 @@ export function InquiryDetailModal({
   error,
   open,
   isMutating,
+  canHandle,
   onClose,
   onChangeStatus,
   onRequestReply,
@@ -100,7 +100,7 @@ export function InquiryDetailModal({
                     event.target.value as AdminInquiryStatus,
                   )
                 }
-                disabled={isMutating}
+                disabled={isMutating || !canHandle}
                 className={cn(
                   'body-r rounded-[var(--radius-md)] border border-border-default bg-surface-default px-3 py-1.5 text-fg-primary focus:border-primary-2 focus:outline-none disabled:opacity-50',
                 )}
@@ -116,7 +116,10 @@ export function InquiryDetailModal({
               <button
                 type="button"
                 onClick={() => onRequestReply(detail.id, detail.title)}
-                disabled={isMutating}
+                disabled={isMutating || !canHandle}
+                title={
+                  canHandle ? undefined : '뷰어 권한은 조회만 가능합니다.'
+                }
                 className="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-primary-1 px-4 py-2 body-b text-fg-inverse transition-opacity hover:opacity-90 disabled:opacity-50"
               >
                 <Mail className="h-4 w-4" />

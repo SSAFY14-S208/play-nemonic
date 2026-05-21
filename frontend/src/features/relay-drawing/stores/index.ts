@@ -19,3 +19,6 @@ export type {
   ResultSlice,
   RoomSlice,
 } from './store.types'
+
+export { useRelayBgmStore } from './relayBgmStore'
+export { useRelayHowToPlayStore } from './relayHowToPlayStore'

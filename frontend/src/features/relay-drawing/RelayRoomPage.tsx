@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { ApiError, postRelayRoomStart } from '@/shared/apis'
 import { WorldHomeLink } from '@/shared/components'
 import { DEFAULT_USER_NICKNAME } from '@/shared/constants'
-import { useUserStore } from '@/shared/stores'
+import { usePhoneLauncherStore, useUserStore } from '@/shared/stores'
 
 import relayDrawingGameStart from './assets/relay-drawing-game-start.png'
 import nemonicDrawingLobbyBg from './assets/nemonic-drawing-lobby-bg.png'
@@ -16,10 +16,15 @@ import {
   RelayDismissalModal,
   RelayDrawingView,
   RelayFinalizingView,
+  RelayFloatingControls,
   RelayLobbyView,
   RelayNicknameModal,
   RelayResultView,
 } from './components'
+import {
+  RELAY_LEAVE_CANCEL_BUTTON_CLASS,
+  RELAY_LEAVE_CONFIRM_BUTTON_CLASS,
+} from './constants'
 import { useRelayAbandonmentTracking, useRelayRoom } from './hooks'
 import { useRelayDrawingStore } from './stores'
 import { relayToast } from './utils'
@@ -93,6 +98,15 @@ function RelayRoomPageInner() {
   )
   const hostUserUuid = useRelayDrawingStore((state) => state.hostUserUuid)
   const userUuid = useUserStore((state) => state.userUuid)
+
+  // 룸 페이지 전체에서 floating PhoneLauncher를 숨기고, 각 뷰의 인라인 버튼으로 대체.
+  const setLauncherHidden = usePhoneLauncherStore(
+    (state) => state.setLauncherHidden,
+  )
+  useEffect(() => {
+    setLauncherHidden(true)
+    return () => setLauncherHidden(false)
+  }, [setLauncherHidden])
 
   const isHost = userUuid !== null && userUuid === hostUserUuid
 
@@ -179,7 +193,12 @@ function RelayRoomPageInner() {
         aria-hidden
       />
 
-      {roomStatus === 'FINISHED' && <WorldHomeLink />}
+      {roomStatus === 'FINISHED' && (
+        <WorldHomeLink
+          leaveConfirmCancelButtonClassName={RELAY_LEAVE_CANCEL_BUTTON_CLASS}
+          leaveConfirmConfirmButtonClassName={RELAY_LEAVE_CONFIRM_BUTTON_CLASS}
+        />
+      )}
 
       <div className="mx-auto w-full max-w-300">
         <AnimatePresence mode="wait">
@@ -256,6 +275,17 @@ function RelayRoomPageInner() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 로비 외 화면(드로잉/대기/결과)에서만 floating 컨트롤을 띄운다.
+          데스크탑은 viewport에 fixed로 두지만, 모바일은 floating이 스크롤 시
+          컨텐츠를 가리는 문제가 있어 각 뷰가 mobile 컨테이너 내부에 인라인으로
+          버튼을 렌더한다(RelayDrawingView/RelayResultView 참고).
+          로비는 GameLobbyLayout 헤더 안의 headerRightSlot에 동일 버튼이 배치된다. */}
+      {(roomStatus === 'FINISHED' ||
+        roomStatus === 'FINALIZING' ||
+        (roomStatus === 'PLAYING' && gameStartPhase === 'idle')) && (
+        <RelayFloatingControls className="hidden lg:flex" />
+      )}
 
       {dismissalReason && (
         <RelayDismissalModal

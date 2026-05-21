@@ -1,6 +1,10 @@
 "use client";
 
-import { RelayBoothView } from "./components";
+import { useEffect } from "react";
+
+import { usePhoneLauncherStore } from "@/shared/stores";
+
+import { RelayBoothView, RelayFloatingControls } from "./components";
 import "./relay-drawing.css";
 
 // 라우트: /relay-drawing
@@ -10,9 +14,19 @@ import "./relay-drawing.css";
 // `font-paperlogy`는 feature 도메인 폰트 마커. relay-drawing.css가 이 마커
 // 안의 typography utility들을 Paperlogy로 override한다.
 export default function RelayDrawingPage() {
+  // 부스 페이지에서 floating PhoneLauncher를 숨기고 인라인 버튼으로 대체.
+  const setLauncherHidden = usePhoneLauncherStore(
+    (state) => state.setLauncherHidden,
+  );
+  useEffect(() => {
+    setLauncherHidden(true);
+    return () => setLauncherHidden(false);
+  }, [setLauncherHidden]);
+
   return (
     <div className="font-paperlogy min-h-screen bg-relay-background text-relay-ink">
       <RelayBoothView />
+      <RelayFloatingControls buttonClassName="size-14" />
     </div>
   );
 }

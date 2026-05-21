@@ -7,6 +7,7 @@ import type {
   CommunityMemoListResponse,
   CommunityMemoReportRequest,
   CommunityMemoReportResponse,
+  ShareCreateResponse,
 } from '@/shared/types'
 
 import { apiUnwrap } from '@/shared/utils'
@@ -22,6 +23,12 @@ export const postCommunityMemo = (payload: CommunityMemoCreateRequest) =>
 // GET /community/memos/{memoId} — 커뮤니티 메모 상세 조회
 export const getCommunityMemo = (memoId: string) =>
   apiUnwrap(api.get<ApiResponse<CommunityMemoDetailResponse>>(`community/memos/${memoId}`))
+
+// POST /community/memos/{memoId}/share — 커뮤니티 메모 QR 합성 공유 정보 생성
+export const postCommunityMemoShare = (memoId: string) =>
+  apiUnwrap(
+    api.post<ApiResponse<ShareCreateResponse>>(`community/memos/${memoId}/share`),
+  )
 
 // PATCH /community/memos/{memoId} — 커뮤니티 메모 레이아웃 수정
 export const patchCommunityMemo = (memoId: string, payload: CommunityMemoLayoutRequest) =>

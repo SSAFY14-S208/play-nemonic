@@ -1,8 +1,8 @@
 <svg width="233" height="400" viewBox="0 0 233 400" fill="none" xmlns="http://www.w3.org/2000/svg">
 <g filter="url(#filter0_d_76_1056)">
-<path d="M16 16H109C164.228 16 209 60.7715 209 116V276C209 331.228 164.228 376 109 376H16V16Z" fill="url(#paint0_linear_76_1056)" fill-opacity="0.2" shape-rendering="crispEdges"/>
+<path d="M16 16H109C164.228 16 209 60.7715 209 116V276C209 331.228 164.228 376 109 376H16V16Z" fill="url(#paint0_linear_76_1056)" fill-opacity="0.7" shape-rendering="crispEdges"/>
 </g>
-<g opacity="0.5" filter="url(#filter1_i_76_1056)">
+<g opacity="0.7" filter="url(#filter1_i_76_1056)">
 <line x1="72.9706" y1="161" x2="155.803" y2="243.832" stroke="#434343" style="stroke:#434343;stroke:color(display-p3 0.2627 0.2627 0.2627);stroke-opacity:1;" stroke-width="24" stroke-linecap="round"/>
 <line x1="12" y1="-12" x2="129.143" y2="-12" transform="matrix(-0.707107 0.707107 0.707107 0.707107 169 161)" stroke="#434343" style="stroke:#434343;stroke:color(display-p3 0.2627 0.2627 0.2627);stroke-opacity:1;" stroke-width="24" stroke-linecap="round"/>
 </g>

@@ -137,6 +137,135 @@ export function ToolPanel({
   )
 }
 
+// 모바일 게임 화면 상단에 가로 한 줄로 배치되는 도구 바. 라벨 없이 아이콘만
+// 노출해 캔버스 영역을 최대한 확보한다. 6개 도구(브러시/지우개/채우기/실행취소/
+// 다시실행/전체지우기) 모두 한 줄에 들어가도록 flex-1 + min-w-0로 균등 분배.
+export function MobileToolBar({
+  className,
+  selectedToolKey,
+  canUndoDrawing,
+  canRedoDrawing,
+  isDrawingLocked,
+  onSelectTool,
+  onUndoDrawing,
+  onRedoDrawing,
+  onClearDrawing,
+}: DrawingToolControlProps & {
+  className?: string
+  isDrawingLocked: boolean
+}) {
+  return (
+    <section
+      aria-label="도구"
+      className={cn(
+        'flex items-center gap-1 rounded-[18px] border border-[#ead7c9] bg-white/90 p-2 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]',
+        isDrawingLocked && 'pointer-events-none opacity-60',
+        className,
+      )}
+    >
+      {TOOL_ITEMS.map((tool) => (
+        <ToolBarIconButton
+          key={tool.key}
+          tool={tool}
+          selectedToolKey={selectedToolKey}
+          canUndoDrawing={canUndoDrawing}
+          canRedoDrawing={canRedoDrawing}
+          onSelectTool={onSelectTool}
+          onUndoDrawing={onUndoDrawing}
+          onRedoDrawing={onRedoDrawing}
+          onClearDrawing={onClearDrawing}
+        />
+      ))}
+    </section>
+  )
+}
+
+// 모바일 게임 화면 하단에 가로로 스크롤되는 단일 행 색상 팔레트.
+// touch-action은 기본값(auto)을 유지해 브라우저가 사용자 제스처 방향에 따라
+// 가로 스크롤(색상) 또는 세로 스크롤(페이지)을 알아서 결정하게 한다.
+// overscroll-contain: 색상 바 가로 스크롤이 끝에 도달해도 페이지 스크롤로
+// 전파되지 않게 한다. h-[80px]: size-12(48px) swatch + ring 표시(양쪽 5px씩,
+// 총 58px bounding box)를 세로 패딩 안에 여유롭게 수용한다.
+export function MobileColorBar({
+  className,
+  colors,
+  selectedColor,
+  isDrawingLocked,
+  onSelectColor,
+}: {
+  className?: string
+  colors: string[]
+  selectedColor: string
+  isDrawingLocked: boolean
+  onSelectColor: (color: string) => void
+}) {
+  return (
+    <section
+      aria-label="색상 선택"
+      className={cn(
+        'flex h-[80px] items-center gap-3 overflow-x-auto overflow-y-hidden overscroll-contain rounded-[18px] border border-[#ead7c9] bg-white/90 px-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]',
+        isDrawingLocked && 'pointer-events-none opacity-60',
+        className,
+      )}
+    >
+      {colors.map((color) => (
+        <ColorSwatch
+          key={color}
+          className="size-12"
+          color={color}
+          selected={selectedColor === color}
+          shape="square"
+          onSelectColor={onSelectColor}
+        />
+      ))}
+    </section>
+  )
+}
+
+// 모바일에서 브러시 굵기와 투명도를 한 줄로 나열하는 가로 컨트롤 바.
+// MobileColorBar가 색상만 담당하도록 분리되면서, 굵기·투명도는 캔버스 아래에
+// 위치하도록 별도 컴포넌트로 분리됨.
+export function MobileBrushOpacityBar({
+  className,
+  strokeWidth,
+  strokeWidthOptions = DRAWING_STROKE_WIDTH_OPTIONS,
+  selectedOpacity,
+  isDrawingLocked,
+  onStrokeWidthChange,
+  onOpacityChange,
+}: {
+  className?: string
+  strokeWidth: number
+  strokeWidthOptions?: number[]
+  selectedOpacity: number
+  isDrawingLocked: boolean
+  onStrokeWidthChange: (strokeWidth: number) => void
+  onOpacityChange: (opacity: number) => void
+}) {
+  return (
+    <section
+      className={cn(
+        'flex items-center gap-4 rounded-[18px] border border-[#ead7c9] bg-white/90 px-4 py-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]',
+        isDrawingLocked && 'pointer-events-none opacity-60',
+        className,
+      )}
+    >
+      <StrokeWidthPicker
+        className="flex shrink-0 items-center gap-2"
+        selectedStrokeWidth={strokeWidth}
+        strokeWidthOptions={strokeWidthOptions}
+        onStrokeWidthChange={onStrokeWidthChange}
+      />
+      <span aria-hidden className="h-6 w-px shrink-0 bg-[#ead7c9]" />
+      <OpacitySlider
+        className="flex-1"
+        selectedOpacity={selectedOpacity}
+        onOpacityChange={onOpacityChange}
+      />
+    </section>
+  )
+}
+
 export function MobileColorGrid({
   colors,
   selectedColor,
@@ -475,6 +604,73 @@ function ToolPanelButton({
   )
 }
 
+// MobileToolBar 전용 컴팩트 아이콘 버튼. ToolPanelButton과 동일한 클릭 로직을
+// 사용하되 라벨을 표시하지 않고 가로 한 줄에 6개 균등 분배되도록 flex-1을 사용.
+function ToolBarIconButton({
+  tool,
+  selectedToolKey,
+  canUndoDrawing,
+  canRedoDrawing,
+  onSelectTool,
+  onUndoDrawing,
+  onRedoDrawing,
+  onClearDrawing,
+}: DrawingToolControlProps & {
+  tool: { key: ToolItemKey; label: string }
+}) {
+  const isSelectedDrawingTool = selectedToolKey === tool.key
+  const isHistoryCommandDisabled =
+    (tool.key === 'undo' && !canUndoDrawing) || (tool.key === 'redo' && !canRedoDrawing)
+
+  const handleClick = () => {
+    if (tool.key === 'clear') {
+      onClearDrawing()
+      return
+    }
+    if (tool.key === 'undo') {
+      if (canUndoDrawing) onUndoDrawing()
+      return
+    }
+    if (tool.key === 'redo') {
+      if (canRedoDrawing) onRedoDrawing()
+      return
+    }
+
+    onSelectTool(tool.key)
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label={tool.label}
+      aria-pressed={isSelectedDrawingTool}
+      title={tool.label}
+      disabled={isHistoryCommandDisabled}
+      onClick={handleClick}
+      className={cn(
+        'grid h-11 flex-1 min-w-0 place-items-center rounded-[12px] text-[#1f1f1f] transition',
+        isSelectedDrawingTool && 'bg-[#feebef] text-[#dc6c92]',
+        isHistoryCommandDisabled && 'cursor-not-allowed text-[#c5c5c5]',
+      )}
+    >
+      <span
+        className="size-6 bg-current"
+        style={{
+          maskImage: `url(${DRAWING_TOOL_ICONS[tool.key]})`,
+          maskPosition: 'center',
+          maskRepeat: 'no-repeat',
+          maskSize: 'contain',
+          WebkitMaskImage: `url(${DRAWING_TOOL_ICONS[tool.key]})`,
+          WebkitMaskPosition: 'center',
+          WebkitMaskRepeat: 'no-repeat',
+          WebkitMaskSize: 'contain',
+        }}
+        aria-hidden
+      />
+    </button>
+  )
+}
+
 function StrokeWidthPicker({
   className,
   selectedStrokeWidth,
@@ -535,12 +731,14 @@ function OpacitySlider({
 }
 
 function ColorSwatch({
+  className,
   color,
   selected,
   shape,
   label = `${color} 색상`,
   onSelectColor,
 }: {
+  className?: string
   color: string
   selected: boolean
   shape: 'circle' | 'square'
@@ -551,13 +749,20 @@ function ColorSwatch({
     <button
       type="button"
       aria-label={label}
+      aria-pressed={selected}
       onClick={() => onSelectColor(color)}
       className={cn(
-        'size-10 border border-[#d9d9de]',
+        'size-10 shrink-0 border border-[#d9d9de]',
         shape === 'circle' ? 'rounded-full' : 'rounded-[8px]',
         selected && 'ring-[3px] ring-[#f45d8d] ring-offset-2 ring-offset-white',
+        className,
       )}
       style={{ backgroundColor: color }}
     />
   )
+}
+
+export {
+  ColorSwatch as DrawingColorSwatch,
+  StrokeWidthPicker as DrawingStrokeWidthPicker,
 }

@@ -2,9 +2,13 @@
 
 import type { SystemParameterValue } from '@/shared/types'
 
+import { cn } from '@/shared/libs'
+import { useAdminAuthStore } from '@/shared/stores'
+import { canMutateBackoffice } from '@/shared/utils'
+import { AdminReadOnlyNotice } from '../components'
 import {
   CATEGORY_BADGE,
-  CONTENT_PARAMETERS,
+  CONTENT_PARAMETER_GROUPS,
   type ParameterMeta,
   UNIT_LABEL,
 } from './constants'
@@ -15,6 +19,8 @@ const NUMBER_INPUT_CLASS =
   'body-r w-24 rounded-[var(--radius-md)] border border-border-default bg-surface-default px-3 py-2 text-fg-primary focus:border-primary-2 focus:outline-none disabled:opacity-50'
 
 export default function ContentParametersPage() {
+  const adminRole = useAdminAuthStore((state) => state.admin?.role ?? null)
+  const canEditParameters = canMutateBackoffice(adminRole)
   const {
     isLoading,
     loadError,
@@ -39,7 +45,7 @@ export default function ContentParametersPage() {
           <button
             type="button"
             onClick={resetDraft}
-            disabled={!hasChanges || isSaving}
+            disabled={!canEditParameters || !hasChanges || isSaving}
             className="rounded-[var(--radius-md)] border border-border-default bg-surface-default px-4 py-2 body-b text-fg-primary transition-colors hover:bg-surface-subtle disabled:opacity-50"
           >
             초기화
@@ -47,13 +53,15 @@ export default function ContentParametersPage() {
           <button
             type="button"
             onClick={save}
-            disabled={!hasChanges || isSaving}
+            disabled={!canEditParameters || !hasChanges || isSaving}
             className="rounded-[var(--radius-md)] bg-primary-1 px-4 py-2 body-b text-fg-inverse transition-opacity disabled:opacity-50"
           >
             {isSaving ? '저장 중…' : '변경 사항 저장'}
           </button>
         </div>
       </header>
+
+      {!canEditParameters && <AdminReadOnlyNotice />}
 
       {isLoading && (
         <p className="body-r text-fg-secondary">파라미터를 불러오는 중…</p>
@@ -65,18 +73,42 @@ export default function ContentParametersPage() {
       )}
 
       {!isLoading && !loadError && (
-        <div className="flex flex-col gap-3">
-          {CONTENT_PARAMETERS.map((parameter) => (
-            <ContentParameterCard
-              key={parameter.id}
-              parameter={parameter}
-              draft={draft}
-              parametersByKey={parametersByKey}
-              isSaving={isSaving}
-              onChangeField={setDraftField}
-              onChangeEnumBounds={setEnumBounds}
-            />
-          ))}
+        <div className="flex flex-col gap-8">
+          {CONTENT_PARAMETER_GROUPS.map(({ category, parameters }) => {
+            const badge = CATEGORY_BADGE[category]
+
+            return (
+              <section key={category} className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <span
+                    className={cn(
+                      'caption-b inline-flex w-fit items-center rounded-[var(--radius-sm)] px-2 py-0.5',
+                      badge.chipClass,
+                    )}
+                  >
+                    {badge.label}
+                  </span>
+                  <span className="caption-r text-fg-secondary">
+                    {parameters.length}개 항목
+                  </span>
+                </div>
+                <div className="flex flex-col gap-3">
+                  {parameters.map((parameter) => (
+                    <ContentParameterCard
+                      key={parameter.id}
+                      parameter={parameter}
+                      draft={draft}
+                      parametersByKey={parametersByKey}
+                      isSaving={isSaving}
+                      canEdit={canEditParameters}
+                      onChangeField={setDraftField}
+                      onChangeEnumBounds={setEnumBounds}
+                    />
+                  ))}
+                </div>
+              </section>
+            )
+          })}
         </div>
       )}
     </div>
@@ -88,6 +120,7 @@ interface ContentParameterCardProps {
   draft: Record<string, SystemParameterValue>
   parametersByKey: Map<string, { serverValue: SystemParameterValue }>
   isSaving: boolean
+  canEdit: boolean
   onChangeField: <K extends keyof SystemParameterValue>(
     backendKey: string,
     field: K,
@@ -108,10 +141,10 @@ function ContentParameterCard({
   draft,
   parametersByKey,
   isSaving,
+  canEdit,
   onChangeField,
   onChangeEnumBounds,
 }: ContentParameterCardProps) {
-  const badge = CATEGORY_BADGE[parameter.category]
   const unitLabel = UNIT_LABEL[parameter.unit]
   const draftValue = draft[parameter.backendKey] ?? {}
   const serverValue = parametersByKey.get(parameter.backendKey)?.serverValue
@@ -119,8 +152,6 @@ function ContentParameterCard({
   if (parameter.type === 'integer') {
     return (
       <ParameterCard
-        categoryLabel={badge.label}
-        categoryChipClass={badge.chipClass}
         title={parameter.title}
         description={parameter.description}
         originalValueLabel={`기존값 ${formatOrDash(serverValue?.value)} ${unitLabel}`}
@@ -133,7 +164,7 @@ function ContentParameterCard({
             onChange={(event) =>
               onChangeField(parameter.backendKey, 'value', Number(event.target.value))
             }
-            disabled={isSaving}
+            disabled={isSaving || !canEdit}
             className={NUMBER_INPUT_CLASS}
           />
           <span className="body-r text-fg-secondary">{unitLabel}</span>
@@ -145,8 +176,6 @@ function ContentParameterCard({
   if (parameter.type === 'range') {
     return (
       <ParameterCard
-        categoryLabel={badge.label}
-        categoryChipClass={badge.chipClass}
         title={parameter.title}
         description={parameter.description}
         originalValueLabel={`기존값 ${formatOrDash(serverValue?.min)} ~ ${formatOrDash(serverValue?.max)} ${unitLabel}`}
@@ -159,7 +188,7 @@ function ContentParameterCard({
             onChange={(event) =>
               onChangeField(parameter.backendKey, 'min', Number(event.target.value))
             }
-            disabled={isSaving}
+            disabled={isSaving || !canEdit}
             className={NUMBER_INPUT_CLASS}
             aria-label="최소"
           />
@@ -171,7 +200,7 @@ function ContentParameterCard({
             onChange={(event) =>
               onChangeField(parameter.backendKey, 'max', Number(event.target.value))
             }
-            disabled={isSaving}
+            disabled={isSaving || !canEdit}
             className={NUMBER_INPUT_CLASS}
             aria-label="최대"
           />
@@ -193,8 +222,6 @@ function ContentParameterCard({
   const serverAllowed = serverValue?.allowed
   return (
     <ParameterCard
-      categoryLabel={badge.label}
-      categoryChipClass={badge.chipClass}
       title={parameter.title}
       description={parameter.description}
       originalValueLabel={
@@ -214,7 +241,7 @@ function ContentParameterCard({
                 min: Number(event.target.value),
               })
             }
-            disabled={isSaving}
+            disabled={isSaving || !canEdit}
             className={NUMBER_INPUT_CLASS}
             aria-label="최소 시간"
           />
@@ -228,7 +255,7 @@ function ContentParameterCard({
                 max: Number(event.target.value),
               })
             }
-            disabled={isSaving}
+            disabled={isSaving || !canEdit}
             className={NUMBER_INPUT_CLASS}
             aria-label="최대 시간"
           />

@@ -5,8 +5,8 @@ import { BrowserExtensionErrorGuard, LogBootstrapLoader, UserBootstrapLoader } f
 import "@/shared/styles/index.css";
 
 export const metadata: Metadata = {
-  title: "네모닉 월드",
-  description: "네모닉 월드",
+  title: "Play! Nemonic",
+  description: "Play! Nemonic",
 };
 
 export default function RootLayout({
@@ -15,8 +15,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">
+    <html lang="ko" className="h-full antialiased" suppressHydrationWarning>
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <BrowserExtensionErrorGuard />
         <UserBootstrapLoader />
         <LogBootstrapLoader />

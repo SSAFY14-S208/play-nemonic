@@ -1,11 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { HTTPError } from 'ky'
 import { toast } from 'sonner'
 import {
   ApiError,
   deleteCommunityMemo,
-  getArtifactImageUrls,
   getCommunityMemo,
   getCommunityMemoList,
   patchCommunityMemo,
@@ -13,14 +13,26 @@ import {
 } from '@/shared/apis'
 import { useUserStore } from '@/shared/stores'
 import type {
-  ArtifactImageUrlResponse,
   CommunityMemoDetailResponse,
   CommunityMemoItemResponse,
   CommunityMemoLayoutRequest,
   CommunityMemoReportReason,
 } from '@/shared/types'
+import {
+  isCommunityAnimatedImageUrl,
+  preloadCommunityMemoSounds,
+  playCommunityMemoAttachSound,
+  playCommunityMemoDetachSound,
+} from '../utils'
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
+type MemoPlaybackImageUrlMap = Record<string, string>
+type MemoWithDecoration = Pick<CommunityMemoItemResponse, 'decoration'>
+type ApiErrorResponseBody = {
+  message?: unknown
+}
+
+const DUPLICATE_REPORT_ERROR_MESSAGE = '이미 신고한 메모는 중복 신고할 수 없어요.'
 
 export interface CommunityMemoLayoutDraft {
   positionX: number
@@ -33,6 +45,38 @@ function toErrorMessage(error: unknown, fallback: string) {
   if (error instanceof ApiError) return error.message || fallback
   if (error instanceof Error) return error.message || fallback
   return fallback
+}
+
+function isDuplicateReportMessage(message: string) {
+  return message.includes('중복') || (message.includes('이미') && message.includes('신고'))
+}
+
+async function toHttpErrorResponseMessage(error: HTTPError) {
+  try {
+    const responseBody = (await error.response.clone().json()) as ApiErrorResponseBody
+    return typeof responseBody.message === 'string' ? responseBody.message : null
+  } catch {
+    return null
+  }
+}
+
+async function toReportErrorMessage(error: unknown) {
+  if (error instanceof ApiError && isDuplicateReportMessage(error.message)) {
+    return DUPLICATE_REPORT_ERROR_MESSAGE
+  }
+
+  if (error instanceof HTTPError) {
+    const responseMessage = await toHttpErrorResponseMessage(error)
+    if (responseMessage && isDuplicateReportMessage(responseMessage)) {
+      return DUPLICATE_REPORT_ERROR_MESSAGE
+    }
+
+    if (error.response.status === 404 || error.response.status === 409) {
+      return DUPLICATE_REPORT_ERROR_MESSAGE
+    }
+  }
+
+  return toErrorMessage(error, '신고 접수에 실패했어요.')
 }
 
 function toLayoutDraft(memo: CommunityMemoItemResponse): CommunityMemoLayoutDraft {
@@ -58,33 +102,62 @@ function applyMemoDetailLayout(
   }
 }
 
-function shouldResolveAnimatedDetailImage(detail: CommunityMemoDetailResponse) {
-  return detail.sourceType === 'GALLERY' && detail.artifactId !== null
+function getDecorationString(decoration: unknown, key: string) {
+  if (!decoration || typeof decoration !== 'object') return null
+  const value = (decoration as Record<string, unknown>)[key]
+  return typeof value === 'string' && value.length > 0 ? value : null
 }
 
-function getArtifactGifUrl(artifactImages: ArtifactImageUrlResponse) {
-  return (
-    artifactImages.contents.find(
-      (content) => content.type.toLowerCase() === 'gif' && content.url.length > 0,
-    )?.url ?? null
-  )
-}
+function getDecorationPlaybackImageUrl(memo: MemoWithDecoration) {
+  const sourceContentKind = getDecorationString(memo.decoration, 'sourceContentKind')
+  const playbackImageUrl =
+    getDecorationString(memo.decoration, 'sourcePlaybackImageUrl') ||
+    getDecorationString(memo.decoration, 'playbackImageUrl') ||
+    getDecorationString(memo.decoration, 'sourceImageUrl')
 
-async function getAnimatedDetailImageUrl(detail: CommunityMemoDetailResponse) {
-  if (!shouldResolveAnimatedDetailImage(detail) || !detail.artifactId) return null
+  if (!playbackImageUrl) return null
 
-  try {
-    const artifactImages = await getArtifactImageUrls(detail.artifactId)
-    return getArtifactGifUrl(artifactImages)
-  } catch {
-    return null
+  if (
+    isCommunityAnimatedImageUrl(playbackImageUrl) ||
+    sourceContentKind?.toLowerCase() === 'flipbook'
+  ) {
+    return playbackImageUrl
   }
+
+  return null
+}
+
+function getMemoGifImageUrl(memo: CommunityMemoItemResponse) {
+  const gifImageUrl = [
+    memo.memoOriginalImageUrl,
+    memo.memoImageUrl,
+    memo.memoThumbnailImageUrl,
+  ].find(isCommunityAnimatedImageUrl)
+
+  return gifImageUrl ?? null
+}
+
+function getAnimatedDetailImageUrl(detail: CommunityMemoDetailResponse) {
+  if (detail.memoPlaybackImageUrl) return detail.memoPlaybackImageUrl
+  const decorationPlaybackImageUrl = getDecorationPlaybackImageUrl(detail)
+  if (decorationPlaybackImageUrl) return decorationPlaybackImageUrl
+  return getMemoGifImageUrl(detail)
+}
+
+function getAnimatedMemoImageUrl(memo: CommunityMemoItemResponse) {
+  if (memo.memoPlaybackImageUrl) return memo.memoPlaybackImageUrl
+  const decorationPlaybackImageUrl = getDecorationPlaybackImageUrl(memo)
+  if (decorationPlaybackImageUrl) return decorationPlaybackImageUrl
+  return getMemoGifImageUrl(memo)
 }
 
 export function useCommunityCanvas() {
   const userUuid = useUserStore((state) => state.userUuid)
   const detailRequestIdRef = useRef(0)
+  const memoPlaybackRequestIdRef = useRef(0)
   const [memos, setMemos] = useState<CommunityMemoItemResponse[]>([])
+  const [memoPlaybackImageUrls, setMemoPlaybackImageUrls] =
+    useState<MemoPlaybackImageUrlMap>({})
   const [memoStatus, setMemoStatus] = useState<AsyncStatus>('idle')
   const [memoError, setMemoError] = useState<string | null>(null)
   const [selectedWallMemoUuid, setSelectedWallMemoUuid] = useState<string | null>(null)
@@ -101,19 +174,64 @@ export function useCommunityCanvas() {
   const [mutationStatus, setMutationStatus] = useState<AsyncStatus>('idle')
   const [reportStatus, setReportStatus] = useState<AsyncStatus>('idle')
 
+  useEffect(() => {
+    preloadCommunityMemoSounds()
+  }, [])
+
+  const resolveMemoPlaybackImageUrls = useCallback(
+    (nextMemos: CommunityMemoItemResponse[], requestId: number) => {
+      const playbackEntries = nextMemos.map((memo) => {
+        const animatedImageUrl = getAnimatedMemoImageUrl(memo)
+        return animatedImageUrl ? ([memo.memoUuid, animatedImageUrl] as const) : null
+      })
+
+      if (memoPlaybackRequestIdRef.current !== requestId) return
+
+      setMemoPlaybackImageUrls((currentPlaybackImageUrls) => {
+        const nextPlaybackImageUrls = { ...currentPlaybackImageUrls }
+
+        playbackEntries.forEach((entry) => {
+          if (!entry) return
+          const [memoUuid, animatedImageUrl] = entry
+          nextPlaybackImageUrls[memoUuid] = animatedImageUrl
+        })
+
+        return nextPlaybackImageUrls
+      })
+    },
+    [],
+  )
+
   const loadCommunityMemos = useCallback(async () => {
+    const requestId = memoPlaybackRequestIdRef.current + 1
+    memoPlaybackRequestIdRef.current = requestId
     setMemoStatus('loading')
     setMemoError(null)
 
     try {
       const response = await getCommunityMemoList()
       setMemos(response.items)
+      setMemoPlaybackImageUrls((currentPlaybackImageUrls) => {
+        const nextPlaybackImageUrls: MemoPlaybackImageUrlMap = {}
+
+        response.items.forEach((memo) => {
+          const playbackImageUrl =
+            memo.memoPlaybackImageUrl || currentPlaybackImageUrls[memo.memoUuid]
+
+          if (playbackImageUrl) {
+            nextPlaybackImageUrls[memo.memoUuid] = playbackImageUrl
+          }
+        })
+
+        return nextPlaybackImageUrls
+      })
       setMemoStatus('success')
+      void resolveMemoPlaybackImageUrls(response.items, requestId)
     } catch (error) {
       setMemoError(toErrorMessage(error, '커뮤니티 메모를 불러오지 못했어요.'))
       setMemoStatus('error')
     }
-  }, [])
+  }, [resolveMemoPlaybackImageUrls])
 
   const loadCommunityMemosWithCreatedMemo = useCallback(
     async (createdMemo: CommunityMemoDetailResponse) => {
@@ -164,7 +282,7 @@ export function useCommunityCanvas() {
       setSelectedMemoDetail(detail)
       setDetailStatus('success')
 
-      const animatedImageUrl = await getAnimatedDetailImageUrl(detail)
+      const animatedImageUrl = getAnimatedDetailImageUrl(detail)
       if (detailRequestIdRef.current !== requestId) return
 
       setSelectedMemoPlaybackImageUrl(animatedImageUrl)
@@ -200,10 +318,15 @@ export function useCommunityCanvas() {
       return
     }
 
+    const isEnteringLayoutEdit = editingMemo?.memoUuid !== memo.memoUuid || !editingLayoutDraft
+    if (isEnteringLayoutEdit) {
+      playCommunityMemoDetachSound()
+    }
+
     setEditingMemo(memo)
     setEditingLayoutDraft(toLayoutDraft(memo))
     setMutationStatus('idle')
-  }, [])
+  }, [editingLayoutDraft, editingMemo])
 
   const clearWallMemoSelection = useCallback(() => {
     setSelectedWallMemoUuid(null)
@@ -219,6 +342,7 @@ export function useCommunityCanvas() {
     setSelectedWallMemoUuid(selectedMemoDetail.memoUuid)
     setEditingMemo(selectedMemoDetail)
     setEditingLayoutDraft(toLayoutDraft(selectedMemoDetail))
+    playCommunityMemoDetachSound()
     setSelectedMemoUuid(null)
     setSelectedMemoDetail(null)
     setSelectedMemoPlaybackImageUrl(null)
@@ -266,6 +390,7 @@ export function useCommunityCanvas() {
       setEditingMemo(null)
       setEditingLayoutDraft(null)
       setMutationStatus('success')
+      playCommunityMemoAttachSound()
       toast.success('메모 위치를 저장했어요.')
     } catch (error) {
       setMutationStatus('error')
@@ -283,6 +408,7 @@ export function useCommunityCanvas() {
       closeMemoDetail()
       await loadCommunityMemos()
       setMutationStatus('success')
+      playCommunityMemoDetachSound()
       toast.success('메모를 벽에서 떼어냈어요.')
     } catch (error) {
       setMutationStatus('error')
@@ -306,7 +432,7 @@ export function useCommunityCanvas() {
         return true
       } catch (error) {
         setReportStatus('error')
-        toast.error(toErrorMessage(error, '신고 접수에 실패했어요.'))
+        toast.error(await toReportErrorMessage(error))
         return false
       }
     },
@@ -323,6 +449,7 @@ export function useCommunityCanvas() {
 
   return {
     memos,
+    memoPlaybackImageUrls,
     memoStatus,
     memoError,
     selectedWallMemoUuid,

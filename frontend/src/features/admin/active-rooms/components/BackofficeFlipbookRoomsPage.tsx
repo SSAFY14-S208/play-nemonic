@@ -2,6 +2,9 @@
 
 import { Search } from 'lucide-react'
 
+import { useAdminAuthStore } from '@/shared/stores'
+import { canMutateBackoffice, formatKoreanDateTime } from '@/shared/utils'
+import { AdminReadOnlyNotice } from '../../components'
 import { useBackofficeFlipbookRooms } from '../hooks'
 import type { FlipbookRoomStatusFilter } from '../hooks'
 
@@ -18,10 +21,7 @@ const STATUS_OPTIONS: RoomFilterOption<FlipbookRoomStatusFilter>[] = [
 ]
 
 function formatGameStartedAt(value: string | null): string {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleTimeString('ko-KR', {
+  return formatKoreanDateTime(value, {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
@@ -38,6 +38,8 @@ function formatRound(
 }
 
 export default function BackofficeFlipbookRoomsPage() {
+  const adminRole = useAdminAuthStore((state) => state.admin?.role ?? null)
+  const canManageRooms = canMutateBackoffice(adminRole)
   const {
     items,
     isFiltered,
@@ -72,6 +74,8 @@ export default function BackofficeFlipbookRoomsPage() {
         />
       </header>
 
+      {!canManageRooms && <AdminReadOnlyNotice />}
+
       <div className="flex items-center gap-2">
         <div className="flex flex-1 items-center gap-2 rounded-[var(--radius-md)] border border-border-default bg-surface-default px-3 py-2">
           <Search className="h-4 w-4 text-fg-secondary" />
@@ -85,8 +89,8 @@ export default function BackofficeFlipbookRoomsPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-[var(--radius-lg)] border border-border-default bg-surface-default">
-        <table className="w-full">
+      <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-border-default bg-surface-default">
+        <table className="min-w-[720px] w-full">
           <thead>
             <tr className="border-b border-border-default bg-surface-subtle">
               <th className="caption-b px-4 py-3 text-left text-fg-secondary">
@@ -165,7 +169,12 @@ export default function BackofficeFlipbookRoomsPage() {
                     <button
                       type="button"
                       onClick={() => forceClose(room.roomCode)}
-                      disabled={isMutating}
+                      disabled={isMutating || !canManageRooms}
+                      title={
+                        canManageRooms
+                          ? undefined
+                          : '뷰어 권한은 조회만 가능합니다.'
+                      }
                       className="caption-b rounded-[var(--radius-md)] bg-red-500 px-3 py-1.5 text-fg-inverse transition-opacity hover:bg-red-600 disabled:opacity-50"
                     >
                       강제 종료

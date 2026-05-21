@@ -1,44 +1,76 @@
 'use client'
 
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
+import { Plus, RefreshCw, X } from 'lucide-react'
 import { WorldHomeLink } from '@/shared/components/WorldHomeLink'
+import { DEFAULT_USER_NICKNAME } from '@/shared/constants'
 import { cn } from '@/shared/libs'
-import { consumeCommunityCanvasHandoffDraft } from '@/shared/utils'
+import { useCanvasPauseStore, useUserStore } from '@/shared/stores'
+import {
+  COMMUNITY_CANVAS_HANDOFF_EVENT,
+  consumeCommunityCanvasHandoffDraft,
+  type CommunityCanvasHandoffDraft,
+} from '@/shared/utils'
 import {
   CommunityComposerModal,
   CommunityMemoDetailModal,
+  CommunityNicknameModal,
+  CommunityMemoPrintRevealOverlay,
   CommunityReportModal,
   CommunityWall,
 } from './components'
 import { useCommunityCanvas, useCommunityComposer } from './hooks'
-
-const refreshButtonStyle = {
-  backgroundImage: 'url("/images/community-canvas/ui/button-refresh-token.png")',
-} satisfies CSSProperties
-
-const memoButtonStyle = {
-  backgroundImage: 'url("/images/community-canvas/ui/button-add-token.png")',
-} satisfies CSSProperties
+import type { CommunityMemoLayoutDraft } from './hooks'
 
 type CommunityCanvasThemeStyle = CSSProperties & Record<`--${string}`, string>
+type PendingCommunityNicknameAction =
+  | { kind: 'openComposer' }
+  | { kind: 'openComposerWithHandoffDraft'; draft: CommunityCanvasHandoffDraft }
+  | { kind: 'attachPendingMemo'; layout: CommunityMemoLayoutDraft }
+  | null
 
 const communityCanvasThemeStyle: CommunityCanvasThemeStyle = {
-  '--color-primary-1': '#FFB72C',
-  '--color-primary-2': '#E88900',
-  '--color-primary-5': '#FFF0B8',
+  '--color-primary-1': '#B8AED3',
+  '--color-primary-2': '#6A5F82',
+  '--color-primary-5': '#ECE7F7',
   '--color-fg-primary': '#2D2638',
   '--color-fg-secondary': '#6F6681',
   '--color-fg-disabled': '#B4ACBF',
-  '--color-border-default': '#E7DAB8',
+  '--color-border-default': '#D7D0E4',
+  '--community-action-button-border': '#B7AEC9',
+  '--community-action-button-ring': 'rgb(255 255 255 / 0.78)',
 }
 
 export function CommunityCanvasPage() {
+  const nickname = useUserStore((state) => state.nickname)
+  const isCanvasPaused = useCanvasPauseStore((state) => state.isPaused)
   const [isReportOpen, setReportOpen] = useState(false)
+  const [isNicknameModalOpen, setNicknameModalOpen] = useState(false)
+  const [pendingNicknameAction, setPendingNicknameAction] =
+    useState<PendingCommunityNicknameAction>(null)
   const communityCanvas = useCommunityCanvas()
   const composer = useCommunityComposer({
     onCreated: communityCanvas.loadCommunityMemosWithCreatedMemo,
   })
   const { openComposerWithHandoffDraft } = composer
+  const needsNicknameSetup =
+    !nickname || nickname.trim() === '' || nickname === DEFAULT_USER_NICKNAME
+
+  const openComposerFromHandoffDraft = useCallback(
+    (handoffDraft: CommunityCanvasHandoffDraft) => {
+      if (needsNicknameSetup) {
+        setPendingNicknameAction({
+          kind: 'openComposerWithHandoffDraft',
+          draft: handoffDraft,
+        })
+        setNicknameModalOpen(true)
+        return
+      }
+
+      openComposerWithHandoffDraft(handoffDraft)
+    },
+    [needsNicknameSetup, openComposerWithHandoffDraft],
+  )
 
   useEffect(() => {
     let isCancelled = false
@@ -48,21 +80,99 @@ export function CommunityCanvasPage() {
       const handoffDraft = consumeCommunityCanvasHandoffDraft()
 
       if (!isCancelled && handoffDraft) {
-        openComposerWithHandoffDraft(handoffDraft)
+        openComposerFromHandoffDraft(handoffDraft)
       }
     })()
 
     return () => {
       isCancelled = true
     }
-  }, [openComposerWithHandoffDraft])
+  }, [openComposerFromHandoffDraft])
+
+  useEffect(() => {
+    const handleCommunityHandoff = () => {
+      const handoffDraft = consumeCommunityCanvasHandoffDraft()
+      if (handoffDraft) {
+        openComposerFromHandoffDraft(handoffDraft)
+      }
+    }
+
+    window.addEventListener(COMMUNITY_CANVAS_HANDOFF_EVENT, handleCommunityHandoff)
+    return () => {
+      window.removeEventListener(COMMUNITY_CANVAS_HANDOFF_EVENT, handleCommunityHandoff)
+    }
+  }, [openComposerFromHandoffDraft])
 
   const isAttachingMemo =
     composer.pendingPlacement !== null && composer.postStatus === 'loading'
+  const hasPendingPlacement = composer.pendingPlacement !== null
   const isSavingLayout =
     communityCanvas.editingMemo !== null && communityCanvas.mutationStatus === 'loading'
   const isHeaderActionsDisabled =
-    composer.isComposerOpen || communityCanvas.selectedMemoUuid !== null || isReportOpen
+    composer.isComposerOpen ||
+    composer.printRevealPlacement !== null ||
+    communityCanvas.selectedMemoUuid !== null ||
+    isNicknameModalOpen ||
+    isReportOpen
+  const isCommunityPopupOpen =
+    composer.isComposerOpen ||
+    composer.printRevealPlacement !== null ||
+    communityCanvas.selectedMemoUuid !== null ||
+    isNicknameModalOpen ||
+    isReportOpen
+  const isWallPlaybackPaused = isCommunityPopupOpen || isCanvasPaused
+  const isDetailPlaybackPaused = isReportOpen || isCanvasPaused
+
+  const openNicknameModalWithAction = (
+    nextAction: NonNullable<PendingCommunityNicknameAction>,
+  ) => {
+    setPendingNicknameAction(nextAction)
+    setNicknameModalOpen(true)
+  }
+
+  const handleOpenComposer = () => {
+    if (needsNicknameSetup) {
+      openNicknameModalWithAction({ kind: 'openComposer' })
+      return
+    }
+
+    composer.openComposer()
+  }
+
+  const handleAttachPendingMemo = (layout: CommunityMemoLayoutDraft) => {
+    if (needsNicknameSetup) {
+      openNicknameModalWithAction({ kind: 'attachPendingMemo', layout })
+      return
+    }
+
+    void composer.attachPendingMemo(layout)
+  }
+
+  const handleNicknameModalChange = (open: boolean) => {
+    setNicknameModalOpen(open)
+    if (!open) {
+      setPendingNicknameAction(null)
+    }
+  }
+
+  const handleNicknameSetupSuccess = () => {
+    const nextAction = pendingNicknameAction
+    setPendingNicknameAction(null)
+
+    if (!nextAction) return
+
+    if (nextAction.kind === 'openComposer') {
+      composer.openComposer()
+      return
+    }
+
+    if (nextAction.kind === 'openComposerWithHandoffDraft') {
+      composer.openComposerWithHandoffDraft(nextAction.draft)
+      return
+    }
+
+    void composer.attachPendingMemo(nextAction.layout)
+  }
 
   const handleDeleteSelectedMemo = () => {
     if (typeof window !== 'undefined') {
@@ -84,34 +194,54 @@ export function CommunityCanvasPage() {
           <button
             type="button"
             aria-label="새로고침"
-            disabled={isHeaderActionsDisabled}
+            disabled={isHeaderActionsDisabled || hasPendingPlacement}
             onClick={() => void communityCanvas.loadCommunityMemos()}
-            style={refreshButtonStyle}
             className={cn(
-              'size-20 rounded-full bg-contain bg-center bg-no-repeat drop-shadow-[0_8px_10px_rgb(61_77_70_/_22%)] transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5',
-              isHeaderActionsDisabled
+              'grid size-14 place-items-center rounded-full border-2 border-[var(--community-action-button-border)] bg-white/82 text-fg-secondary shadow-[0_10px_26px_rgb(73_55_93_/_20%)] ring-2 ring-[color:var(--community-action-button-ring)] backdrop-blur-md transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5 sm:size-16',
+              isHeaderActionsDisabled || hasPendingPlacement
                 ? 'invisible cursor-not-allowed'
-                : 'hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:brightness-95',
+                : 'hover:-translate-y-0.5 hover:bg-white hover:text-fg-primary active:translate-y-0 active:bg-white/90',
             )}
-          />
-          <button
-            type="button"
-            aria-label="새 메모 붙이기"
-            disabled={isHeaderActionsDisabled}
-            onClick={composer.openComposer}
-            style={memoButtonStyle}
-            className={cn(
-              'size-20 rounded-full bg-contain bg-center bg-no-repeat drop-shadow-[0_8px_10px_rgb(61_77_70_/_22%)] transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5',
-              isHeaderActionsDisabled
-                ? 'invisible cursor-not-allowed'
-                : 'hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:brightness-95',
-            )}
-          />
+          >
+            <RefreshCw className="size-7 sm:size-8" strokeWidth={2.5} />
+          </button>
+          {hasPendingPlacement ? (
+            <button
+              type="button"
+              aria-label="메모 부착 취소"
+              disabled={isAttachingMemo}
+              onClick={composer.cancelPendingPlacement}
+              className={cn(
+                'grid size-14 place-items-center rounded-full border-2 border-[var(--community-action-button-border)] bg-white/82 text-fg-secondary shadow-[0_10px_26px_rgb(73_55_93_/_20%)] ring-2 ring-[color:var(--community-action-button-ring)] backdrop-blur-md transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5 sm:size-16',
+                isAttachingMemo
+                  ? 'cursor-not-allowed opacity-60'
+                  : 'hover:-translate-y-0.5 hover:bg-white hover:text-fg-primary active:translate-y-0 active:bg-white/90',
+              )}
+            >
+              <X className="size-8 sm:size-9" strokeWidth={2.5} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              aria-label="새 메모 붙이기"
+              disabled={isHeaderActionsDisabled}
+              onClick={handleOpenComposer}
+              className={cn(
+                'grid size-14 place-items-center rounded-full border-2 border-[var(--community-action-button-border)] bg-white/82 text-fg-secondary shadow-[0_10px_26px_rgb(73_55_93_/_20%)] ring-2 ring-[color:var(--community-action-button-ring)] backdrop-blur-md transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-5 sm:size-16',
+                isHeaderActionsDisabled
+                  ? 'invisible cursor-not-allowed'
+                  : 'hover:-translate-y-0.5 hover:bg-white hover:text-fg-primary active:translate-y-0 active:bg-white/90',
+              )}
+            >
+              <Plus className="size-8 sm:size-9" strokeWidth={2.5} />
+            </button>
+          )}
         </div>
       </header>
 
       <CommunityWall
         memos={communityCanvas.memos}
+        memoPlaybackImageUrls={communityCanvas.memoPlaybackImageUrls}
         selectedMemoUuid={communityCanvas.selectedWallMemoUuid}
         memoStatus={communityCanvas.memoStatus}
         memoError={communityCanvas.memoError}
@@ -121,17 +251,29 @@ export function CommunityCanvasPage() {
         nextZIndex={communityCanvas.nextZIndex}
         isAttachingMemo={isAttachingMemo}
         isSavingLayout={isSavingLayout}
+        isPlaybackPaused={isWallPlaybackPaused}
         onSelectMemo={communityCanvas.selectWallMemo}
         onClearSelection={communityCanvas.clearWallMemoSelection}
         onOpenMemoDetail={(memoUuid) => void communityCanvas.openMemoDetail(memoUuid)}
-        onAttachPendingMemo={(placement) => void composer.attachPendingMemo(placement)}
-        onCancelPendingMemo={composer.cancelPendingPlacement}
+        onAttachPendingMemo={handleAttachPendingMemo}
         onEditingLayoutChange={communityCanvas.updateEditingLayoutDraft}
         onSaveEditingLayout={(layout) => void communityCanvas.saveEditingMemoLayout(layout)}
         onRetry={() => void communityCanvas.loadCommunityMemos()}
       />
 
       <CommunityComposerModal composer={composer} />
+
+      <CommunityNicknameModal
+        open={isNicknameModalOpen}
+        onOpenChange={handleNicknameModalChange}
+        onSuccess={handleNicknameSetupSuccess}
+      />
+
+      <CommunityMemoPrintRevealOverlay
+        placement={composer.printRevealPlacement}
+        onAccept={composer.acceptPrintedMemoPlacement}
+        onCancel={composer.cancelPrintedMemoPlacement}
+      />
 
       <CommunityMemoDetailModal
         isOpen={communityCanvas.selectedMemoUuid !== null}
@@ -140,6 +282,7 @@ export function CommunityCanvasPage() {
         detailStatus={communityCanvas.detailStatus}
         detailError={communityCanvas.detailError}
         mutationStatus={communityCanvas.mutationStatus}
+        isPlaybackPaused={isDetailPlaybackPaused}
         onClose={communityCanvas.closeMemoDetail}
         onDelete={handleDeleteSelectedMemo}
         onReportOpen={() => setReportOpen(true)}

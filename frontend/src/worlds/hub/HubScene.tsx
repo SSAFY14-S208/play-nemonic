@@ -1,8 +1,10 @@
 import { Suspense } from 'react'
-import { ContactShadows } from '@react-three/drei'
+import { ContactShadows, Stats } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import CameraRig from './CameraRig'
+import HubPostProcessing from './HubPostProcessing'
 import LightingSetup from './LightingSetup'
+import HubSkyDome from './objects/HubSkyDome'
 import MonitorGameSelector from './objects/MonitorGameSelector'
 import NemonicPrinterStation from './objects/NemonicPrinterStation'
 import PegboardAreaMesh from './objects/PegboardAreaMesh'
@@ -13,6 +15,7 @@ import { useHubPrintStore } from '@/shared/stores'
 import type { HubPerformanceMode } from '@/shared/types'
 import {
   isHubPerformanceDiagnosticsEnabled,
+  isHubPerfOverlayEnabled,
   trackHubFrame,
 } from '@/shared/utils'
 
@@ -31,11 +34,20 @@ export default function HubScene({
 }) {
   const notes = useHubPrintStore((state) => state.notes)
   const performanceProfile = HUB_PERFORMANCE_PROFILES[performanceMode]
+  const sceneBackgroundColor = performanceProfile.environment ? '#f2edf7' : '#17112c'
+  const sceneFogColor = performanceProfile.environment ? '#f2edf7' : '#17112c'
+  const showPerfOverlay = isHubPerfOverlayEnabled()
 
   return (
     <>
-      <color attach="background" args={['#17112c']} />
-      <fog attach="fog" args={['#17112c', 17, 36]} />
+      <color attach="background" args={[sceneBackgroundColor]} />
+      <fog attach="fog" args={[sceneFogColor, 17, 36]} />
+      {showPerfOverlay && <Stats />}
+      {performanceProfile.environment && !performanceProfile.environmentBackground && (
+        <Suspense fallback={null}>
+          <HubSkyDome />
+        </Suspense>
+      )}
       <CameraRig performanceMode={performanceMode} />
       {isHubPerformanceDiagnosticsEnabled(performanceMode) && (
         <HubRenderDiagnostics />
@@ -57,20 +69,21 @@ export default function HubScene({
           note={note}
         />
       ))}
-      {performanceProfile.contactShadows && (
+      {performanceProfile.contactShadow && (
         <Suspense fallback={null}>
           <ContactShadows
-            blur={2.6}
-            color="#9e88cc"
-            far={6.5}
-            frames={1}
-            opacity={0.18}
+            blur={performanceProfile.contactShadow.blur}
+            color={performanceProfile.contactShadow.color}
+            far={performanceProfile.contactShadow.far}
+            frames={performanceProfile.contactShadow.frames}
+            opacity={performanceProfile.contactShadow.opacity}
             position={[-1.05, -0.08, -1.95]}
-            resolution={768}
-            scale={9.5}
+            resolution={performanceProfile.contactShadow.resolution}
+            scale={performanceProfile.contactShadow.scale}
           />
         </Suspense>
       )}
+      <HubPostProcessing performanceMode={performanceMode} />
     </>
   )
 }

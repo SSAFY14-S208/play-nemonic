@@ -2,12 +2,17 @@ export type HubGameId =
   | 'fortune-memo'
   | 'flipbook'
   | 'relay-drawing'
-  | 'community-canvas'
+  | 'infinite-canvas'
+
+export type HubGameLightingId = HubGameId | 'community-canvas'
 
 export interface HubGame {
   accentColor: string
   description: string
+  detail: string
   id: HubGameId
+  lightingColor: string
   route: string
+  tagline: string
   title: string
 }

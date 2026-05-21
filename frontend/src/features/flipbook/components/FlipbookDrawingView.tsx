@@ -2,19 +2,22 @@
 
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
-import { useEffect, useRef, useState } from 'react'
-import { Eye, EyeOff, Timer } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 import {
   ColorPanel,
   DrawingCompleteButton,
   HintToggleButton,
-  MobileColorGrid,
-  MobileToolGrid,
+  HowToPlayModal,
+  MobileBrushOpacityBar,
+  MobileColorBar,
+  MobileToolBar,
+  PhoneLauncherButton,
   ProgressRail,
   ToolPanel,
   TopStatusBar,
 } from '@/shared/components'
-import { DRAWING_COLORS } from '@/shared/constants'
+import { DRAWING_COLORS, DRAWING_STROKE_WIDTH_OPTIONS } from '@/shared/constants'
 import { useDrawingKeyboardShortcuts } from '@/shared/hooks'
 import { cn } from '@/shared/libs'
 import type {
@@ -23,7 +26,13 @@ import type {
   DrawingToolKey,
   FlipbookConnectionStatus,
 } from '@/shared/types'
+import {
+  FLIPBOOK_BOARD_SIZE,
+  FLIPBOOK_HOW_TO_PLAY_PANELS,
+  FLIPBOOK_SOUND_PATHS,
+} from '../constants'
 import type { FlipbookDrawingSubmissionState, FlipbookParticipant } from '../types'
+import { useFlipbookEntranceBgm, useResponsiveElementScale } from '../hooks'
 
 const FlipbookStage = dynamic(() => import('../FlipbookStage'), {
   ssr: false,
@@ -31,6 +40,9 @@ const FlipbookStage = dynamic(() => import('../FlipbookStage'), {
 
 const FLIPBOOK_DRAWING_IMAGES = {
   background: '/images/flipbook-lobby/background.png',
+  howToPlay: '/images/flipbook-entrance-scene/how-to-play-button.png',
+  soundOn: '/images/flipbook-entrance-scene/sound-on-button.png',
+  soundMuted: '/images/flipbook-entrance-scene/sound-muted-button.png',
 }
 
 // 데스크탑(lg+) 그리기 화면은 1536×1024 디자인을 기준으로 절대 좌표로 배치되어
@@ -47,6 +59,8 @@ interface FlipbookDrawingViewProps {
   isSubmitting: boolean
   isRoundSubmitted: boolean
   isAssignmentReady: boolean
+  submittedCount: number
+  totalCount: number
   connectionStatus: FlipbookConnectionStatus
   errorMessage: string | null
   lines: DrawingLine[]
@@ -79,6 +93,8 @@ export default function FlipbookDrawingView({
   isSubmitting,
   isRoundSubmitted,
   isAssignmentReady,
+  submittedCount,
+  totalCount,
   connectionStatus,
   errorMessage,
   lines,
@@ -102,6 +118,10 @@ export default function FlipbookDrawingView({
   onDrawEnd,
   onCompleteRound,
 }: FlipbookDrawingViewProps) {
+  const [isHowToPlayModalOpen, setIsHowToPlayModalOpen] = useState(false)
+  const { audioRef, isBgmMuted, toggleFlipbookEntranceBgmMuted } = useFlipbookEntranceBgm({
+    shouldStart: true,
+  })
   const [submittedRoundIndex, setSubmittedRoundIndex] = useState<number | null>(null)
   const [isOnionSkinVisible, setIsOnionSkinVisible] = useState(true)
   const isConnectionUnstable =
@@ -187,29 +207,20 @@ export default function FlipbookDrawingView({
     }
   }, [activeRoundIndex, previousFrameLines.length])
 
-  // 데스크탑 레이아웃 동적 스케일 — 부모 크기를 측정해 1536×1024 디자인이
-  // 정확히 들어맞는 scale을 계산. 측정 전 0이면 인너가 사라져 클리핑을 방지한다.
-  const desktopWrapperRef = useRef<HTMLDivElement>(null)
-  const [desktopScale, setDesktopScale] = useState(0)
-
-  useEffect(() => {
-    const wrapper = desktopWrapperRef.current
-    if (!wrapper) return
-    const updateScale = () => {
-      const rect = wrapper.getBoundingClientRect()
-      if (rect.width === 0 || rect.height === 0) return
-      const widthRatio = rect.width / DESKTOP_DESIGN_WIDTH
-      const heightRatio = rect.height / DESKTOP_DESIGN_HEIGHT
-      setDesktopScale(Math.min(widthRatio, heightRatio, 1))
-    }
-    const raf = requestAnimationFrame(updateScale)
-    const observer = new ResizeObserver(updateScale)
-    observer.observe(wrapper)
-    return () => {
-      cancelAnimationFrame(raf)
-      observer.disconnect()
-    }
-  }, [])
+  const {
+    containerRef: mobileBoardContainerRef,
+    elementScale: mobileBoardScale,
+  } = useResponsiveElementScale({
+    sourceWidth: FLIPBOOK_BOARD_SIZE.width,
+    sourceHeight: FLIPBOOK_BOARD_SIZE.height,
+  })
+  const {
+    containerRef: desktopWrapperRef,
+    elementScale: desktopScale,
+  } = useResponsiveElementScale({
+    sourceWidth: DESKTOP_DESIGN_WIDTH,
+    sourceHeight: DESKTOP_DESIGN_HEIGHT,
+  })
 
   const handleCompleteRound = () => {
     if (isDrawingLocked) return
@@ -233,14 +244,29 @@ export default function FlipbookDrawingView({
         aria-hidden
       />
 
-      <div className="relative z-10 grid w-full gap-4 px-3 py-4 lg:hidden">
+      <audio ref={audioRef} src={FLIPBOOK_SOUND_PATHS.entranceBgm} preload="auto" loop aria-hidden />
+
+      <div className="relative z-10 grid w-full gap-4 px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 lg:hidden">
+        <div className="flex items-center justify-end gap-2">
+          <FlipbookDrawingIconButton
+            imageSrc={FLIPBOOK_DRAWING_IMAGES.howToPlay}
+            label="게임 설명"
+            onClick={() => setIsHowToPlayModalOpen(true)}
+          />
+          <FlipbookDrawingIconButton
+            imageSrc={isBgmMuted ? FLIPBOOK_DRAWING_IMAGES.soundMuted : FLIPBOOK_DRAWING_IMAGES.soundOn}
+            label={isBgmMuted ? '배경음악 켜기' : '배경음악 음소거'}
+            pressed={isBgmMuted}
+            onClick={toggleFlipbookEntranceBgmMuted}
+          />
+          <PhoneLauncherButton className="size-14" />
+        </div>
         <div className="rounded-[22px] border border-[#ead7c9] bg-white/90 p-4 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
           <div className="flex items-center justify-between gap-3">
             <p className="h2-b text-[#f45d8d]">
               {activeRoundIndex + 1}/{displayRoundCount}
             </p>
-            <div className="body-b inline-flex min-h-10 items-center gap-2 rounded-full border border-[#ead7c9] bg-white px-4 text-[#f45d8d]">
-              <Timer className="size-5" aria-hidden />
+            <div className="body-b inline-flex min-h-10 items-center rounded-full border border-[#ead7c9] bg-white px-4 text-[#f45d8d]">
               {remainingSeconds}초
             </div>
           </div>
@@ -251,7 +277,7 @@ export default function FlipbookDrawingView({
             disabled={!hasOnionSkinHint}
             aria-pressed={hasOnionSkinHint ? isOnionSkinVisible : undefined}
             className={cn(
-              'body-b mt-4 inline-flex min-h-10 items-center gap-2 rounded-full border px-4 transition',
+              'body-b mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border px-4 transition',
               hasOnionSkinHint
                 ? isOnionSkinVisible
                   ? 'border-[#ff8bab] bg-[#ffecf3] text-[#db4d82]'
@@ -268,7 +294,7 @@ export default function FlipbookDrawingView({
           </button>
         </div>
 
-        <MobileToolGrid
+        <MobileToolBar
           selectedToolKey={selectedToolKey}
           canUndoDrawing={canUndoDrawing}
           canRedoDrawing={canRedoDrawing}
@@ -279,27 +305,31 @@ export default function FlipbookDrawingView({
           onClearDrawing={onClearDrawing}
         />
 
-        <MobileColorGrid
-          colors={DRAWING_COLORS}
-          selectedColor={selectedColor}
-          selectedOpacity={selectedOpacity}
-          strokeWidth={strokeWidth}
-          isDrawingLocked={isDrawingLocked}
-          onSelectColor={onSelectColor}
-          onOpacityChange={onOpacityChange}
-          onStrokeWidthChange={onStrokeWidthChange}
-        />
-
-        <div className="overflow-x-auto rounded-[18px] border border-[#ead7c9] bg-white p-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
-          <div className="relative h-[520px] w-[680px] overflow-hidden rounded-[8px] bg-white">
-            <FlipbookStage
-              lines={lines}
-              previousFrameLines={isOnionSkinVisible ? previousFrameLines : []}
-              disabled={isDrawingLocked}
-              onDrawStart={onDrawStart}
-              onDrawMove={onDrawMove}
-              onDrawEnd={onDrawEnd}
-            />
+        <div className="min-w-0 rounded-[18px] border border-[#ead7c9] bg-white p-3 shadow-[0_10px_24px_rgb(129_89_54_/_14%)]">
+          <div
+            ref={mobileBoardContainerRef}
+            className="relative mx-auto w-full max-w-[680px] overflow-hidden rounded-[8px] bg-white"
+            style={{
+              aspectRatio: `${FLIPBOOK_BOARD_SIZE.width} / ${FLIPBOOK_BOARD_SIZE.height}`,
+            }}
+          >
+            <div
+              className="absolute left-1/2 top-1/2 origin-center"
+              style={{
+                width: FLIPBOOK_BOARD_SIZE.width,
+                height: FLIPBOOK_BOARD_SIZE.height,
+                transform: `translate(-50%, -50%) scale(${mobileBoardScale})`,
+              }}
+            >
+              <FlipbookStage
+                lines={lines}
+                previousFrameLines={isOnionSkinVisible ? previousFrameLines : []}
+                disabled={isDrawingLocked}
+                onDrawStart={onDrawStart}
+                onDrawMove={onDrawMove}
+                onDrawEnd={onDrawEnd}
+              />
+            </div>
             {(overlayMessage || isConnectionUnstable) && (
               <div className="body-b absolute inset-0 grid place-items-center bg-[#fff4a7]/72 text-flipbook-deep">
                 {isConnectionUnstable ? '연결 끊김 — 재연결 중...' : overlayMessage}
@@ -308,12 +338,31 @@ export default function FlipbookDrawingView({
           </div>
         </div>
 
+        <MobileColorBar
+          colors={DRAWING_COLORS}
+          selectedColor={selectedColor}
+          isDrawingLocked={isDrawingLocked}
+          onSelectColor={onSelectColor}
+        />
+
+        <MobileBrushOpacityBar
+          strokeWidth={strokeWidth}
+          strokeWidthOptions={DRAWING_STROKE_WIDTH_OPTIONS}
+          selectedOpacity={selectedOpacity}
+          isDrawingLocked={isDrawingLocked}
+          onStrokeWidthChange={onStrokeWidthChange}
+          onOpacityChange={onOpacityChange}
+        />
+
+        <SubmissionProgressBadge
+          submittedCount={submittedCount}
+          totalCount={totalCount}
+        />
+
         <DrawingCompleteButton
           onComplete={handleCompleteRound}
           disabled={isDrawingLocked}
-          className={cn(
-            'min-h-14 rounded-[16px]',
-          )}
+          className="min-h-14 rounded-[16px]"
           label={submitButtonText === '완료!' ? '완료하기' : submitButtonText}
         />
         {errorMessage && (
@@ -405,6 +454,11 @@ export default function FlipbookDrawingView({
 
           <ProgressRail activeRoundIndex={activeRoundIndex} roundCount={displayRoundCount} />
 
+          <SubmissionProgressBadge
+            className="absolute left-[1254px] top-[884px] h-9 w-[222px]"
+            submittedCount={submittedCount}
+            totalCount={totalCount}
+          />
           <DrawingCompleteButton
             onComplete={handleCompleteRound}
             disabled={isDrawingLocked}
@@ -420,6 +474,86 @@ export default function FlipbookDrawingView({
           )}
         </div>
       </div>
+      <div className="fixed right-4 top-4 z-[var(--z-sticky)] hidden items-center gap-2 lg:flex">
+        <FlipbookDrawingIconButton
+          imageSrc={FLIPBOOK_DRAWING_IMAGES.howToPlay}
+          label="게임 설명"
+          onClick={() => setIsHowToPlayModalOpen(true)}
+        />
+        <FlipbookDrawingIconButton
+          imageSrc={isBgmMuted ? FLIPBOOK_DRAWING_IMAGES.soundMuted : FLIPBOOK_DRAWING_IMAGES.soundOn}
+          label={isBgmMuted ? '배경음악 켜기' : '배경음악 음소거'}
+          pressed={isBgmMuted}
+          onClick={toggleFlipbookEntranceBgmMuted}
+        />
+        <PhoneLauncherButton />
+      </div>
+
+      <HowToPlayModal
+        open={isHowToPlayModalOpen}
+        onOpenChange={setIsHowToPlayModalOpen}
+        panels={FLIPBOOK_HOW_TO_PLAY_PANELS}
+        title="플립북 게임 설명"
+        subtitle="이전 프레임을 힌트로 보며 조금씩 바꿔 그려 움직이는 플립북을 만들어요."
+        accentColor="#ff7182"
+      />
     </section>
+  )
+}
+
+function FlipbookDrawingIconButton({
+  imageSrc,
+  label,
+  pressed,
+  onClick,
+}: {
+  imageSrc: string
+  label: string
+  pressed?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={pressed}
+      title={label}
+      className="relative grid size-14 place-items-center transition duration-150 hover:-translate-y-0.5 active:translate-y-px active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-flipbook-primary lg:size-[clamp(54px,4.6vw,70px)]"
+      onClick={onClick}
+    >
+      <Image
+        src={imageSrc}
+        alt=""
+        width={67}
+        height={70}
+        sizes="70px"
+        className="h-full w-auto object-contain"
+      />
+      <span className="sr-only">{label}</span>
+    </button>
+  )
+}
+
+function SubmissionProgressBadge({
+  className,
+  submittedCount,
+  totalCount,
+}: {
+  className?: string
+  submittedCount: number
+  totalCount: number
+}) {
+  if (totalCount <= 0) return null
+
+  return (
+    <p
+      aria-live="polite"
+      className={cn(
+        'body-b mx-auto inline-flex min-h-9 items-center justify-center rounded-full border border-[#ffd2df] bg-white/92 px-4 text-[#db4d82] shadow-[0_8px_18px_rgb(129_89_54_/_12%)]',
+        className,
+      )}
+    >
+      제출 {submittedCount}/{totalCount}명
+    </p>
   )
 }

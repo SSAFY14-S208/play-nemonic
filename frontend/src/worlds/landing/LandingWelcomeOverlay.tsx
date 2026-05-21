@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { MousePointerClick } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/shared/libs";
@@ -44,8 +43,8 @@ export default function LandingWelcomeOverlay() {
           >
             <p className="h2-b text-fg-inverse">
               {phase === "ready"
-                ? "Nemonic이 준비되었습니다!"
-                : `Nemonic을 준비중입니다${".".repeat(dotCount)}`}
+                ? "Play! Nemonic이 준비되었습니다!"
+                : `Play! Nemonic을 준비중입니다${".".repeat(dotCount)}`}
             </p>
 
             <div className="flex w-72 flex-col items-center gap-3">
@@ -105,7 +104,7 @@ export default function LandingWelcomeOverlay() {
                 type="button"
                 onClick={dismissWelcome}
                 className={cn(
-                  "h4-b text-fg-inverse bg-primary-1",
+                  "h4-b bg-black text-fg-inverse",
                   "rounded-lg px-10 py-3",
                   "shadow-lg",
                   "hover:opacity-90 transition-opacity",
@@ -118,31 +117,6 @@ export default function LandingWelcomeOverlay() {
         )}
       </AnimatePresence>
 
-      {/* Hub Entry Button */}
-      {phase === "done" && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className={cn(
-            "pointer-events-none fixed inset-0 z-(--z-overlay)",
-            "flex items-start justify-end p-6",
-          )}
-        >
-          <Link
-            href="/hub"
-            className={cn(
-              "pointer-events-auto",
-              "h3-b text-fg-inverse bg-primary-1",
-              "rounded-lg px-8 py-4",
-              "shadow-lg",
-              "hover:opacity-90 transition-opacity",
-            )}
-          >
-            네모닉 월드 입장
-          </Link>
-        </motion.div>
-      )}
     </>
   );
 }

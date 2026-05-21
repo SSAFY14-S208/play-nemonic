@@ -1,4 +1,4 @@
-export type CommunityCanvasHandoffSourceKind = 'GALLERY' | 'FORTUNE' | 'RELAY'
+export type CommunityCanvasHandoffSourceKind = 'GALLERY' | 'FORTUNE' | 'RELAY' | 'FLIPBOOK'
 
 export interface CommunityCanvasHandoffDraft {
   sourceKind: CommunityCanvasHandoffSourceKind
@@ -12,6 +12,9 @@ export interface CommunityCanvasHandoffDraft {
 
 const COMMUNITY_CANVAS_HANDOFF_KEY = 'nemonic-community-canvas-handoff'
 
+export const COMMUNITY_CANVAS_HANDOFF_EVENT =
+  'nemonic-community-canvas-handoff-ready'
+
 function normalizeCommunityCanvasHandoffDraft(
   value: unknown,
 ): CommunityCanvasHandoffDraft | null {
@@ -24,7 +27,8 @@ function normalizeCommunityCanvasHandoffDraft(
   if (
     candidate.sourceKind !== 'GALLERY' &&
     candidate.sourceKind !== 'FORTUNE' &&
-    candidate.sourceKind !== 'RELAY'
+    candidate.sourceKind !== 'RELAY' &&
+    candidate.sourceKind !== 'FLIPBOOK'
   ) {
     return null
   }
@@ -66,6 +70,7 @@ export function writeCommunityCanvasHandoffDraft(
     COMMUNITY_CANVAS_HANDOFF_KEY,
     JSON.stringify(nextDraft),
   )
+  window.dispatchEvent(new CustomEvent(COMMUNITY_CANVAS_HANDOFF_EVENT))
   return true
 }
 

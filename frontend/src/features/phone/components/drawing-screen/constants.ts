@@ -1,22 +1,19 @@
-import {
-  phoneDrawingPrint,
-  phoneDrawingSave,
-} from '@/shared/assets'
-import { PHONE_DRAWING_LAYOUT } from '../../constants'
+import { phoneDrawingPrint, phoneDrawingSave } from "@/shared/assets";
+import { PHONE_DRAWING_LAYOUT } from "../../constants";
 
 export const DRAWING_ACTION_BUTTONS = [
   {
-    action: 'save',
+    action: "save",
     icon: phoneDrawingSave,
-    iconClassName: 'h-[42%] w-[16.3%]',
-    label: '갤러리에 저장',
+    iconClassName: "h-[42%] w-[16.3%]",
+    label: "갤러리에 저장",
     style: PHONE_DRAWING_LAYOUT.saveButton,
   },
   {
-    action: 'print',
+    action: "print",
     icon: phoneDrawingPrint,
-    iconClassName: 'h-[42%] w-[15.9%]',
-    label: '네모닉 출력',
+    iconClassName: "h-[42%] w-[15.9%]",
+    label: "커뮤니티에 공유",
     style: PHONE_DRAWING_LAYOUT.printButton,
   },
-] as const
+] as const;

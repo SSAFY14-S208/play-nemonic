@@ -5,7 +5,10 @@ import { useState } from 'react'
 import { EyeOff, FileSearch, RotateCcw, Search, X } from 'lucide-react'
 
 import type { AdminCommunityMemoDetailResponse } from '@/shared/types'
+import { useAdminAuthStore } from '@/shared/stores'
+import { canMutateBackoffice, formatKoreanDateTime } from '@/shared/utils'
 
+import { AdminReadOnlyNotice } from '../components'
 import {
   MemoDetailModal,
   MemoFilterBar,
@@ -22,10 +25,7 @@ const SOURCE_LABEL: Record<string, string> = {
 }
 
 function formatDate(value: string | null): string {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('ko-KR', {
+  return formatKoreanDateTime(value, {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
@@ -45,6 +45,8 @@ interface PendingAction {
 }
 
 export default function AdminCommunityCanvasPage() {
+  const adminRole = useAdminAuthStore((state) => state.admin?.role ?? null)
+  const canModerateMemos = canMutateBackoffice(adminRole)
   const {
     items,
     totalElements,
@@ -93,7 +95,7 @@ export default function AdminCommunityCanvasPage() {
   }
 
   const submitReason = (reason: string) => {
-    if (!pendingAction) return
+    if (!pendingAction || !canModerateMemos) return
     const { memoId, action } = pendingAction
     if (action === 'hide') hide(memoId, reason, handleMutationSuccess)
     else restore(memoId, reason, handleMutationSuccess)
@@ -119,6 +121,8 @@ export default function AdminCommunityCanvasPage() {
           disabled={isMutating}
         />
       </header>
+
+      {!canModerateMemos && <AdminReadOnlyNotice />}
 
       <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
         <div className="flex flex-1 items-center gap-2 rounded-[var(--radius-md)] border border-border-default bg-surface-default px-3 py-2">
@@ -278,7 +282,12 @@ export default function AdminCommunityCanvasPage() {
                               action: 'restore',
                             })
                           }
-                          disabled={isMutating}
+                          disabled={isMutating || !canModerateMemos}
+                          title={
+                            canModerateMemos
+                              ? undefined
+                              : '뷰어 권한은 조회만 가능합니다.'
+                          }
                           className="caption-b inline-flex items-center gap-1 rounded-[var(--radius-md)] border border-border-default bg-surface-default px-3 py-1.5 text-fg-primary transition-colors hover:bg-surface-subtle disabled:opacity-50"
                         >
                           <RotateCcw className="h-3.5 w-3.5" />
@@ -293,7 +302,12 @@ export default function AdminCommunityCanvasPage() {
                               action: 'hide',
                             })
                           }
-                          disabled={isMutating}
+                          disabled={isMutating || !canModerateMemos}
+                          title={
+                            canModerateMemos
+                              ? undefined
+                              : '뷰어 권한은 조회만 가능합니다.'
+                          }
                           className="caption-b inline-flex items-center gap-1 rounded-[var(--radius-md)] bg-red-500 px-3 py-1.5 text-fg-inverse transition-opacity hover:bg-red-600 disabled:opacity-50"
                         >
                           <EyeOff className="h-3.5 w-3.5" />
@@ -330,9 +344,16 @@ export default function AdminCommunityCanvasPage() {
         isLoading={isDetailLoading}
         error={detailError}
         isMutating={isMutating}
+        canModerate={canModerateMemos}
         onClose={closeDetailModal}
-        onHide={(memoId) => setPendingAction({ memoId, action: 'hide' })}
-        onRestore={(memoId) => setPendingAction({ memoId, action: 'restore' })}
+        onHide={(memoId) => {
+          if (!canModerateMemos) return
+          setPendingAction({ memoId, action: 'hide' })
+        }}
+        onRestore={(memoId) => {
+          if (!canModerateMemos) return
+          setPendingAction({ memoId, action: 'restore' })
+        }}
       />
 
       <MemoReasonModal

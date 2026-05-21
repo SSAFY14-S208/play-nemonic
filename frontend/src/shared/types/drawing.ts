@@ -24,7 +24,7 @@ export interface DrawingLine {
   points: DrawingPoint[]
   opacity?: number
   kind?: 'stroke' | 'fill'
-  compositeOperation?: 'source-over' | 'destination-out'
+  compositeOperation?: 'source-over' | 'destination-out' | 'destination-over'
   imageDataUrl?: string
 }
 

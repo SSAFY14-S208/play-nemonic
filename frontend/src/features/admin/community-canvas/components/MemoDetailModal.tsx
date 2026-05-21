@@ -5,6 +5,7 @@ import { EyeOff, RotateCcw, X } from 'lucide-react'
 
 import { cn } from '@/shared/libs'
 import type { AdminCommunityMemoDetailResponse } from '@/shared/types'
+import { formatKoreanDateTime } from '@/shared/utils'
 
 import { MemoStatusBadge } from './MemoStatusBadge'
 
@@ -20,6 +21,7 @@ interface MemoDetailModalProps {
   /** 모달 표시 조건 — memoId가 set돼 있으면 detail이 아직 로딩 중이라도 모달은 띄움. */
   open: boolean
   isMutating: boolean
+  canModerate: boolean
   onClose: () => void
   onHide: (memoId: string) => void
   onRestore: (memoId: string) => void
@@ -31,10 +33,7 @@ const SOURCE_LABEL: Record<string, string> = {
 }
 
 function formatDate(value: string | null): string {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('ko-KR', {
+  return formatKoreanDateTime(value, {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -49,6 +48,7 @@ export function MemoDetailModal({
   error,
   open,
   isMutating,
+  canModerate,
   onClose,
   onHide,
   onRestore,
@@ -93,7 +93,10 @@ export function MemoDetailModal({
               <button
                 type="button"
                 onClick={() => onRestore(detail.memoId)}
-                disabled={isMutating}
+                disabled={isMutating || !canModerate}
+                title={
+                  canModerate ? undefined : '뷰어 권한은 조회만 가능합니다.'
+                }
                 className="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] border border-border-default bg-surface-default px-4 py-2 body-b text-fg-primary transition-colors hover:bg-surface-subtle disabled:opacity-50"
               >
                 <RotateCcw className="h-4 w-4" />
@@ -103,7 +106,10 @@ export function MemoDetailModal({
               <button
                 type="button"
                 onClick={() => onHide(detail.memoId)}
-                disabled={isMutating}
+                disabled={isMutating || !canModerate}
+                title={
+                  canModerate ? undefined : '뷰어 권한은 조회만 가능합니다.'
+                }
                 className="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-red-500 px-4 py-2 body-b text-fg-inverse transition-opacity hover:bg-red-600 disabled:opacity-50"
               >
                 <EyeOff className="h-4 w-4" />

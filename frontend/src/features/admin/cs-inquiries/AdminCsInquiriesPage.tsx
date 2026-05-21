@@ -10,7 +10,10 @@ import type {
   AdminInquiryStatusUpdateResponse,
   AdminInquiryType,
 } from '@/shared/types'
+import { useAdminAuthStore } from '@/shared/stores'
+import { canMutateBackoffice, formatKoreanDateTime } from '@/shared/utils'
 
+import { AdminReadOnlyNotice } from '../components'
 import {
   InquiryDetailModal,
   InquiryFilterBar,
@@ -21,10 +24,7 @@ import {
 import { useAdminInquiries, useInquiryDetail } from './hooks'
 
 function formatDate(value: string | null): string {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('ko-KR', {
+  return formatKoreanDateTime(value, {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
@@ -45,6 +45,8 @@ interface PendingReply {
 }
 
 export default function AdminCsInquiriesPage() {
+  const adminRole = useAdminAuthStore((state) => state.admin?.role ?? null)
+  const canHandleInquiries = canMutateBackoffice(adminRole)
   const {
     items,
     totalElements,
@@ -109,7 +111,7 @@ export default function AdminCsInquiriesPage() {
   }
 
   const submitReply = (payload: AdminInquiryReplyRequest) => {
-    if (!pendingReply) return
+    if (!pendingReply || !canHandleInquiries) return
     reply(pendingReply.inquiryId, payload, handleReplySuccess)
   }
 
@@ -129,6 +131,8 @@ export default function AdminCsInquiriesPage() {
           disabled={isMutating}
         />
       </header>
+
+      {!canHandleInquiries && <AdminReadOnlyNotice />}
 
       <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
         <div className="flex flex-1 items-center gap-2 rounded-[var(--radius-md)] border border-border-default bg-surface-default px-3 py-2">
@@ -273,13 +277,16 @@ export default function AdminCsInquiriesPage() {
         isLoading={isDetailLoading}
         error={detailError}
         isMutating={isMutating}
+        canHandle={canHandleInquiries}
         onClose={closeDetailModal}
-        onChangeStatus={(inquiryId: number, next: AdminInquiryStatus) =>
+        onChangeStatus={(inquiryId: number, next: AdminInquiryStatus) => {
+          if (!canHandleInquiries) return
           changeStatus(inquiryId, next, handleStatusSuccess)
-        }
-        onRequestReply={(inquiryId: number, title: string) =>
+        }}
+        onRequestReply={(inquiryId: number, title: string) => {
+          if (!canHandleInquiries) return
           setPendingReply({ inquiryId, defaultSubject: title })
-        }
+        }}
       />
 
       <InquiryReplyModal

@@ -12,6 +12,7 @@ import {
   Sliders,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { AdminRole } from "@/shared/types";
 
 export type AdminNavItem = {
   key: string;
@@ -21,7 +22,7 @@ export type AdminNavItem = {
   pageTitle: string;
   pageDescription: string;
   children?: AdminNavItem[];
-  requiredRole?: string;
+  requiredRole?: AdminRole;
 };
 
 export type AdminNavGroup = {
@@ -44,7 +45,8 @@ export const ADMIN_NAVIGATION: AdminNavGroup[] = [
         href: "/admin/dashboard",
         icon: LayoutDashboard,
         pageTitle: "대시보드",
-        pageDescription: "네모닉 월드의 다양한 데이터를 한눈에 조회합니다.",
+        pageDescription:
+          "오늘의 KPI · 유입 채널 · 컨텐츠 · 단계별 흐름 · 체류 시간을 한 화면에서 조회합니다.",
       },
     ],
   },
@@ -97,10 +99,10 @@ export const ADMIN_NAVIGATION: AdminNavGroup[] = [
       },
       {
         key: "gms-prompts",
-        label: "GMS 프롬프트 관리",
+        label: "AI 프롬프트 관리",
         href: "/admin/gms-prompts",
         icon: FileText,
-        pageTitle: "GMS 프롬프트 관리",
+        pageTitle: "AI 프롬프트 관리",
         pageDescription: "운세 생성에 사용하는 프롬프트를 수정·관리합니다.",
       },
       {
@@ -139,7 +141,8 @@ export const ADMIN_NAVIGATION: AdminNavGroup[] = [
         href: "/admin/analytics",
         icon: BarChart3,
         pageTitle: "통계 및 분석",
-        pageDescription: "서비스 운영 현황과 사용자 행동을 분석합니다.",
+        pageDescription:
+          "Grafana 기반 raw observability — 시스템 메트릭과 트래픽 차트를 임베드로 제공합니다.",
       },
     ],
   },
@@ -154,7 +157,7 @@ export const ADMIN_NAVIGATION: AdminNavGroup[] = [
         icon: Shield,
         pageTitle: "백오피스 관리",
         pageDescription:
-          "관리자 계정을 생성·조회·삭제합니다. 슈퍼 관리자만 접근할 수 있습니다.",
+          "관리자 계정과 백오피스 감사 로그를 관리합니다. 슈퍼 관리자만 접근할 수 있습니다.",
         requiredRole: "super_admin",
       },
     ],

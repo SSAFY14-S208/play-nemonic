@@ -1,13 +1,18 @@
 'use client'
 
+import { useEffect } from 'react'
+
 import { GameLobbyLayout } from '@/shared/components'
 import type { GameLobbyTheme } from '@/shared/components'
 import { useUserStore } from '@/shared/stores'
 
 import relayDrawingTitle from '../assets/relay-drawing-title.png'
-import { RELAY_HOW_TO_PLAY_PANELS, RELAY_ROOM_CODE } from '../constants'
+import { RELAY_ROOM_CODE } from '../constants'
 import { useRelayLobby } from '../hooks'
-import { useRelayDrawingStore } from '../stores'
+import { useRelayDrawingStore, useRelayHowToPlayStore } from '../stores'
+import RelayBgmToggle from './RelayBgmToggle'
+import RelayHowToPlayButton from './RelayHowToPlayButton'
+import { PhoneLauncherButton } from '@/shared/components'
 
 const RELAY_LOBBY_THEME: GameLobbyTheme = {
   accent: 'var(--color-relay-accent)',
@@ -25,6 +30,7 @@ const RELAY_LOBBY_THEME: GameLobbyTheme = {
 
 export default function RelayLobbyView() {
   const roomCode = useRelayDrawingStore((state) => state.roomCode)
+  const roomStatus = useRelayDrawingStore((state) => state.roomStatus)
   const participants = useRelayDrawingStore((state) => state.participants)
   const maxParticipants = useRelayDrawingStore(
     (state) => state.maxParticipants,
@@ -58,6 +64,19 @@ export default function RelayLobbyView() {
     leaveRoom,
   } = useRelayLobby()
 
+  // 로비 진입 시 게임 설명 모달을 자동으로 1회 연다. 모달은 layout에 마운트된
+  // 단일 호스트가 렌더하므로 여기서는 store만 갱신.
+  //
+  // roomStatus === 'WAITING' 가드: 결과 화면에서 "로비로" 버튼을 누르면
+  // clearRoom()으로 roomStatus가 null이 된 직후 라우터 전환 전 한 프레임 동안
+  // 이 컴포넌트가 마운트될 수 있다. 가드 없이 호출하면 booth 페이지로 이동한
+  // 뒤에도 모달이 열린 상태로 끌려간다. 실제 로비 상태일 때만 open한다.
+  const openHowToPlay = useRelayHowToPlayStore((state) => state.open)
+  useEffect(() => {
+    if (roomStatus !== 'WAITING') return
+    openHowToPlay()
+  }, [roomStatus, openHowToPlay])
+
   const startButtonLabel = isStarting
     ? '시작 중…'
     : `게임 시작 (${participants.length}명)`
@@ -88,8 +107,13 @@ export default function RelayLobbyView() {
       onStartGame={startGame}
       onLeave={leaveRoom}
       isExiting={isExiting}
-      howToPlayPanels={RELAY_HOW_TO_PLAY_PANELS}
-      howToPlayAccentColor="var(--color-relay-accent)"
+      headerRightSlot={
+        <>
+          <RelayHowToPlayButton className="size-9 sm:size-10" />
+          <RelayBgmToggle className="size-9 sm:size-10" />
+          <PhoneLauncherButton className="size-9 sm:size-10" />
+        </>
+      }
     />
   )
 }

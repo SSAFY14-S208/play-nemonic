@@ -44,11 +44,16 @@ export function GameLobbyLayout({
   backgroundImage,
   backgroundOverlay,
   howToPlayPanels,
+  howToPlayTitle,
+  howToPlaySubtitle,
   howToPlayAccentColor,
+  autoOpenHowToPlay = false,
+  headerRightSlot,
 }: GameLobbyLayoutProps) {
-  const [isHowToPlayModalOpen, setIsHowToPlayModalOpen] = useState(false);
-
   const hasHowToPlay = !!howToPlayPanels && howToPlayPanels.length > 0;
+  const [isHowToPlayModalOpen, setIsHowToPlayModalOpen] = useState(
+    autoOpenHowToPlay && hasHowToPlay,
+  );
   const hasTimeLimit =
     timeLimitSeconds !== undefined &&
     timeLimitAllowedSeconds !== undefined &&
@@ -57,7 +62,7 @@ export function GameLobbyLayout({
 
   return (
     <section
-      className="relative min-h-screen overflow-x-hidden overflow-y-auto"
+      className="relative min-h-screen overflow-x-hidden"
       style={{ color: theme.ink }}
     >
       {backgroundImage && (
@@ -91,6 +96,7 @@ export function GameLobbyLayout({
           hasHowToPlay={hasHowToPlay}
           onOpenHowToPlay={() => setIsHowToPlayModalOpen(true)}
           variant="mobile"
+          rightSlot={headerRightSlot}
         />
 
         <LobbyTitlePanel
@@ -161,6 +167,7 @@ export function GameLobbyLayout({
             hasHowToPlay={hasHowToPlay}
             onOpenHowToPlay={() => setIsHowToPlayModalOpen(true)}
             variant="desktop"
+            rightSlot={headerRightSlot}
           />
         </motion.div>
 
@@ -287,6 +294,8 @@ export function GameLobbyLayout({
           open={isHowToPlayModalOpen}
           onOpenChange={setIsHowToPlayModalOpen}
           panels={howToPlayPanels}
+          title={howToPlayTitle}
+          subtitle={howToPlaySubtitle}
           accentColor={howToPlayAccentColor}
         />
       )}

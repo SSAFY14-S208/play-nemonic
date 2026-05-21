@@ -21,6 +21,9 @@ export interface ArtifactImageUrlResponse {
 }
 
 export interface ArtifactShareResponse {
-  shareUrl: string
+  shareToken: string
   imageUrl: string
+  siteUrl: string
+  kakaoUrl: string
+  instagramUrl: string
 }

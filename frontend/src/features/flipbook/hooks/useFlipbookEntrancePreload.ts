@@ -2,14 +2,16 @@
 
 import { useEffect, useRef } from 'react'
 
-const IMAGE_PRELOAD_REL = 'preload'
-const IMAGE_PRELOAD_AS = 'image'
+async function decodeImageElement(imageElement: HTMLImageElement) {
+  if (imageElement.decode) {
+    await imageElement.decode()
+    return
+  }
 
-function getImageMimeType(imageSource: string) {
-  if (imageSource.endsWith('.webp')) return 'image/webp'
-  if (imageSource.endsWith('.png')) return 'image/png'
-
-  return undefined
+  await new Promise<void>((resolve, reject) => {
+    imageElement.onload = () => resolve()
+    imageElement.onerror = () => reject(new Error(`Failed to preload ${imageElement.src}`))
+  })
 }
 
 export function useFlipbookEntrancePreload(imageSources: readonly string[]) {
@@ -19,58 +21,30 @@ export function useFlipbookEntrancePreload(imageSources: readonly string[]) {
     if (typeof window === 'undefined') return
 
     let cancelled = false
-    const preloadLinks = imageSources.map((imageSource) => {
-      const preloadLink = document.createElement('link')
-      preloadLink.rel = IMAGE_PRELOAD_REL
-      preloadLink.as = IMAGE_PRELOAD_AS
-      const mimeType = getImageMimeType(imageSource)
-      if (mimeType) {
-        preloadLink.type = mimeType
-      }
-      preloadLink.href = imageSource
-      preloadLink.setAttribute('fetchpriority', 'high')
-      document.head.appendChild(preloadLink)
+    const imageElements = imageSources.map((imageSource) => {
+      const imageElement = new window.Image()
+      imageElement.decoding = 'async'
+      imageElement.loading = 'eager'
+      imageElement.src = imageSource
 
-      return preloadLink
+      return imageElement
     })
 
-    ;(async () => {
-      const imageElements = imageSources.map((imageSource) => {
-        const imageElement = new window.Image()
-        imageElement.decoding = 'async'
-        imageElement.loading = 'eager'
-        imageElement.src = imageSource
+    preloadedImageElementsRef.current = imageElements
 
-        return imageElement
-      })
+    void Promise.allSettled(
+      imageElements.map(async (imageElement) => {
+        if (cancelled) return
 
-      preloadedImageElementsRef.current = imageElements
-
-      await Promise.allSettled(
-        imageElements.map(async (imageElement) => {
-          if (imageElement.decode) {
-            await imageElement.decode()
-            return
-          }
-
-          await new Promise<void>((resolve, reject) => {
-            imageElement.onload = () => resolve()
-            imageElement.onerror = () => reject(new Error(`Failed to preload ${imageElement.src}`))
-          })
-        }),
-      )
-
-      if (cancelled) {
-        preloadedImageElementsRef.current = []
-      }
-    })()
+        await decodeImageElement(imageElement)
+      }),
+    ).catch(() => {
+      // The visible frame will still request any image if preload misses.
+    })
 
     return () => {
       cancelled = true
       preloadedImageElementsRef.current = []
-      preloadLinks.forEach((preloadLink) => {
-        preloadLink.remove()
-      })
     }
   }, [imageSources])
 }

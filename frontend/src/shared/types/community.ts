@@ -20,6 +20,7 @@ export interface CommunityMemoItemResponse {
   memoImageUrl: string
   memoOriginalImageUrl: string
   memoThumbnailImageUrl: string
+  memoPlaybackImageUrl: string | null
   positionX: number
   positionY: number
   zIndex: number
