@@ -142,10 +142,8 @@ export function PhoneGalleryScreen() {
   const loadMoreGallery = usePhoneStore((state) => state.loadMoreGallery)
 
   useEffect(() => {
-    if (galleryStatus === 'idle') {
-      void loadGallery()
-    }
-  }, [galleryStatus, loadGallery])
+    void loadGallery({ force: true })
+  }, [loadGallery])
 
   const {
     activeFilterKey,
