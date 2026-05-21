@@ -84,6 +84,7 @@ interface PhoneStore {
   showDrawing: () => void
   showGallery: () => void
   showInquiry: () => void
+  showTeleport: () => void
 
   // profile actions
   loadProfile: () => Promise<void>
@@ -209,6 +210,7 @@ export const usePhoneStore = create<PhoneStore>((set, get) => ({
   showDrawing: () => set({ activeScreen: 'drawing', selectedGalleryItemId: null }),
   showGallery: () => set({ activeScreen: 'gallery', selectedGalleryItemId: null }),
   showInquiry: () => set({ activeScreen: 'inquiry', selectedGalleryItemId: null }),
+  showTeleport: () => set({ activeScreen: 'teleport', selectedGalleryItemId: null }),
 
   loadProfile: async () => {
     const { profileStatus } = get()

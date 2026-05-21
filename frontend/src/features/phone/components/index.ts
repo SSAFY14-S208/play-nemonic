@@ -8,4 +8,5 @@ export { PhoneHomeScreen } from "./PhoneHomeScreen";
 export { PhoneInquiryScreen } from "./PhoneInquiryScreen";
 export { PhonePrintFrame } from "./PhonePrintFrame";
 export { PhoneStatusBar } from "./PhoneStatusBar";
+export { PhoneTeleportScreen } from "./PhoneTeleportScreen";
 export { PhoneToast } from "./PhoneToast";

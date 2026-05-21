@@ -239,14 +239,32 @@ export const PHONE_MIN_BRUSH_SIZE = PHONE_BRUSH_SIZES[0];
 export const PHONE_MAX_BRUSH_SIZE =
   PHONE_BRUSH_SIZES[PHONE_BRUSH_SIZES.length - 1];
 
-export const PHONE_APP_SHORTCUTS: Array<{
-  key: "drawing" | "gallery" | "shop" | "cs";
-  action: "open-drawing" | "open-gallery" | "open-external" | "open-inquiry";
-  label: string;
-  asset: StaticImageData;
-  isEnabled: boolean;
-  externalUrl?: string;
-}> = [
+type PhoneAppShortcut =
+  | {
+      key: "teleport";
+      action: "open-teleport";
+      label: string;
+      isEnabled: boolean;
+      isFeatured: true;
+    }
+  | {
+      key: "drawing" | "gallery" | "shop" | "cs";
+      action: "open-drawing" | "open-gallery" | "open-external" | "open-inquiry";
+      label: string;
+      asset: StaticImageData;
+      isEnabled: boolean;
+      externalUrl?: string;
+      isFeatured?: false;
+    };
+
+export const PHONE_APP_SHORTCUTS: PhoneAppShortcut[] = [
+  {
+    key: "teleport",
+    action: "open-teleport",
+    label: "순간이동",
+    isEnabled: true,
+    isFeatured: true,
+  },
   {
     key: "drawing",
     action: "open-drawing",
@@ -275,6 +293,105 @@ export const PHONE_APP_SHORTCUTS: Array<{
     label: "고객 문의",
     asset: phoneAppCs,
     isEnabled: true,
+  },
+];
+
+export type PhoneTeleportDestinationKey =
+  | "hub"
+  | "nemonic"
+  | "fortune"
+  | "flipbook"
+  | "relay"
+  | "infinite"
+  | "community";
+
+export type PhoneTeleportDestinationGroupKey = "world" | "games" | "board";
+
+export const PHONE_TELEPORT_DESTINATION_GROUPS: Array<{
+  key: PhoneTeleportDestinationGroupKey;
+  label: string;
+  destinations: Array<{
+    key: PhoneTeleportDestinationKey;
+    label: string;
+    description: string;
+    route: string;
+    accentColor: string;
+    backgroundColor: string;
+  }>;
+}> = [
+  {
+    key: "world",
+    label: "월드",
+    destinations: [
+      {
+        key: "hub",
+        label: "허브 룸",
+        description: "방 안 미니게임 선택 화면",
+        route: "/",
+        accentColor: "#55adf0",
+        backgroundColor: "#eaf7ff",
+      },
+      {
+        key: "nemonic",
+        label: "네모닉",
+        description: "프린터 단독 체험",
+        route: "/nemonic",
+        accentColor: "#ffb52e",
+        backgroundColor: "#fff6df",
+      },
+    ],
+  },
+  {
+    key: "games",
+    label: "미니게임",
+    destinations: [
+      {
+        key: "fortune",
+        label: "오늘의 운세 메모",
+        description: "오늘의 운세를 메모로 출력",
+        route: "/fortune",
+        accentColor: "#a281d0",
+        backgroundColor: "#f3ecff",
+      },
+      {
+        key: "flipbook",
+        label: "플립북",
+        description: "한 프레임씩 이어 만드는 GIF",
+        route: "/flipbook",
+        accentColor: "#f58c97",
+        backgroundColor: "#fff0f2",
+      },
+      {
+        key: "relay",
+        label: "릴레이 드로잉",
+        description: "차례대로 완성하는 그림",
+        route: "/relay-drawing",
+        accentColor: "#ffd56f",
+        backgroundColor: "#fff8df",
+      },
+      {
+        key: "infinite",
+        label: "무한 캔버스",
+        description: "함께 쓰는 큰 그림판",
+        route: "/infinite-canvas",
+        accentColor: "#8fd8ff",
+        backgroundColor: "#ebf8ff",
+      },
+    ],
+  },
+  {
+    key: "board",
+    label: "보드",
+    destinations: [
+      {
+        key: "community",
+        label: "커뮤니티 보드",
+        description: "친구들의 네모닉 모아보기",
+        route: "/community-canvas",
+        accentColor: "#96d27f",
+        backgroundColor: "#effbe9",
+      },
+    ],
   },
 ];
 

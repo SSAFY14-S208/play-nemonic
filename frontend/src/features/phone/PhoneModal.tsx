@@ -11,6 +11,7 @@ import {
   PhoneHomeScreen,
   PhoneInquiryScreen,
   PhoneMobileCloseButton,
+  PhoneTeleportScreen,
   PhoneToast,
 } from './components'
 import { PHONE_DESIGN_HEIGHT, PHONE_DESIGN_WIDTH } from './constants'
@@ -98,6 +99,7 @@ export default function PhoneModal() {
                 {activeScreen === 'drawing' && <PhoneDrawingScreen />}
                 {activeScreen === 'gallery' && <PhoneGalleryScreen />}
                 {activeScreen === 'inquiry' && <PhoneInquiryScreen />}
+                {activeScreen === 'teleport' && <PhoneTeleportScreen />}
                 <PhoneToast />
               </PhoneFrame>
               <PhoneCloseButton onClose={handleClose} />

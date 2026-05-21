@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { Zap } from "lucide-react";
 import {
   type FormEvent,
   type KeyboardEvent,
@@ -21,6 +22,7 @@ export function PhoneHomeScreen() {
   const showDrawing = usePhoneStore((state) => state.showDrawing);
   const showGallery = usePhoneStore((state) => state.showGallery);
   const showInquiry = usePhoneStore((state) => state.showInquiry);
+  const showTeleport = usePhoneStore((state) => state.showTeleport);
   const profile = usePhoneStore((state) => state.profile);
   const profileStatus = usePhoneStore((state) => state.profileStatus);
   const nicknameUpdateStatus = usePhoneStore(
@@ -53,6 +55,12 @@ export function PhoneHomeScreen() {
   const displayNickname = profile?.nickname?.trim() || FALLBACK_NICKNAME;
   const isProfileLoading = profileStatus === "loading" && !profile;
   const isSavingNickname = nicknameUpdateStatus === "loading";
+  const featuredShortcut = PHONE_APP_SHORTCUTS.find(
+    (shortcut) => shortcut.key === "teleport",
+  );
+  const regularShortcuts = PHONE_APP_SHORTCUTS.filter(
+    (shortcut) => shortcut.key !== "teleport",
+  );
 
   const startEditing = () => {
     setDraftNickname(profile?.nickname ?? "");
@@ -165,10 +173,43 @@ export function PhoneHomeScreen() {
         </div>
       </section>
 
-      <div className="flex-1 overflow-y-auto bg-white pt-14">
+      <div className="flex-1 overflow-y-auto bg-white px-0 pt-7 pb-8">
+        {featuredShortcut && (
+          <button
+            type="button"
+            disabled={!featuredShortcut.isEnabled}
+            onClick={showTeleport}
+            className={cn(
+              "group mx-auto mb-7 flex min-h-[4.6rem] w-[16.25rem] items-center gap-3 rounded-[0.65rem] border border-[#c9e9ff] bg-[#eff9ff] px-3 text-left shadow-[0_0.35rem_1rem_rgba(85,173,240,0.16)] transition duration-200",
+              featuredShortcut.isEnabled
+                ? "hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-primary-2"
+                : "cursor-default",
+            )}
+          >
+            <span
+              aria-hidden
+              className="grid size-12 shrink-0 place-items-center rounded-[0.9rem] bg-[#55adf0] text-white shadow-[inset_0_0.08rem_0_rgba(255,255,255,0.35),0_0.35rem_0.7rem_rgba(85,173,240,0.25)] transition duration-200 group-hover:scale-105"
+            >
+              <Zap className="size-6" strokeWidth={2.5} />
+            </span>
+            <span className="min-w-0">
+              <span className="phone-home-app-label-m block text-fg-primary">
+                {featuredShortcut.label}
+              </span>
+              <span className="phone-caption-r mt-1 block text-fg-secondary">
+                허브와 미니게임으로 바로 이동
+              </span>
+            </span>
+          </button>
+        )}
         <div className="mx-auto grid w-[16.25rem] grid-cols-2 gap-x-8 gap-y-[2.35rem]">
-          {PHONE_APP_SHORTCUTS.map(
-            ({ action, key, label, asset, externalUrl, isEnabled }) => {
+          {regularShortcuts.map(
+            (shortcut) => {
+              if (!("asset" in shortcut)) return null;
+
+              const { action, key, label, asset, externalUrl, isEnabled } =
+                shortcut;
+
               const handleClick = () => {
                 switch (action) {
                   case "open-drawing":
