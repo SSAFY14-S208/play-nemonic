@@ -1,0 +1,6 @@
+fastapi>=0.136,<0.137
+uvicorn[standard]>=0.46,<0.47
+pydantic-settings>=2.14,<3
+httpx>=0.28,<1
+python-multipart>=0.0.18,<1
+transformers>=5.8,<6
