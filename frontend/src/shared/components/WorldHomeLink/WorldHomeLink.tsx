@@ -72,10 +72,10 @@ export default function WorldHomeLink({
         whileTap={{ scale: 0.96 }}
       >
         <Image
-          src="/images/play-nemonic-logo.png"
+          src="/images/play-nemonic-logo-v2.png"
           alt="Play! Nemonic"
-          width={1672}
-          height={941}
+          width={2716}
+          height={1222}
           priority
           draggable={false}
           className="h-auto w-[7.5rem] drop-shadow-[0_8px_18px_rgba(0,0,0,0.18)] sm:w-[8.75rem]"
