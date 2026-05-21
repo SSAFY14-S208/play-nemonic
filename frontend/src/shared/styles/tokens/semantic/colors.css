@@ -1,0 +1,91 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Semantic color tokens — 역할 기반 색상 매핑
+   ✅ 컴포넌트에서 이 토큰만 참조 (bg-surface-default, text-fg-primary 등)
+   ❌ Primitive 직접 참조 금지 (bg-cream-50, text-brown-720 등)
+
+   @theme 블록 → Tailwind 유틸리티 자동 생성:
+     --color-surface-default → bg-surface-default / text-surface-default / border-surface-default
+     --color-fg-primary      → text-fg-primary / bg-fg-primary / border-fg-primary
+───────────────────────────────────────────────────────────────────────────── */
+@theme {
+  /* ── Surface (배경) ──────────────────────────────────────────────────────── */
+  --color-surface-default: var(--p-cream-50);   /* 기본 카드/화면 배경 */
+  --color-surface-subtle:  var(--p-cream-100);  /* 구분선 위 배경 */
+
+  /* ── Foreground (텍스트) ─────────────────────────────────────────────────── */
+  --color-fg-primary:   var(--p-brown-720);  /* 주요 본문 텍스트 */
+  --color-fg-secondary: var(--p-brown-500);  /* 보조 텍스트 */
+  --color-fg-disabled:  var(--p-brown-300);  /* 비활성 텍스트 */
+  --color-fg-inverse:   var(--p-cream-50);   /* 어두운 배경 위 텍스트 */
+
+  /* ── Border ──────────────────────────────────────────────────────────────── */
+  --color-border-default: var(--p-brown-100);  /* 기본 테두리 */
+
+  /* ── Primary (브랜드) ────────────────────────────────────────────────────── */
+  --color-primary-1: var(--p-primary-500);  /* CTA 버튼 배경, 주요 강조 */
+  --color-primary-2: var(--p-primary-600);  /* 링크, 활성 아이콘 색 */
+  --color-primary-5: var(--p-primary-50);   /* 활성 탭 배경 (연한 강조색) */
+
+  --color-hub-room-background: #0f0b22;
+
+  /* ── Relay Drawing (Figma v2_07 semantic roles) ─────────────────────────── */
+  --color-fortune-backdrop: oklch(94% 0.034 315);
+  --color-fortune-stage: oklch(91% 0.045 312);
+  --color-fortune-panel: oklch(98% 0.011 86);
+  --color-fortune-paper: oklch(96.5% 0.017 86);
+  --color-fortune-card: oklch(97.8% 0.014 92);
+  --color-fortune-glow: oklch(92% 0.043 303);
+  --color-fortune-border: oklch(82% 0.035 303);
+  --color-fortune-ink: oklch(30% 0.052 302);
+  --color-fortune-muted: oklch(48% 0.038 300);
+  --color-fortune-accent: oklch(56% 0.132 293);
+  --color-fortune-accent-strong: oklch(43% 0.128 291);
+  --color-fortune-inverse: oklch(98% 0.011 86);
+  --color-fortune-disabled: oklch(73% 0.025 300);
+
+  --color-relay-background: #fff5dc;
+  --color-relay-panel: #fff9ea;
+  --color-relay-paper: #ffffff;
+  --color-relay-header: #ffffff;
+  --color-relay-result-panel: #fff1c8;
+  --color-relay-active: #ffedc3;
+  --color-relay-canvas-zone: #fff1c8;
+  --color-relay-credit-row: #f1eadb;
+  --color-relay-segment-body: #e6dcf6;
+  --color-relay-segment-legs: #d3eac6;
+  --color-relay-border: rgb(255 228 161 / 55%);
+  --color-relay-line: #ffe9b0;
+  --color-relay-ink: #2f2a1e;
+  --color-relay-muted: #947c40;
+  --color-relay-disabled: #9a9ca3;
+  --color-relay-accent: #ffb82e;
+  --color-relay-accent-strong: #f6a800;
+  --color-relay-yellow: #ffc629;
+  --color-relay-coral: #ff5f67;
+  --color-relay-green: #63c086;
+  --color-relay-blue: #82b9e6;
+  --color-relay-pink: #f4b8ce;
+  --color-relay-skin: #f6d4b2;
+  --color-relay-card-blue: #75a7df;
+  --color-relay-dash: #505050;
+  --color-relay-triangle: #2f2a1e;
+  --color-relay-postit: #ffe887;
+  --color-relay-postit-fold: #e6b85d;
+  --color-relay-postit-fold-light: #f1c86b;
+
+  /* ── Flipbook (Figma v2 Flipbook Pastel semantic roles) ─────────────────── */
+  --color-flipbook-background: #fdecee;
+  --color-flipbook-tint: #fff5f7;
+  --color-flipbook-room-base: #fff4df;
+  --color-flipbook-paper: #ffffff;
+  --color-flipbook-light: #fbbcc4;
+  --color-flipbook-primary: #f58c97;
+  --color-flipbook-active: #ffadbd;
+  --color-flipbook-deep: #cf5d68;
+  --color-flipbook-ink: #5e1f25;
+  --color-flipbook-muted: #ac626a;
+  --color-flipbook-grid: #ffa8b8;
+  --color-flipbook-timer: #2b1d3b;
+  --color-flipbook-shadow: rgb(94 31 37 / 18%);
+  --color-flipbook-result-soft: #ffe5e9;
+}

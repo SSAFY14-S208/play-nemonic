@@ -1,0 +1,61 @@
+@host = http://localhost:8080
+@anonymousUserUuid = 550e8400-e29b-41d4-a716-446655440000
+@galleryId = 8d25f3a5-3c5a-4f21-9f54-68fa4a402011
+
+# Local Swagger testing flow:
+# 1. Create an anonymous user with POST /api/v1/users/anonymous or reuse an existing app_user.id.
+# 2. Set Anonymous-User-UUID to that user UUID.
+# 3. Prepare gallery test rows with Repository/test fixture/local SQL because artifact creation APIs are not all wired yet.
+# 4. Use "Get my gallery" to find galleryId values, then run detail or delete.
+# 5. Delete only updates gallery.deleted_at. artifact, subtype rows, community_memo rows, and MinIO files are preserved.
+# 6. Re-seed the gallery row or set deleted_at = NULL before retrying delete on the same galleryId.
+#
+# Minimal local seed shape:
+# - app_user.id must match @anonymousUserUuid.
+# - artifact.id is referenced by gallery.artifact_id.
+# - gallery.user_id = app_user.id and gallery.deleted_at IS NULL.
+# - Optional subtype rows provide contentUrl; if missing, gallery APIs fall back to thumbnailUrl.
+
+### Get my gallery
+GET {{host}}/api/v1/gallery?page=0&size=20
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get my gallery - default pagination
+GET {{host}}/api/v1/gallery
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get my gallery - invalid UUID
+GET {{host}}/api/v1/gallery
+Anonymous-User-UUID: not-a-uuid
+
+### Get my gallery - invalid page
+GET {{host}}/api/v1/gallery?page=-1&size=20
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get my gallery - invalid size
+GET {{host}}/api/v1/gallery?page=0&size=51
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get gallery item detail
+GET {{host}}/api/v1/gallery/{{galleryId}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get gallery item detail - invalid gallery ID
+GET {{host}}/api/v1/gallery/not-a-gallery-id
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get gallery item detail - invalid user UUID
+GET {{host}}/api/v1/gallery/{{galleryId}}
+Anonymous-User-UUID: not-a-uuid
+
+### Delete gallery item
+DELETE {{host}}/api/v1/gallery/{{galleryId}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Delete gallery item - invalid gallery ID
+DELETE {{host}}/api/v1/gallery/not-a-gallery-id
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Delete gallery item - invalid user UUID
+DELETE {{host}}/api/v1/gallery/{{galleryId}}
+Anonymous-User-UUID: not-a-uuid

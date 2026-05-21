@@ -1,0 +1,14 @@
+package com.nemonicworld.backoffice.setting.service;
+
+import com.nemonicworld.auth.service.AdminClientInfo;
+import com.nemonicworld.backoffice.setting.dto.request.SystemParameterTypedUpdateRequest;
+import com.nemonicworld.backoffice.setting.dto.response.SystemParameterListResponse;
+import com.nemonicworld.common.jwt.AdminPrincipal;
+
+public interface SystemParameterService {
+
+    SystemParameterListResponse getSystemParameters(AdminPrincipal adminPrincipal, String keyword);
+
+    SystemParameterListResponse bulkUpdate(AdminPrincipal adminPrincipal, SystemParameterTypedUpdateRequest request,
+        AdminClientInfo clientInfo);
+}

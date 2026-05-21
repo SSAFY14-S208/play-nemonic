@@ -1,0 +1,182 @@
+@host = http://localhost:8080
+@anonymousUserUuid = 550e8400-e29b-41d4-a716-446655440000
+@roomCode = FB3K9Q
+
+### Create flipbook room
+POST {{host}}/api/v1/flipbook/rooms
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Create flipbook room - invalid UUID
+POST {{host}}/api/v1/flipbook/rooms
+Anonymous-User-UUID: not-a-uuid
+
+### Create flipbook room - nickname required
+# Use an anonymous user UUID whose nickname is still the default "익명".
+POST {{host}}/api/v1/flipbook/rooms
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Create flipbook room - missing UUID
+POST {{host}}/api/v1/flipbook/rooms
+
+### Get flipbook room state
+GET {{host}}/api/v1/flipbook/rooms/{{roomCode}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get flipbook room state - invalid user UUID
+GET {{host}}/api/v1/flipbook/rooms/{{roomCode}}
+Anonymous-User-UUID: not-a-uuid
+
+### Get flipbook room state - missing user UUID
+GET {{host}}/api/v1/flipbook/rooms/{{roomCode}}
+
+### Get flipbook room state - invalid room code
+GET {{host}}/api/v1/flipbook/rooms/not-a-room
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get flipbook room state - not found
+GET {{host}}/api/v1/flipbook/rooms/ZZZZZZ
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Update flipbook room settings
+PATCH {{host}}/api/v1/flipbook/rooms/{{roomCode}}/settings
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "timeLimitSeconds": 45
+}
+
+### Update flipbook room settings - invalid time limit
+PATCH {{host}}/api/v1/flipbook/rooms/{{roomCode}}/settings
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "timeLimitSeconds": 10
+}
+
+### Update flipbook room settings - missing body
+PATCH {{host}}/api/v1/flipbook/rooms/{{roomCode}}/settings
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Start flipbook room
+POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/start
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Start flipbook room - invalid user UUID
+POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/start
+Anonymous-User-UUID: not-a-uuid
+
+### Start flipbook room - missing user UUID
+POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/start
+
+### Start flipbook room - invalid room code
+POST {{host}}/api/v1/flipbook/rooms/not-a-room/start
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get my flipbook frame assignment
+GET {{host}}/api/v1/flipbook/rooms/{{roomCode}}/assignments/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get my flipbook frame assignment - game not started
+GET {{host}}/api/v1/flipbook/rooms/{{roomCode}}/assignments/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get my flipbook frame assignment - invalid user UUID
+GET {{host}}/api/v1/flipbook/rooms/{{roomCode}}/assignments/me
+Anonymous-User-UUID: not-a-uuid
+
+### Get my flipbook frame assignment - invalid room code
+GET {{host}}/api/v1/flipbook/rooms/not-a-room/assignments/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Submit flipbook frame
+POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/rounds/1/frames
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "flipbookIndex": 0,
+  "frameIndex": 0,
+  "fileId": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+}
+
+### Submit flipbook frame - assignment mismatch
+POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/rounds/1/frames
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "flipbookIndex": 99,
+  "frameIndex": 99,
+  "fileId": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+}
+
+### Submit flipbook frame - invalid fileId
+POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/rounds/1/frames
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "flipbookIndex": 0,
+  "frameIndex": 0,
+  "fileId": "not-a-uuid"
+}
+
+### Get flipbook room result
+GET {{host}}/api/v1/flipbook/rooms/{{roomCode}}/result
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get flipbook room result - invalid user UUID
+GET {{host}}/api/v1/flipbook/rooms/{{roomCode}}/result
+Anonymous-User-UUID: not-a-uuid
+
+### Get flipbook room result - invalid room code
+GET {{host}}/api/v1/flipbook/rooms/not-a-room/result
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Kick flipbook participant
+POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/kick
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "targetUserUuid": "11111111-1111-1111-1111-111111111111"
+}
+
+### Kick flipbook participant - self kick
+POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/kick
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "targetUserUuid": "{{anonymousUserUuid}}"
+}
+
+### Kick flipbook participant - invalid target UUID
+POST {{host}}/api/v1/flipbook/rooms/{{roomCode}}/kick
+Anonymous-User-UUID: {{anonymousUserUuid}}
+Content-Type: application/json
+
+{
+  "targetUserUuid": "not-a-uuid"
+}
+
+### Leave flipbook room
+DELETE {{host}}/api/v1/flipbook/rooms/{{roomCode}}/participants/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Leave flipbook room - invalid user UUID
+DELETE {{host}}/api/v1/flipbook/rooms/{{roomCode}}/participants/me
+Anonymous-User-UUID: not-a-uuid
+
+### Leave flipbook room - missing user UUID
+DELETE {{host}}/api/v1/flipbook/rooms/{{roomCode}}/participants/me
+
+### Leave flipbook room - invalid room code
+DELETE {{host}}/api/v1/flipbook/rooms/not-a-room/participants/me
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Leave flipbook room - not found
+DELETE {{host}}/api/v1/flipbook/rooms/ZZZZZZ/participants/me
+Anonymous-User-UUID: {{anonymousUserUuid}}

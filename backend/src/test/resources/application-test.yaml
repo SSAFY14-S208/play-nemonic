@@ -1,0 +1,48 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:nemonic-test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  flyway:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: none
+    defer-datasource-initialization: true
+  sql:
+    init:
+      mode: always
+      continue-on-error: false
+
+management:
+  health:
+    redis:
+      enabled: false
+    mail:
+      enabled: false
+
+nemonic:
+  auth:
+    admin-bootstrap:
+      enabled: false
+    jwt:
+      secret: test-admin-jwt-secret-that-is-long-enough-for-hmac
+      access-token-expiration: 30m
+      refresh-token-expiration: 14d
+  relay:
+    disconnect:
+      enabled: false
+    timeout:
+      enabled: false
+    finalization:
+      enabled: false
+    close:
+      enabled: false
+  flipbook:
+    disconnect:
+      enabled: false
+    timeout:
+      enabled: false
+    finalization:
+      enabled: false

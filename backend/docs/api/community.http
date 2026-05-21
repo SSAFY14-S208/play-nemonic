@@ -1,0 +1,312 @@
+@host = http://localhost:8080
+@anonymousUserUuid = 550e8400-e29b-41d4-a716-446655440000
+@memoId = 3f22df4f-b187-42dd-81f3-d9f2fa5ce001
+@originalFileId = 550e8400-e29b-41d4-a716-446655440000
+@thumbnailFileId = 660e8400-e29b-41d4-a716-446655440000
+@sourceGalleryId = 8d25f3a5-3c5a-4f21-9f54-68fa4a402011
+
+### Get community memos
+GET {{host}}/api/v1/community/memos
+
+# Response item includes saved decoration so the frontend can restore memoColor after refresh.
+# Example item field:
+# "decoration": {
+#   "kind": "community-direct-v1",
+#   "memoColor": "#ffe887"
+# }
+
+### Get community memos with viewer UUID
+GET {{host}}/api/v1/community/memos
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get community memos - invalid UUID
+GET {{host}}/api/v1/community/memos
+Anonymous-User-UUID: not-a-uuid
+
+### Get community memo detail
+GET {{host}}/api/v1/community/memos/{{memoId}}
+
+### Get community memo detail with ownedByMe
+GET {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### 커뮤니티 메모 QR 공유 이미지 생성
+POST {{host}}/api/v1/community/memos/{{memoId}}/share
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Get community memo detail - invalid memo UUID
+GET {{host}}/api/v1/community/memos/not-a-uuid
+
+### Get community memo detail - invalid anonymous user UUID
+GET {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: not-a-uuid
+
+### Update community memo position
+PATCH {{host}}/api/v1/community/memos/{{memoId}}
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "positionX": 120.5,
+  "positionY": -30.0,
+  "zIndex": 12,
+  "rotationDeg": 5.5
+}
+
+### Update community memo position - invalid memo UUID
+PATCH {{host}}/api/v1/community/memos/not-a-uuid
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "positionX": 120.5,
+  "positionY": -30.0,
+  "zIndex": 12,
+  "rotationDeg": 5.5
+}
+
+### Update community memo position - invalid anonymous user UUID
+PATCH {{host}}/api/v1/community/memos/{{memoId}}
+Content-Type: application/json
+Anonymous-User-UUID: not-a-uuid
+
+{
+  "positionX": 120.5,
+  "positionY": -30.0,
+  "zIndex": 12,
+  "rotationDeg": 5.5
+}
+
+### Update community memo position - invalid position
+PATCH {{host}}/api/v1/community/memos/{{memoId}}
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "positionY": -30.0,
+  "zIndex": 12,
+  "rotationDeg": 5.5
+}
+
+### Update community memo position - forbidden owner
+PATCH {{host}}/api/v1/community/memos/{{memoId}}
+Content-Type: application/json
+Anonymous-User-UUID: 00000000-0000-0000-0000-000000000001
+
+{
+  "positionX": 120.5,
+  "positionY": -30.0,
+  "zIndex": 12,
+  "rotationDeg": 5.5
+}
+
+### Delete community memo
+DELETE {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Delete community memo - invalid memo UUID
+DELETE {{host}}/api/v1/community/memos/not-a-uuid
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Delete community memo - invalid anonymous user UUID
+DELETE {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: not-a-uuid
+
+### Delete community memo - forbidden owner
+DELETE {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: 00000000-0000-0000-0000-000000000001
+
+### Delete community memo - already deleted memo
+# Use a memoId whose deleted_at is already set. The API returns 404.
+DELETE {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Delete community memo - hidden memo
+# Use a hidden memoId. The API returns 404.
+DELETE {{host}}/api/v1/community/memos/{{memoId}}
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+### Report community memo
+POST {{host}}/api/v1/community/memos/{{memoId}}/reports
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "reason": "욕설/비방/혐오",
+  "reasonDetail": "욕설이 포함되어 있어요."
+}
+
+### Report community memo - invalid memo UUID
+POST {{host}}/api/v1/community/memos/not-a-uuid/reports
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "reason": "부적절한 콘텐츠"
+}
+
+### Report community memo - invalid anonymous user UUID
+POST {{host}}/api/v1/community/memos/{{memoId}}/reports
+Content-Type: application/json
+Anonymous-User-UUID: not-a-uuid
+
+{
+  "reason": "부적절한 콘텐츠"
+}
+
+### Report community memo - invalid reason
+POST {{host}}/api/v1/community/memos/{{memoId}}/reports
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "reason": "unknown"
+}
+
+### Report community memo - duplicate report
+# Use the same anonymous user UUID and memoId again. The API returns 409.
+POST {{host}}/api/v1/community/memos/{{memoId}}/reports
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "reason": "스팸/광고"
+}
+
+### Report community memo - own memo
+# Use a memoId created by the same anonymous user. The API returns 400.
+POST {{host}}/api/v1/community/memos/{{memoId}}/reports
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "reason": "기타"
+}
+
+### Report community memo - hidden or deleted memo
+# Use a hidden or deleted memoId. The API returns 404.
+POST {{host}}/api/v1/community/memos/{{memoId}}/reports
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "reason": "부적절한 콘텐츠"
+}
+
+### Create community memo from final rendered direct snapshot
+POST {{host}}/api/v1/community/memos
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "sourceType": "DIRECT",
+  "originalFileId": "{{originalFileId}}",
+  "thumbnailFileId": "{{thumbnailFileId}}",
+  "sourceGalleryId": null,
+  "positionX": 0.0,
+  "positionY": 0.0,
+  "zIndex": 1,
+  "rotationDeg": 0.0,
+  "decoration": {
+    "kind": "community-direct-v1",
+    "memoColor": "#ffe887",
+    "layers": []
+  },
+  "clientText": "텍스트박스 원문"
+}
+
+### Create community memo from final rendered direct snapshot - no decoration
+POST {{host}}/api/v1/community/memos
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "sourceType": "DIRECT",
+  "originalFileId": "{{originalFileId}}",
+  "thumbnailFileId": "{{thumbnailFileId}}",
+  "positionX": 12.5,
+  "positionY": -7.25,
+  "zIndex": 10,
+  "rotationDeg": 5.5
+}
+
+### Create community memo from gallery snapshot
+POST {{host}}/api/v1/community/memos
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "sourceType": "GALLERY",
+  "sourceGalleryId": "{{sourceGalleryId}}",
+  "originalFileId": "{{originalFileId}}",
+  "thumbnailFileId": "{{thumbnailFileId}}",
+  "positionX": 12.5,
+  "positionY": -7.25,
+  "zIndex": 10,
+  "rotationDeg": 0.0,
+  "decoration": {
+    "scale": 1.0
+  },
+  "clientText": "사용자가 추가한 텍스트"
+}
+
+### Create community memo - missing thumbnail file
+POST {{host}}/api/v1/community/memos
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "sourceType": "DIRECT",
+  "originalFileId": "{{originalFileId}}",
+  "positionX": 0.0,
+  "positionY": 0.0,
+  "zIndex": 1,
+  "rotationDeg": 0.0
+}
+
+### Create community memo - invalid anonymous user UUID
+POST {{host}}/api/v1/community/memos
+Content-Type: application/json
+Anonymous-User-UUID: not-a-uuid
+
+{
+  "sourceType": "DIRECT",
+  "originalFileId": "{{originalFileId}}",
+  "thumbnailFileId": "{{thumbnailFileId}}",
+  "positionX": 0.0,
+  "positionY": 0.0,
+  "zIndex": 1,
+  "rotationDeg": 0.0
+}
+
+### Create community memo - missing source gallery
+POST {{host}}/api/v1/community/memos
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "sourceType": "GALLERY",
+  "originalFileId": "{{originalFileId}}",
+  "thumbnailFileId": "{{thumbnailFileId}}",
+  "positionX": 0.0,
+  "positionY": 0.0,
+  "zIndex": 1,
+  "rotationDeg": 0.0
+}
+
+### Create community memo - moderation may block
+# FastAPI moderation can return 400 before DB insert if the final snapshot is not allowed.
+POST {{host}}/api/v1/community/memos
+Content-Type: application/json
+Anonymous-User-UUID: {{anonymousUserUuid}}
+
+{
+  "sourceType": "DIRECT",
+  "originalFileId": "{{originalFileId}}",
+  "thumbnailFileId": "{{thumbnailFileId}}",
+  "positionX": 0.0,
+  "positionY": 0.0,
+  "zIndex": 1,
+  "rotationDeg": 0.0,
+  "clientText": "모더레이션 차단 테스트 문구"
+}
