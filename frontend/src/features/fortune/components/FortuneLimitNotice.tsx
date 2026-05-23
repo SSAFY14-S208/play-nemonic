@@ -5,11 +5,8 @@ import { Fragment } from "react";
 
 import { cn } from "@/shared/libs";
 
-import { useFortuneSessionStore } from "../fortuneSessionStore";
-import { useFortuneReducedMotion, useFortuneTypewriterText } from "../hooks";
-import { getNextKoreanMidnightLabel } from "../utils";
-
-import {
+import { useFortuneSessionStore, getNextKoreanMidnightLabel } from '..';
+import { useFortuneReducedMotion, useFortuneTypewriterText } from '../hooks';import {
   DIALOGUE_COPY_CLASS,
   DIALOGUE_PANEL_CLASS,
   DIALOGUE_SPEAKER_CLASS,

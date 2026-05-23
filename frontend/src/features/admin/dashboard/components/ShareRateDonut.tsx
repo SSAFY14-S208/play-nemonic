@@ -1,8 +1,8 @@
 'use client'
 
-import { CHART_FUNNEL_COLORS, CHART_STATUS_COLORS } from '../constants'
+import { CHART_FUNNEL_COLORS, CHART_STATUS_COLORS } from '..'
 import type { AnalyticsDrillDownState, AnalyticsKpiState } from '../types'
-import type { I6Bucket } from '../hooks/useAnalyticsCharts'
+import type { I6Bucket } from '../hooks'
 
 import { ChartFrame } from './ChartFrame'
 

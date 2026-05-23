@@ -1,8 +1,5 @@
 import * as THREE from 'three'
-import {
-  useCommunityCanvasWhiteboardPreviewMemos,
-  useCommunityCanvasWhiteboardPreviewTexture,
-} from './hooks'
+import { useCommunityCanvasWhiteboardPreviewMemos, useCommunityCanvasWhiteboardPreviewTexture } from './hooks'
 
 const WHITEBOARD_PREVIEW_POSITION: [number, number, number] = [
   -0.638,

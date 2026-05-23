@@ -1,6 +1,6 @@
 'use client'
 
-import { METRICS_COLORS } from '../constants'
+import { METRICS_COLORS } from '..'
 
 type Props = {
   label: string

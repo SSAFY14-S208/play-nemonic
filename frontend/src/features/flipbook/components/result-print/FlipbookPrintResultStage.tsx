@@ -9,7 +9,7 @@ import { useNemonicPrintVibration } from '@/shared/hooks'
 import { cn } from '@/shared/libs'
 import { playBrowserAudio, preloadBrowserAudio } from '@/shared/utils'
 
-import { FLIPBOOK_SOUND_PATHS } from '../../constants'
+import { FLIPBOOK_SOUND_PATHS } from '../..'
 import { useFlipbookPrintReveal } from '../../hooks'
 import styles from './FlipbookPrintResultStage.module.css'
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { usePhoneStore } from '../phoneStore'
+import { usePhoneStore } from '..'
 
 export function usePhoneToast() {
   const dismissToast = usePhoneStore((state) => state.dismissToast)

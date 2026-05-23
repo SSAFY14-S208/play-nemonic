@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Image as KonvaImage } from "react-konva";
 
-import type { InfinityFill } from "../../constants";
+import type { InfinityFill } from '../..';
 import { drawImageAlphaHitRegion } from "./imageHitRegion";
 import { OBJECT_DRAG_DISTANCE } from "./shapes.types";
 

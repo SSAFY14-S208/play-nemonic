@@ -7,8 +7,7 @@ import { DEFAULT_USER_NICKNAME } from '@/shared/constants'
 import { completeFunnelStep } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 import { useInfinityCanvasRoom } from './hooks'
-import { InfinityStageView } from './components/InfinityStageView'
-import { InfinityNicknameModal } from './components/InfinityNicknameModal'
+import { InfinityStageView, InfinityNicknameModal } from './components'
 
 const MIN_ROOM_LOADING_MS = 700
 

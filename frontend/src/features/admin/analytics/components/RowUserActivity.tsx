@@ -1,17 +1,7 @@
 'use client'
 
-import { ENTRY_COLORS, FUNNEL_COLORS, METRICS_COLORS } from '../constants'
-import {
-  useActiveByContentTypeTimeline,
-  useActiveSessionCount,
-  useActiveUuidCount,
-  useEntryChannelTimeline,
-  useFlipbookCompletionTimeline,
-  useFunnelEventsTimeline,
-  useWebSocketRate,
-  useWebSocketSessions,
-  type MetricsVizArgs,
-} from '../hooks'
+import { ENTRY_COLORS, FUNNEL_COLORS, METRICS_COLORS } from '..'
+import { useActiveByContentTypeTimeline, useActiveSessionCount, useActiveUuidCount, useEntryChannelTimeline, useFlipbookCompletionTimeline, useFunnelEventsTimeline, useWebSocketRate, useWebSocketSessions, type MetricsVizArgs } from '../hooks'
 
 import { ChartFrame } from './ChartFrame'
 import { MetricsLineChart } from './MetricsLineChart'

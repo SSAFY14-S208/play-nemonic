@@ -1,6 +1,6 @@
 "use client";
 
-import type { AdminNavGroup } from "../../constants";
+import type { AdminNavGroup } from '../../constants';
 import { AdminSidebarAccordion } from "./AdminSidebarAccordion";
 import { AdminSidebarItem } from "./AdminSidebarItem";
 

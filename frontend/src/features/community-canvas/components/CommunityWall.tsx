@@ -22,11 +22,7 @@ import {
 import { cn } from '@/shared/libs'
 import type { CommunityMemoItemResponse } from '@/shared/types'
 import type { CommunityMemoLayoutDraft, CommunityPendingMemoPlacement } from '../hooks'
-import {
-  getCommunityMemoColor,
-  getStaticCommunityImageUrl,
-  getStaticCommunityMemoImageUrl,
-} from '../utils'
+import { getCommunityMemoColor, getStaticCommunityImageUrl, getStaticCommunityMemoImageUrl } from '../utils'
 import { CommunityMemoCard } from './CommunityMemoCard'
 
 interface CommunityWallProps {

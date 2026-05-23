@@ -1,9 +1,6 @@
 import type { StateCreator } from "zustand";
 
-import {
-  DEFAULT_TIME_LIMIT_ALLOWED_SECONDS,
-  DEFAULT_TIME_LIMIT_SECONDS,
-} from "../constants";
+import { DEFAULT_TIME_LIMIT_ALLOWED_SECONDS, DEFAULT_TIME_LIMIT_SECONDS } from '../constants';
 import {
   DEFAULT_DRAWING_STROKE_WIDTH,
   DRAWING_COLORS,

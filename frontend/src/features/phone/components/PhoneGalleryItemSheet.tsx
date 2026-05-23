@@ -9,8 +9,8 @@ import { cn } from '@/shared/libs'
 import { writeCommunityCanvasHandoffDraft } from '@/shared/utils'
 import { PHONE_COLORS, PHONE_GALLERY_ITEM_STYLES } from '../constants'
 import { useNemonicImagePrint } from '../hooks'
-import { usePhoneStore } from '../phoneStore'
-import type { PhoneGalleryItem } from '../types'
+import { usePhoneStore, type PhoneGalleryItem } from '..'
+
 import { PhonePrintFrame } from './PhonePrintFrame'
 
 interface PhoneGalleryItemSheetProps {

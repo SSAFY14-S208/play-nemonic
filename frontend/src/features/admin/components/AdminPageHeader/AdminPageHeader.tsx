@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 
-import { findActiveAdminNavItem } from "../../constants";
+import { findActiveAdminNavItem } from '../../constants';
 
 export function AdminPageHeader() {
   const pathname = usePathname();

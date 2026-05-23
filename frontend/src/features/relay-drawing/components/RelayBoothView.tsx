@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useState } from "react";
 
 import relayDrawingTitle from "../assets/relay-drawing-title.png";
-import { useRelayBooth } from "../hooks";
+import { useRelayBooth } from '../hooks';
 import RelayBoothBackground from "./RelayBoothBackground";
 import RelayBoothEntrance from "./RelayBoothEntrance";
 import RelayButton from "./RelayButton";

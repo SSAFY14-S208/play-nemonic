@@ -2,11 +2,7 @@ import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import Image from 'next/image'
 import { motion } from 'motion/react'
 import { cn } from '@/shared/libs'
-import {
-  HUB_ROOM_REVEAL_DURATION_MS,
-  PERCENT_FADE_OUT_DURATION_MS,
-  useHubLoadingOverlay,
-} from './hooks'
+import { HUB_ROOM_REVEAL_DURATION_MS, PERCENT_FADE_OUT_DURATION_MS, useHubLoadingOverlay } from './hooks'
 import styles from './HubLoadingOverlay.module.css'
 
 const HUB_LOADING_PRIMARY_COLOR = '#f49cc8'

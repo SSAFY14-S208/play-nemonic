@@ -4,19 +4,8 @@ import { useCallback } from 'react'
 
 import { completeFunnelStep, reachFunnelGoal } from '@/shared/libs'
 
-import { useFortuneSessionStore } from '../fortuneSessionStore'
-import {
-  canUseLocalFortuneFallback,
-  createMockFortuneResult,
-  isBirthInfoComplete,
-  isFortuneConflictError,
-  issueNewFortune,
-  resolveAlreadyIssuedResult,
-  resolveBirthInfoErrorMessage,
-  resolveFortuneErrorMessage,
-  saveBirthInfo,
-  writeStoredFortune,
-} from '../utils'
+import { useFortuneSessionStore, canUseLocalFortuneFallback, createMockFortuneResult, isBirthInfoComplete, isFortuneConflictError, issueNewFortune, resolveAlreadyIssuedResult, resolveBirthInfoErrorMessage, resolveFortuneErrorMessage, saveBirthInfo, writeStoredFortune } from '..'
+
 
 export function useFortuneActions() {
   const startBirthInfo = useCallback(() => {

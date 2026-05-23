@@ -3,13 +3,8 @@
 import { useMemo } from 'react'
 import { RotateCw, Search } from 'lucide-react'
 
-import {
-  AUDIT_CATEGORIES,
-  AUDIT_EVENT_DESCRIPTORS,
-  AUDIT_RANGE_OPTIONS,
-  type AuditLogRange,
-} from '../constants'
-import type { AuditLogFilterState } from '../hooks/useBackofficeAuditLogs'
+import { AUDIT_CATEGORIES, AUDIT_EVENT_DESCRIPTORS, AUDIT_RANGE_OPTIONS, type AuditLogRange } from '..'
+import type { AuditLogFilterState } from '../hooks'
 
 interface AuditLogFilterBarProps {
   filter: AuditLogFilterState

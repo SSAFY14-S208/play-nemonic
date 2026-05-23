@@ -1,14 +1,7 @@
 'use client'
 
-import { METRICS_COLORS } from '../constants'
-import {
-  seriesRangeToRows,
-  useHostCpu,
-  useHostDisk,
-  useHostMemory,
-  useHostNetworkIo,
-  type MetricsVizArgs,
-} from '../hooks'
+import { METRICS_COLORS } from '..'
+import { seriesRangeToRows, useHostCpu, useHostDisk, useHostMemory, useHostNetworkIo, type MetricsVizArgs } from '../hooks'
 
 import { ChartFrame } from './ChartFrame'
 import { MetricsGauge } from './MetricsGauge'

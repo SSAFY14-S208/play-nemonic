@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react'
 
 import type { AdminMetricsTimeRange } from '@/shared/types'
 
-import { METRICS_TIME_RANGE_PRESETS } from '../constants'
+import { METRICS_TIME_RANGE_PRESETS } from '..'
 import type { MetricsFiltersState, MetricsTimeRangePresetKey } from '../types'
 
 // system observability 필터 상태. marketing dashboard와 별도 인스턴스 — service

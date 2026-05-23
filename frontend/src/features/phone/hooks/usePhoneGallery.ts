@@ -1,10 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import type {
-  PhoneGalleryFilterKey,
-  PhoneGalleryItem,
-} from '../types'
+import type { PhoneGalleryFilterKey, PhoneGalleryItem } from '..'
 
 export function usePhoneGallery(
   galleryItems: PhoneGalleryItem[],

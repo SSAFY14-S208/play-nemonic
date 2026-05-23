@@ -11,10 +11,7 @@ import { extendRoomGltfLoader } from '../hubGltfLoader'
 import CarpetFurMesh from './CarpetFurMesh'
 import CommunityCanvasWhiteboardPreviewMesh from './CommunityCanvasWhiteboardPreviewMesh'
 import TabletopSheenMesh from './TabletopSheenMesh'
-import {
-  useCommunityCanvasWhiteboardAssetNavigation,
-  useRoomModel,
-} from './hooks'
+import { useCommunityCanvasWhiteboardAssetNavigation, useRoomModel } from './hooks'
 
 export default function RoomModel({
   performanceMode,

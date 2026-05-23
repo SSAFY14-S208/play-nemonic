@@ -7,7 +7,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 
-import { METRICS_COLORS } from '../constants'
+import { METRICS_COLORS } from '..'
 
 type Props = {
   // 0~100. clamp 처리됨.

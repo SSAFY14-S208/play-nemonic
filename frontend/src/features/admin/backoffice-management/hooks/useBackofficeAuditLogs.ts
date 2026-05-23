@@ -4,15 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { ApiError, postAdminLogsSearch } from '@/shared/apis'
 import type {
-  AdminLogsFilter,
-  AdminLogsSearchHit,
-} from '@/shared/types'
+  AdminLogsFilter, AdminLogsSearchHit, } from '@/shared/types'
 
-import {
-  AUDIT_EVENT_DESCRIPTORS,
-  AUDIT_RANGE_DAYS,
-  type AuditLogRange,
-} from '../constants'
+import { AUDIT_EVENT_DESCRIPTORS, AUDIT_RANGE_DAYS, type AuditLogRange } from '..'
 
 const PAGE_SIZE = 50
 const AUDIT_INDEX = 'audit-logs' as const

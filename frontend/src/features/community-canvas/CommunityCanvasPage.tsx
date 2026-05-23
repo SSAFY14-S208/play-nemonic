@@ -11,16 +11,8 @@ import {
   consumeCommunityCanvasHandoffDraft,
   type CommunityCanvasHandoffDraft,
 } from '@/shared/utils'
-import {
-  CommunityComposerModal,
-  CommunityMemoDetailModal,
-  CommunityNicknameModal,
-  CommunityMemoPrintRevealOverlay,
-  CommunityReportModal,
-  CommunityWall,
-} from './components'
-import { useCommunityCanvas, useCommunityComposer } from './hooks'
-import type { CommunityMemoLayoutDraft } from './hooks'
+import { CommunityComposerModal, CommunityMemoDetailModal, CommunityNicknameModal, CommunityMemoPrintRevealOverlay, CommunityReportModal, CommunityWall } from './components'
+import { useCommunityCanvas, useCommunityComposer, type CommunityMemoLayoutDraft } from './hooks'
 
 type CommunityCanvasThemeStyle = CSSProperties & Record<`--${string}`, string>
 type PendingCommunityNicknameAction =

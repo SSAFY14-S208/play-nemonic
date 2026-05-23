@@ -5,7 +5,7 @@ import { ChevronDown, LogOut } from "lucide-react";
 
 import { useAdminAuthStore } from "@/shared/stores";
 
-import { useAdminLogout } from "../../hooks";
+import { useAdminLogout } from '../../hooks';
 
 export function AdminAccountPopover() {
   const adminEmail = useAdminAuthStore((state) => state.admin?.email ?? null);

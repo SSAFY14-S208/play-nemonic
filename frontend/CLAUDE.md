@@ -1085,16 +1085,34 @@ features/relay-drawing/
 
 ## 배럴 export
 
-모든 폴더는 `index.ts`를 통해 외부에 단일 진입점을 제공합니다.
-내부 파일 경로 직접 참조 금지 (`_infra/` 및 `use*Interaction.ts`의 feature store import는 예외).
+공개 코드 폴더는 `index.ts`를 통해 외부에 단일 진입점을 제공합니다.
+폴더 외부 소비자는 내부 파일 경로를 직접 참조하지 않고 폴더 배럴을 import합니다.
 
 ```ts
-// ✅ 올바른 import
+// ✅ 올바른 import: 외부 소비자는 폴더 진입점을 사용
 import { useInteractiveObject } from "@/features/interaction-sheet";
 
-// ❌ 금지 — 내부 경로 직접 참조
+// ❌ 금지: 외부 소비자가 내부 파일 경로 직접 참조
 import { useInteractiveObject } from "@/features/interaction-sheet/useInteractiveObject";
 ```
+
+내부 구현 파일 간 import:
+
+- 같은 폴더 안의 구현 파일끼리는 sibling 파일을 직접 import할 수 있습니다 (`./useLogin`, `./loginStore` 등).
+- 같은 배럴이 export하는 파일 안에서 그 배럴을 다시 import하지 않습니다. `index.ts -> LoginPage.tsx -> index.ts` 형태의 자기참조 그래프를 피하기 위함입니다.
+- 같은 feature 내부 구현 파일은 가장 좁고 의미 있는 진입점을 사용합니다.
+  - 리소스 폴더 배럴이 있는 경우(`hooks/index.ts`, `utils/index.ts`, `types/index.ts`, `stores/index.ts`, `components/index.ts`) → 리소스 폴더 배럴에서 import합니다 (`../hooks`, `../utils`, `../types` 등).
+  - 아직 평면 파일인 리소스(`constants.ts`, `types.ts`, `fooStore.ts`) → 명시적인 파일 경로에서 import합니다 (`../constants`, `../types`, `../fooStore`).
+  - 같은 feature 내부의 constants/hooks/types/utils/stores를 `..` 같은 넓은 부모 배럴로 import하지 않습니다. 출처 모듈이 흐려집니다.
+- 기존 리소스 폴더 배럴을 우회하는 내부 파일 경로 import를 금지합니다 (`../hooks/useFoo`, `./utils/formatFoo` 등).
+- 같은 source에서 가져오는 import는 하나의 선언으로 병합합니다. 리소스 배럴이 여러 파일의 export를 모을 때는 같은 경로 import를 반복하지 말고, import 블록 내부의 짧은 주석으로 출처를 구분합니다.
+- 다른 feature, shared module, world module로 경계를 넘는 경우에는 내부 파일 경로가 아니라 해당 모듈의 public 배럴을 사용합니다.
+
+예외:
+
+- `_infra/` 파일은 직접 import합니다. 씬당 하나만 존재하는 인프라/싱글톤 성격 파일은 배럴을 두면 순환 그래프가 생기기 쉽습니다.
+- `use*Interaction.ts`는 feature store write 목적에 한해 store 파일을 직접 import할 수 있습니다.
+- Next.js `app/` 라우트 파일(`page.tsx`, `layout.tsx`, `route.ts` 등)과 CSS/asset side-effect import는 배럴 대상이 아닙니다.
 
 ---
 
@@ -1112,7 +1130,10 @@ import { useInteractiveObject } from "@/features/interaction-sheet/useInteractiv
 - 일반 서비스 페이지를 `app/(service)/` 없이 `app/` 직하에 배치 금지
 - `_infra/`에 재사용 가능한 메시 추가 금지 → `_shared/mesh/`로
 - `_shared/mesh/`에 단일 주체 컴포넌트 추가 금지 → `_infra/`로
-- `index.ts` 배럴 우회 import 금지
+- 외부 소비자의 `index.ts` 배럴 우회 import 금지
+- 같은 feature 내부 구현 파일은 리소스 폴더 배럴(`../hooks`, `../utils`, `../types`, `../stores`, `../components`) 또는 명시적인 평면 리소스 파일(`../constants`, `../types`, `../fooStore`) 사용
+- 기존 리소스 폴더 배럴을 우회하는 파일 직접 import 금지 (`../hooks/useFoo`, `./utils/formatFoo` 등)
+- 같은 폴더 구현 파일이 자신을 export하는 배럴을 다시 import하는 구조 금지
 - `features/` 간 직접 import 금지
 - `worlds/`↔`features/` 컴포넌트/훅 직접 import 금지
 - `features/admin/` ↔ 일반 `features/` 간 import 금지 (양방향)

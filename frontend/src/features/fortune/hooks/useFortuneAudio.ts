@@ -1,5 +1,5 @@
 import { playBrowserAudio, preloadBrowserAudio } from '@/shared/utils'
-import { FORTUNE_SOUND_PATHS } from '../constants'
+import { FORTUNE_SOUND_PATHS } from '..'
 
 export function useFortuneAudio() {
   const preloadPrintStart = () => {

@@ -2,8 +2,7 @@
 
 import { useEffect } from 'react'
 
-import { GameLobbyLayout } from '@/shared/components'
-import type { GameLobbyTheme } from '@/shared/components'
+import { GameLobbyLayout, PhoneLauncherButton, type GameLobbyTheme } from '@/shared/components'
 import { useUserStore } from '@/shared/stores'
 
 import relayDrawingTitle from '../assets/relay-drawing-title.png'
@@ -12,7 +11,6 @@ import { useRelayLobby } from '../hooks'
 import { useRelayDrawingStore, useRelayHowToPlayStore } from '../stores'
 import RelayBgmToggle from './RelayBgmToggle'
 import RelayHowToPlayButton from './RelayHowToPlayButton'
-import { PhoneLauncherButton } from '@/shared/components'
 
 const RELAY_LOBBY_THEME: GameLobbyTheme = {
   accent: 'var(--color-relay-accent)',

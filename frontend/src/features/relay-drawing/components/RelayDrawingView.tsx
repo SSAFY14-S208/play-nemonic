@@ -2,16 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
-import {
-  ColorPanel,
-  DrawingCompleteButton,
-  MobileBrushOpacityBar,
-  MobileColorBar,
-  MobileToolBar,
-  ProgressRail,
-  ToolPanel,
-  TopStatusBar,
-} from "@/shared/components";
+import { ColorPanel, DrawingCompleteButton, MobileBrushOpacityBar, MobileColorBar, MobileToolBar, ProgressRail, ToolPanel, TopStatusBar, PhoneLauncherButton } from "@/shared/components";
 import {
   DRAWING_COLORS,
   DRAWING_STROKE_WIDTH_OPTIONS,
@@ -19,16 +10,9 @@ import {
 import { useDrawingKeyboardShortcuts } from "@/shared/hooks";
 import { cn } from "@/shared/libs";
 import type { DrawingToolKey } from "@/shared/types";
-import {
-  RELAY_ROUND_ORDER,
-  RELAY_ROUND_SEGMENTS,
-  RELAY_STAGE_SIZE,
-} from "../constants";
-import { useRelayDrawingGame } from "../hooks/useRelayDrawingGame";
-import { useRelayTimer } from "../hooks/useRelayTimer";
-import { useRelayDrawingStore } from "../stores";
+import { RELAY_ROUND_ORDER, RELAY_ROUND_SEGMENTS, RELAY_STAGE_SIZE } from '../constants';
+import { useRelayDrawingGame, useRelayTimer } from '../hooks';import { useRelayDrawingStore } from "../stores";
 import PartTimeUpOverlay from "./PartTimeUpOverlay";
-import { PhoneLauncherButton } from "@/shared/components";
 
 import RelayBgmToggle from "./RelayBgmToggle";
 import RelayHowToPlayButton from "./RelayHowToPlayButton";

@@ -1,10 +1,7 @@
 import { Text } from "react-konva";
 import type Konva from "konva";
 
-import {
-  INFINITY_TEXT_DEFAULT_FONT_FAMILY,
-  type InfinityText,
-} from "../../constants";
+import { INFINITY_TEXT_DEFAULT_FONT_FAMILY, type InfinityText } from '../..';
 import { OBJECT_DRAG_DISTANCE } from "./shapes.types";
 
 interface KonvaTextProps {

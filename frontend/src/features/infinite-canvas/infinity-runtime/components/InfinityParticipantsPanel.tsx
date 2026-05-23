@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import type { InfiniteCanvasConnectionStatus, InfiniteCanvasParticipantResponse } from '@/shared/types'
 
-import { INFINITE_CANVAS_COLOR_OPTIONS } from '../../constants'
+import { INFINITE_CANVAS_COLOR_OPTIONS } from '../..'
 
 const PANEL_WIDTH = 324
 const PARTICIPANT_ROW_HEIGHT = 42

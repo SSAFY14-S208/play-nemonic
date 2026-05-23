@@ -1,4 +1,4 @@
-import { useFortuneSessionStore } from '../fortuneSessionStore'
+import { useFortuneSessionStore } from '..'
 
 import FortuneFloatingPanel from './FortuneFloatingPanel'
 

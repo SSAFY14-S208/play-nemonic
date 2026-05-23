@@ -3,9 +3,9 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import type { Formatter } from 'recharts/types/component/DefaultTooltipContent'
 
-import { CHART_ENTRY_COLORS, CHART_STATUS_COLORS } from '../constants'
+import { CHART_ENTRY_COLORS, CHART_STATUS_COLORS } from '..'
 import type { AnalyticsKpiState, AnalyticsDrillDownState } from '../types'
-import type { I7Bucket } from '../hooks/useAnalyticsCharts'
+import type { I7Bucket } from '../hooks'
 
 import { ChartFrame } from './ChartFrame'
 

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 
 import { Button } from '@/shared/components'
 
-import { useInfinityCanvasStore } from '../infinityCanvasStore'
+import { useInfinityCanvasStore } from '..'
 
 function formatDuration(seconds: number): string {
   const minutes = Math.floor(seconds / 60)

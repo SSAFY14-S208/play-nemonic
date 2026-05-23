@@ -4,17 +4,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/shared/libs";
 
-import {
-  INFINITY_COLORS,
-  INFINITY_TEXT_DEFAULT_COLOR,
-  INFINITY_TEXT_FONT_FAMILIES,
-  INFINITY_TEXT_FONT_SIZES,
-  type InfinityToolKey,
-} from "../constants";
-import type {
-  InfinityTextEditorCommitValue,
-  InfinityTextEditorState,
-} from "../hooks/useInfinityDrawing";
+import { INFINITY_COLORS, INFINITY_TEXT_DEFAULT_COLOR, INFINITY_TEXT_FONT_FAMILIES, INFINITY_TEXT_FONT_SIZES, type InfinityToolKey } from '..';
+import type { InfinityTextEditorCommitValue, InfinityTextEditorState } from '../hooks';
 
 interface InfinityTextEditorProps {
   state: InfinityTextEditorState;

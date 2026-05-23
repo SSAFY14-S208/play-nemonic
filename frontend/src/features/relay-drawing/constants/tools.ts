@@ -1,7 +1,6 @@
 // 드로잉 도구 / 색상 팔레트 / 위험 액션(전체 비우기).
 
-import type { LucideIcon } from 'lucide-react'
-import { Eraser, PaintBucket, Pencil, RotateCcw, Trash2, Undo2 } from 'lucide-react'
+import { Eraser, PaintBucket, Pencil, RotateCcw, Trash2, Undo2, type LucideIcon } from 'lucide-react'
 import type { DrawingToolKey } from '@/shared/types'
 
 export type RelayToolKey = DrawingToolKey

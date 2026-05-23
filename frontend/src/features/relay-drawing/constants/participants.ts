@@ -2,8 +2,7 @@
 // 실제 참여자 목록은 store.participants(서버 hydrate)에서 읽는다 — 이 상수는
 // 부스 화면의 정적 일러스트 용도다.
 
-import type { LucideIcon } from 'lucide-react'
-import { Cat, Crown, Squirrel } from 'lucide-react'
+import { Cat, Crown, Squirrel, type LucideIcon } from 'lucide-react'
 
 export interface RelayParticipant {
   id: string

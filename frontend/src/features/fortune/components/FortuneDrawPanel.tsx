@@ -8,10 +8,8 @@ import { useShallow } from "zustand/react/shallow";
 
 import { cn } from "@/shared/libs";
 
-import { useFortuneSessionStore } from "../fortuneSessionStore";
-import { calculateFortuneSaju, isBirthInfoComplete } from "../utils";
-
-import FortuneDrawAction from "./FortuneDrawAction";
+import { useFortuneSessionStore } from '..';
+import { calculateFortuneSaju, isBirthInfoComplete } from '../utils';import FortuneDrawAction from "./FortuneDrawAction";
 
 interface FortuneDrawPanelProps {
   onDraw: () => void;

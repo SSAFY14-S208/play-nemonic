@@ -26,7 +26,7 @@ import {
 } from "@/shared/constants";
 import { cn } from "@/shared/libs";
 
-import { type InfinityToolKey } from "../constants";
+import type { InfinityToolKey } from '..';
 
 interface InfinityToolPanelProps {
   drawing: {

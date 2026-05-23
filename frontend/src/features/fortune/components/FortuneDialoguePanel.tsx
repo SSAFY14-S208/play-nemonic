@@ -4,7 +4,7 @@ import { Fragment } from "react";
 
 import { cn } from "@/shared/libs";
 
-import { useFortuneReducedMotion, useFortuneTypewriterText } from "../hooks";
+import { useFortuneReducedMotion, useFortuneTypewriterText } from '../hooks';
 
 interface FortuneDialoguePanelProps {
   dialogueIndex: number;

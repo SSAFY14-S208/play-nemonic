@@ -3,7 +3,7 @@
 import { Dialog } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
 
-import { useNotificationStore } from "../../stores";
+import { useNotificationStore } from '../../stores';
 
 export function AdminNotificationModal() {
   const { notifications, isModalOpen, closeModal } = useNotificationStore();

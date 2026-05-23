@@ -2,10 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import type { Group } from 'three'
 
-import {
-  FORTUNE_PRINT_DURATION_SECONDS,
-  FORTUNE_REDUCED_MOTION_DURATION_SECONDS,
-} from '../constants'
+import { FORTUNE_PRINT_DURATION_SECONDS, FORTUNE_REDUCED_MOTION_DURATION_SECONDS } from '..'
 
 interface UseFortunePrinterMotionOptions {
   isPrinting: boolean

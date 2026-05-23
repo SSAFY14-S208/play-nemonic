@@ -12,20 +12,11 @@ import {
   phoneDrawingUndo,
 } from '@/shared/assets'
 import { cn } from '@/shared/libs'
-import {
-  PHONE_COLORS,
-  PHONE_DRAWING_LAYOUT,
-} from '../constants'
+import { PHONE_COLORS, PHONE_DRAWING_LAYOUT } from '../constants'
 import { usePhoneDrawing } from '../hooks'
-import { usePhoneStore } from '../phoneStore'
-import type { PhoneDrawingAction } from '../types'
-import {
-  DrawingActionButtonRow,
-  DrawingBackIcon,
-  DrawingSliderControl,
-  DrawingToolButton,
-  PhoneDrawingStage,
-} from './drawing-screen'
+import { usePhoneStore, type PhoneDrawingAction } from '..'
+
+import { DrawingActionButtonRow, DrawingBackIcon, DrawingSliderControl, DrawingToolButton, PhoneDrawingStage } from './drawing-screen'
 
 export function PhoneDrawingScreen() {
   const goHome = usePhoneStore((state) => state.goHome)

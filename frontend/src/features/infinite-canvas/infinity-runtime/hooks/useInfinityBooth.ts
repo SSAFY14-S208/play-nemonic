@@ -5,7 +5,7 @@ import { useState, useTransition } from 'react'
 import { ApiError, postInfiniteCanvasCanvas, postInvite } from '@/shared/apis'
 import { DEFAULT_USER_NICKNAME } from '@/shared/constants'
 import { useUserStore } from '@/shared/stores'
-import { INFINITY_COLORS } from '../constants'
+import { INFINITY_COLORS } from '..'
 import { saveInfiniteCanvasCreatedRoomSnapshot } from '../../utils'
 
 interface UseInfinityBoothReturn {

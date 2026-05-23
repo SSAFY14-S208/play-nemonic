@@ -7,7 +7,7 @@ import { ChevronDown } from "lucide-react";
 
 import { cn } from "@/shared/libs";
 
-import type { AdminNavItem } from "../../constants";
+import type { AdminNavItem } from '../../constants';
 import { AdminSidebarItem } from "./AdminSidebarItem";
 
 type AdminSidebarAccordionProps = {
