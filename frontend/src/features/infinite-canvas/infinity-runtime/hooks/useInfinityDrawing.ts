@@ -5,14 +5,8 @@ import type Konva from 'konva'
 import { DEFAULT_DRAWING_STROKE_WIDTH } from '@/shared/constants'
 import type { InfiniteCanvasOperationRequest } from '@/shared/types'
 
-import {
-  INFINITY_TEXT_DEFAULT_COLOR,
-  INFINITY_TEXT_DEFAULT_FONT_FAMILY,
-  type InfinityObject,
-  type InfinityText,
-  type InfinityToolKey,
-} from '../constants'
-import { createClientOperationId } from '../infinityObjectUtils'
+import { INFINITY_TEXT_DEFAULT_COLOR, INFINITY_TEXT_DEFAULT_FONT_FAMILY, createClientOperationId, type InfinityObject, type InfinityText, type InfinityToolKey } from '..'
+
 import { useInfinityHistory } from './useInfinityHistory'
 import { useInfinityViewport } from './useInfinityViewport'
 import { useInfinityEvents } from './useInfinityEvents'

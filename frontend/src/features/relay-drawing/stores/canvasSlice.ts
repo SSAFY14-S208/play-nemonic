@@ -1,12 +1,9 @@
 import type { StateCreator } from 'zustand'
 
 import {
-  DEFAULT_DRAWING_STROKE_WIDTH,
-  DRAWING_COLORS,
-  MAX_RECENT_DRAWING_COLOR_COUNT,
-} from '@/shared/constants'
+  DEFAULT_DRAWING_STROKE_WIDTH, DRAWING_COLORS, MAX_RECENT_DRAWING_COLOR_COUNT, } from '@/shared/constants'
 import { PART_TO_ROUND_KEY, RELAY_ROUND_ORDER } from '../constants'
-import type { RelayDrawLine, RelayRoundLines } from '../types'
+import type { RelayDrawLine, RelayRoundLines } from '..'
 
 import type { CanvasSlice, RelayDrawingStore } from './store.types'
 

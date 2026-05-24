@@ -4,17 +4,7 @@ import { useRef } from 'react'
 import type Konva from 'konva'
 import type { InfiniteCanvasOperationRequest } from '@/shared/types'
 
-import {
-  type InfinityFill,
-  type InfinityLine,
-  type InfinityObject,
-  type InfinityShape,
-  type InfinityText,
-  type InfinityToolKey,
-  INFINITY_TEXT_DEFAULT_COLOR,
-  INFINITY_TEXT_DEFAULT_FONT_FAMILY,
-  INFINITY_TEXT_DEFAULT_FONT_SIZE,
-} from '../constants'
+import { INFINITY_TEXT_DEFAULT_COLOR, INFINITY_TEXT_DEFAULT_FONT_FAMILY, INFINITY_TEXT_DEFAULT_FONT_SIZE, type InfinityFill, type InfinityLine, type InfinityObject, type InfinityShape, type InfinityText, type InfinityToolKey } from '..'
 function generateId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID()

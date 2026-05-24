@@ -11,20 +11,8 @@ import { usePhoneLauncherStore, useUserStore } from '@/shared/stores'
 
 import relayDrawingGameStart from './assets/relay-drawing-game-start.png'
 import nemonicDrawingLobbyBg from './assets/nemonic-drawing-lobby-bg.png'
-import {
-  RelayButton,
-  RelayDismissalModal,
-  RelayDrawingView,
-  RelayFinalizingView,
-  RelayFloatingControls,
-  RelayLobbyView,
-  RelayNicknameModal,
-  RelayResultView,
-} from './components'
-import {
-  RELAY_LEAVE_CANCEL_BUTTON_CLASS,
-  RELAY_LEAVE_CONFIRM_BUTTON_CLASS,
-} from './constants'
+import { RelayButton, RelayDismissalModal, RelayDrawingView, RelayFinalizingView, RelayFloatingControls, RelayLobbyView, RelayNicknameModal, RelayResultView } from './components'
+import { RELAY_LEAVE_CANCEL_BUTTON_CLASS, RELAY_LEAVE_CONFIRM_BUTTON_CLASS } from './constants'
 import { useRelayAbandonmentTracking, useRelayRoom } from './hooks'
 import { useRelayDrawingStore } from './stores'
 import { relayToast } from './utils'

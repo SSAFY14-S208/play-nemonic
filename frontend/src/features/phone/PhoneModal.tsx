@@ -3,16 +3,7 @@
 import { Dialog } from '@base-ui/react/dialog'
 import { motion } from 'motion/react'
 import { useCallback, useState } from 'react'
-import {
-  PhoneCloseButton,
-  PhoneDrawingScreen,
-  PhoneFrame,
-  PhoneGalleryScreen,
-  PhoneHomeScreen,
-  PhoneInquiryScreen,
-  PhoneMobileCloseButton,
-  PhoneToast,
-} from './components'
+import { PhoneCloseButton, PhoneDrawingScreen, PhoneFrame, PhoneGalleryScreen, PhoneHomeScreen, PhoneInquiryScreen, PhoneMobileCloseButton, PhoneToast } from './components'
 import { PHONE_DESIGN_HEIGHT, PHONE_DESIGN_WIDTH } from './constants'
 import { usePhoneStore } from './phoneStore'
 

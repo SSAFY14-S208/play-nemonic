@@ -8,7 +8,7 @@ import {
   PHONE_DRAWING_PAPER_COLOR,
   PHONE_DRAWING_STAGE_SIZE,
 } from '../../constants'
-import type { PhoneDrawLine } from '../../types'
+import type { PhoneDrawLine } from '../..'
 
 interface PhoneDrawingStageProps {
   lines: PhoneDrawLine[]

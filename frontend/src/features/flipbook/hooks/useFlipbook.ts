@@ -3,60 +3,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { HTTPError } from 'ky'
 import {
-  deleteFlipbookRoomParticipantMe,
-  getFlipbookRoom,
-  getFlipbookRoomAssignmentMe,
-  getFlipbookRoomResult,
-  postFileConfirm,
-  postFilePresign,
-  postFlipbookRoom,
-  postFlipbookRoomClose,
-  postFlipbookRoomKick,
-  postFlipbookRoomRoundFrame,
-  postFlipbookRoomStart,
-  postInvite,
-  patchFlipbookRoomSettings,
-  putFileToPresignedUrl,
-} from '@/shared/apis'
+  deleteFlipbookRoomParticipantMe, getFlipbookRoom, getFlipbookRoomAssignmentMe, getFlipbookRoomResult, postFileConfirm, postFilePresign, postFlipbookRoom, postFlipbookRoomClose, postFlipbookRoomKick, postFlipbookRoomRoundFrame, postFlipbookRoomStart, postInvite, patchFlipbookRoomSettings, putFileToPresignedUrl, } from '@/shared/apis'
 import { DRAWING_COLORS, DEFAULT_DRAWING_STROKE_WIDTH } from '@/shared/constants'
 import { useDrawingBoard, useFunnelEntry } from '@/shared/hooks'
 import { completeFunnelStep, logEvent, reachFunnelGoal } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 import type {
-  DrawingLine,
-  FlipbookAssignmentResponse,
-  FlipbookBlockedReason,
-  FlipbookFrameSubmitResponse,
-  FlipbookRoomCreateResponse,
-  FlipbookResultItemResponse,
-  FlipbookRoomStateResponse,
-} from '@/shared/types'
-import {
-  FLIPBOOK_BACKGROUND_COLOR,
-  FLIPBOOK_BOARD_SIZE,
-} from '../constants'
+  DrawingLine, FlipbookAssignmentResponse, FlipbookBlockedReason, FlipbookFrameSubmitResponse, FlipbookRoomCreateResponse, FlipbookResultItemResponse, FlipbookRoomStateResponse, } from '@/shared/types'
+import { FLIPBOOK_BACKGROUND_COLOR, FLIPBOOK_BOARD_SIZE } from '..'
 import type {
   FlipbookStep,
   FlipbookTimeLimitSeconds,
 } from '../types'
-import {
-  createCanvasBlobFromLines,
-  createFlipbookDummyResultItems,
-  createLocalFlipbookParticipant,
-  createPreviousFrameLinesFromAssignment,
-  FLIPBOOK_FILE_CONTENT_TYPE,
-  FLIPBOOK_FILE_PURPOSE,
-  getAssignmentKey,
-  getFlipbookTimeLimitOptions,
-  getFlipbookActionError,
-  getNormalizedResultItems,
-  getResultFrames,
-  getRoomParticipantCount,
-  getServerRoundCount,
-  hasConfiguredNickname,
-  toFlipbookParticipant,
-  toFlipbookTimeLimitSeconds,
-} from '../utils'
+import { createCanvasBlobFromLines, FLIPBOOK_FILE_CONTENT_TYPE, FLIPBOOK_FILE_PURPOSE, createFlipbookDummyResultItems, createLocalFlipbookParticipant, createPreviousFrameLinesFromAssignment, getAssignmentKey, getFlipbookTimeLimitOptions, getRoomParticipantCount, getServerRoundCount, toFlipbookParticipant, toFlipbookTimeLimitSeconds, getFlipbookActionError, hasConfiguredNickname, getNormalizedResultItems, getResultFrames } from '../utils'
 import { useFlipbookRealtimeConnection } from './useFlipbookRealtimeConnection'
 import { useFlipbookRealtimeEventHandler } from './useFlipbookRealtimeEventHandler'
 import { useFlipbookResultPlayback } from './useFlipbookResultPlayback'

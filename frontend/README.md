@@ -406,14 +406,15 @@ features/relay-drawing/
 ### index.ts 배럴이 필수인 이유
 
 ```ts
-// ✅ 배럴 있음 — 내부 구조가 숨겨짐
+// ✅ 외부 소비자는 public 배럴 사용
 import { useRelayDrawing } from "@/features/relay-drawing";
 
-// ❌ 배럴 없음 — 내부 경로가 import에 노출됨
+// ❌ 외부 소비자가 내부 경로 직접 참조
 import { useRelayDrawing } from "@/features/relay-drawing/hooks/useRelayDrawing";
 ```
 
 배럴이 있으면 내부 파일 이동·이름 변경이 외부 import에 영향을 주지 않습니다.
+단, 같은 feature 내부 구현 파일은 아래 `배럴 export` 기준에 따라 리소스 폴더 배럴(`../hooks`)이나 평면 파일(`../constants`)처럼 더 좁은 진입점을 우선합니다.
 
 ---
 
@@ -481,19 +482,58 @@ export default function LabelPrinter() {
 
 ## 배럴 export (index.ts)
 
-모든 폴더는 `index.ts`를 통해 외부에 단일 진입점을 제공합니다.
+공개 코드 폴더는 `index.ts`를 통해 외부에 단일 진입점을 제공합니다.
+폴더 외부 소비자는 내부 파일 경로를 직접 참조하지 않고 public 배럴을 import합니다.
 
 ```ts
-// ✅ 배럴을 통한 import
+// ✅ 외부 소비자는 feature public 배럴을 사용
 import { useRelayDrawing, RelayDrawingPage } from "@/features/relay-drawing";
 
-// ❌ 내부 경로 직접 참조 금지
-import { useRelayDrawing } from "@/features/relay-drawing/useRelayDrawing";
+// ❌ 외부 소비자가 내부 파일 경로 직접 참조
+import { useRelayDrawing } from "@/features/relay-drawing/hooks/useRelayDrawing";
+```
+
+### 내부 구현 파일 import 기준
+
+- 같은 폴더 안의 구현 파일끼리는 sibling 파일을 직접 import할 수 있습니다.
+- 같은 배럴이 export하는 파일 안에서 그 배럴을 다시 import하지 않습니다.
+- 같은 feature 내부에서는 가장 좁고 의미 있는 진입점을 사용합니다.
+  - 리소스 폴더 배럴이 있는 경우(`hooks/index.ts`, `utils/index.ts`, `types/index.ts`, `stores/index.ts`, `components/index.ts`) → `../hooks`, `../utils`, `../types`, `../stores`, `../components`
+  - 아직 평면 파일인 리소스(`constants.ts`, `types.ts`, `fooStore.ts`) → `../constants`, `../types`, `../fooStore`
+  - 같은 feature 내부의 constants/hooks/types/utils/stores를 `..` 같은 넓은 부모 배럴로 import하지 않습니다.
+- 기존 리소스 폴더 배럴을 우회하는 내부 파일 경로 import를 금지합니다.
+
+```ts
+// ✅ 리소스 폴더 배럴
+import { useRelayDrawingGame, type RelayTimerState } from "../hooks";
+
+// ✅ 평면 리소스 파일
+import { RELAY_STAGE_SIZE } from "../constants";
+
+// ❌ hooks 배럴 우회
+import { useRelayDrawingGame } from "../hooks/useRelayDrawingGame";
+
+// ❌ 너무 넓은 부모 배럴
+import { RELAY_STAGE_SIZE } from "..";
+```
+
+같은 source에서 가져오는 import는 하나의 선언으로 병합합니다. 리소스 배럴이 여러 파일의 export를 모을 때는 같은 경로 import를 반복하지 말고, import 블록 내부의 짧은 주석으로 출처를 구분합니다.
+
+```ts
+import {
+  // useMonitorGameSelector.ts
+  type MonitorGameAction,
+  useMonitorGameSelector,
+  // useMonitorScreenAnimations.ts
+  type MonitorEntranceProgressRef,
+  useMonitorEntranceSequence,
+} from "./hooks";
 ```
 
 **예외:**
-- `_infra/` 파일은 직접 import (순환 참조 방지)
-- `use*Interaction.ts`의 feature store import는 허용 (write 전용)
+- `_infra/` 파일은 직접 import합니다. 씬당 하나만 존재하는 인프라/싱글톤 성격 파일은 배럴을 두면 순환 그래프가 생기기 쉽습니다.
+- `use*Interaction.ts`는 feature store write 목적에 한해 store 파일을 직접 import할 수 있습니다.
+- Next.js `app/` 라우트 파일(`page.tsx`, `layout.tsx`, `route.ts` 등)과 CSS/asset side-effect import는 배럴 대상이 아닙니다.
 
 ---
 
@@ -912,7 +952,10 @@ className="bg-cream-50 text-brown-720"   // Primitive 토큰 직접 참조
 - `worlds/{scene}/{Scene}Canvas.tsx` 외에서 `<Physics>` 선언 금지
 - `_infra/`에 재사용 가능한 메시 추가 금지 → `_shared/mesh/`로
 - `_shared/mesh/`에 단일 주체 컴포넌트 추가 금지 → `_infra/`로
-- `index.ts` 배럴을 우회한 직접 경로 import 금지
+- 외부 소비자의 `index.ts` 배럴 우회 import 금지
+- 같은 feature 내부 구현 파일은 리소스 폴더 배럴(`../hooks`, `../utils`, `../types`, `../stores`, `../components`) 또는 명시적인 평면 리소스 파일(`../constants`, `../fooStore`) 사용
+- 기존 리소스 폴더 배럴을 우회하는 파일 직접 import 금지 (`../hooks/useFoo`, `./utils/formatFoo` 등)
+- 같은 source에서 반복 import 금지. 한 선언으로 병합하고, 출처 구분이 필요하면 import 블록 내부 주석 사용
 - `features/` 간 직접 import 금지
 - `worlds/` ↔ `features/` 컴포넌트/훅 직접 import 금지
 - `features/admin/` ↔ 일반 `features/` 간 import 금지 (양방향)

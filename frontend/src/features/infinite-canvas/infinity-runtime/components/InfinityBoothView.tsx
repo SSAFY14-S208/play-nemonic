@@ -3,7 +3,7 @@ import Image from "next/image";
 import { ArrowRight, DoorOpen, Sparkles } from "lucide-react";
 import { Button } from "@/shared/components";
 import { cn } from "@/shared/libs";
-import { INFINITY_COLORS } from "../constants";
+import { INFINITY_COLORS } from '..';
 
 interface InfinityBoothViewProps {
   inviteCodeError: string | null;

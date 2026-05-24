@@ -1,6 +1,6 @@
 import { parseServerInstant } from '@/shared/utils'
 import type { GalleryItemResponse } from '@/shared/types'
-import type { PhoneGalleryItem, PhoneGalleryItemKind } from '../types'
+import type { PhoneGalleryItem, PhoneGalleryItemKind } from '..'
 
 const KNOWN_KINDS: PhoneGalleryItemKind[] = [
   'phone',

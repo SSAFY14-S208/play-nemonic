@@ -4,17 +4,10 @@
 // 상태도 같이 비움). 강제 격리는 안 하지만, "어느 슬라이스가 어떤 액션의 주인"
 // 이라는 가시성을 가지려고 분리한다.
 
-import type {
-  RelayPart,
-  RelayRoomMyAssignmentResponse,
-  RelayRoomParticipantResponse,
-  RelayRoomResultItemResponse,
-  RelayRoomStateResponse,
-  RelayRoomStatus,
-} from '@/shared/types'
+import type { RelayPart, RelayRoomMyAssignmentResponse, RelayRoomParticipantResponse, RelayRoomResultItemResponse, RelayRoomStateResponse, RelayRoomStatus, } from '@/shared/types'
 
 import type { RelayRoundKey, RelayToolKey } from '../constants'
-import type { RelayDrawLine, RelayDrawPoint, RelayRoundLines } from '../types'
+import type { RelayDrawLine, RelayDrawPoint, RelayRoundLines } from '..'
 
 // WS 종료성 이벤트 수신 시 모달에 표시할 사유.
 // 핸들러가 즉시 clear/redirect 하지 않고, 이 값을 store에 세팅하면

@@ -2,19 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Group, Layer, Line, Rect, Stage, Text } from 'react-konva'
-import {
-  OVERLAP_HEIGHT,
-  RELAY_ROUND_RULES,
-  RELAY_STAGE_SIZE,
-} from './constants'
-import {
-  OutgoingHint,
-  PreviousRoundHint,
-  RasterFillImage,
-} from './components/drawing-stage'
+import { OVERLAP_HEIGHT, RELAY_ROUND_RULES, RELAY_STAGE_SIZE } from './constants'
+import { OutgoingHint, PreviousRoundHint, RasterFillImage } from './components/drawing-stage'
 import { useRelayDrawingStore } from './stores'
 import { useRelayCanvas } from './hooks'
-import { isPointInsideArea } from './utils'
+import { isPointInsideArea } from './utils/canvas-rendering'
 
 export default function RelayDrawingStage() {
   const activeRoundKey = useRelayDrawingStore((state) => state.activeRoundKey)

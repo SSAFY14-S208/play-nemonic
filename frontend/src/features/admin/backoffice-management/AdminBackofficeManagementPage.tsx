@@ -7,13 +7,7 @@ import { Plus, FileSearch, Trash2 } from 'lucide-react'
 import { useAdminAuthStore } from '@/shared/stores'
 import type { AdminResponse } from '@/shared/types'
 
-import {
-  AdminCreateModal,
-  AdminDetailModal,
-  AdminRoleBadge,
-  AuditLogSection,
-  type AuditActorLookup,
-} from './components'
+import { AdminCreateModal, AdminDetailModal, AdminRoleBadge, AuditLogSection, type AuditActorLookup } from './components'
 import { useAdminAccounts } from './hooks'
 
 export default function AdminBackofficeManagementPage() {

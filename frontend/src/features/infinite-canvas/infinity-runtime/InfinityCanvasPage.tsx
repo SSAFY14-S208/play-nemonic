@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { InfinityBoothView, InfinityNicknameModal } from "./components";
-import { useInfinityBooth } from "./hooks";
+import { InfinityBoothView, InfinityNicknameModal } from './components';
+import { useInfinityBooth } from './hooks';
 import "./infinity-canvas.css";
 
 type PendingBoothAction =

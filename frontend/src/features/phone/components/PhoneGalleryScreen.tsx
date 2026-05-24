@@ -4,14 +4,10 @@ import Image from 'next/image'
 import { useEffect } from 'react'
 import { ArrowLeft, ImageIcon } from 'lucide-react'
 import { cn } from '@/shared/libs'
-import {
-  PHONE_COLORS,
-  PHONE_GALLERY_FILTERS,
-  PHONE_GALLERY_ITEM_STYLES,
-} from '../constants'
+import { PHONE_COLORS, PHONE_GALLERY_FILTERS, PHONE_GALLERY_ITEM_STYLES } from '../constants'
 import { usePhoneGallery } from '../hooks'
-import { usePhoneStore } from '../phoneStore'
-import type { PhoneGalleryItem } from '../types'
+import { usePhoneStore, type PhoneGalleryItem } from '..'
+
 import { PhoneGalleryItemSheet } from './PhoneGalleryItemSheet'
 
 function PhoneGalleryPaperPreview({ item }: { item: PhoneGalleryItem }) {

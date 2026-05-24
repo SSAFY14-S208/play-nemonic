@@ -1,4 +1,4 @@
-import type { InfinityShape } from "../../constants";
+import type { InfinityShape } from '../..';
 
 export const MIN_OBJECT_HIT_SIZE = 12;
 export const OBJECT_DRAG_DISTANCE = 1;

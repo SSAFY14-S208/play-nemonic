@@ -1,6 +1,6 @@
 'use client'
 
-import { FLIPBOOK_STEPS } from '../constants'
+import { FLIPBOOK_STEPS } from '..'
 import type { FlipbookStep } from '../types'
 import { cn } from '@/shared/libs'
 

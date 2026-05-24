@@ -3,7 +3,7 @@
 // 또한 round transition 애니메이션이 같은 raster를 재사용한다.
 
 import { RELAY_STAGE_SIZE } from '../../constants'
-import type { RelayDrawLine } from '../../types'
+import type { RelayDrawLine } from '../..'
 
 function loadImageElement(imageDataUrl: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {

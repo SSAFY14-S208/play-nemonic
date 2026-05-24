@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { FORTUNE_SOUND_PATHS } from '../constants'
+import { FORTUNE_SOUND_PATHS } from '..'
 
 const FORTUNE_BGM_VOLUME = 0.24
 

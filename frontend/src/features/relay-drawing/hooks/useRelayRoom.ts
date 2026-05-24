@@ -14,8 +14,8 @@ import { completeFunnelStep, type RelaySocketStatus } from "@/shared/libs";
 import { useUserStore } from "@/shared/stores";
 import type { RelayBlockedReason, RelayRoomStatus } from "@/shared/types";
 
-import { PART_TO_ROUND_KEY } from "../constants";
-import { relayToast } from "../utils";
+import { PART_TO_ROUND_KEY } from '../constants';
+import { relayToast } from '../utils';
 
 // viewer.blockedReason → 사용자 안내 토스트 메시지 매핑.
 const BLOCKED_REASON_MESSAGE: Record<RelayBlockedReason, string> = {

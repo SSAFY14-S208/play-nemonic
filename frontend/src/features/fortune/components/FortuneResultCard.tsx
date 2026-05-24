@@ -3,9 +3,9 @@ import { useEffect, useState } from 'react'
 
 import { cn } from '@/shared/libs'
 
-import { useFortuneSessionStore } from '../fortuneSessionStore'
+import { useFortuneSessionStore, createFortuneCommunityImageDataUrl } from '..'
 import { useFortuneExternalShare } from '../hooks'
-import { createFortuneCommunityImageDataUrl } from '../utils'
+
 
 const FORTUNE_CARD_TEMPLATE_PATH = '/images/fortune/templates/daily-fortune-card.png'
 

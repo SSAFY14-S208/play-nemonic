@@ -1,6 +1,5 @@
 import { useRef } from "react";
 import * as THREE from "three";
-import type { AnimationAction } from "three";
 
 const PRINT_BUTTON_ANIMATIONS = ["print_button_click", "label_up"] as const;
 const LID_ANIMATIONS = ["print_head_up", "toggle_side_button"] as const;
@@ -18,7 +17,7 @@ const HAPTIC = {
 type LidState = "closed" | "opening" | "open" | "closing";
 type AnimationDirection = "forward" | "reverse";
 type AnimationFinishedEvent = {
-  action?: AnimationAction;
+  action?: THREE.AnimationAction;
 };
 
 function vibrate(pattern: number | readonly number[]) {
@@ -39,7 +38,7 @@ function isAnimationFinishedEvent(
   return typeof event === "object" && event !== null && "action" in event;
 }
 
-function playAnimation(action: AnimationAction, direction: AnimationDirection) {
+function playAnimation(action: THREE.AnimationAction, direction: AnimationDirection) {
   action.setLoop(THREE.LoopOnce, 1);
   action.clampWhenFinished = true;
   action.enabled = true;
@@ -56,14 +55,14 @@ function playAnimation(action: AnimationAction, direction: AnimationDirection) {
 }
 
 function playAnimations(
-  actions: Record<string, AnimationAction | null>,
+  actions: Record<string, THREE.AnimationAction | null>,
   animationNames: readonly string[],
   direction: AnimationDirection,
   onComplete: () => void,
 ) {
   const playableActions = animationNames
     .map((animationName) => actions[animationName])
-    .filter((action): action is AnimationAction => Boolean(action));
+    .filter((action): action is THREE.AnimationAction => Boolean(action));
 
   if (playableActions.length === 0) {
     onComplete();
@@ -74,7 +73,7 @@ function playAnimations(
   const cleanupCallbacks: Array<() => void> = [];
   let hasCompleted = false;
 
-  const completeAction = (action: AnimationAction) => {
+  const completeAction = (action: THREE.AnimationAction) => {
     pendingActions.delete(action);
 
     if (pendingActions.size > 0 || hasCompleted) return;
@@ -104,7 +103,7 @@ function playAnimations(
 }
 
 export function useNemonicPrinterInteraction() {
-  const actionsRef = useRef<Record<string, AnimationAction | null>>({});
+  const actionsRef = useRef<Record<string, THREE.AnimationAction | null>>({});
   const lidStateRef = useRef<LidState>("closed");
   const isPrintInProgressRef = useRef(false);
   const pendingPrintAfterLidCloseRef = useRef(false);

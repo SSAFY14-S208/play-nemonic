@@ -5,11 +5,8 @@ import type { ChangeEvent } from 'react'
 
 import { cn } from '@/shared/libs'
 
-import { SERVICE_OPTIONS, TIME_RANGE_PRESETS } from '../constants'
-import type {
-  AnalyticsFiltersState,
-  LogsTimeRangePresetKey,
-} from '../types'
+import { SERVICE_OPTIONS, TIME_RANGE_PRESETS } from '..'
+import type { AnalyticsFiltersState, LogsTimeRangePresetKey } from '../types'
 
 type Props = {
   state: AnalyticsFiltersState

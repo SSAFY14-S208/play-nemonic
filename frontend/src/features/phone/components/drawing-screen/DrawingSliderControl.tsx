@@ -1,12 +1,7 @@
 import Image from 'next/image'
 import { phoneDrawingClose } from '@/shared/assets'
-import {
-  PHONE_COLORS,
-  PHONE_DRAWING_LAYOUT,
-  PHONE_MAX_BRUSH_SIZE,
-  PHONE_MIN_BRUSH_SIZE,
-} from '../../constants'
-import type { PhoneDrawingToolKey } from '../../types'
+import { PHONE_COLORS, PHONE_DRAWING_LAYOUT, PHONE_MAX_BRUSH_SIZE, PHONE_MIN_BRUSH_SIZE } from '../../constants'
+import type { PhoneDrawingToolKey } from '../..'
 import { getBrushSizePercent } from './drawingScreenUtils'
 
 interface DrawingSliderControlProps {

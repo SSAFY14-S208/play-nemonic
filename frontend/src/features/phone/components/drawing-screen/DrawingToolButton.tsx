@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import Image, { type StaticImageData } from 'next/image'
 import { cn } from '@/shared/libs'
-import type { PhoneDrawingToolKey } from '../../types'
+import type { PhoneDrawingToolKey } from '../..'
 
 interface DrawingToolButtonProps {
   activeTool: PhoneDrawingToolKey

@@ -1,12 +1,7 @@
 'use client'
 
-import { FUNNEL_COLORS, METRICS_COLORS } from '../constants'
-import {
-  seriesRangeToRows,
-  useActiveContent,
-  useTopEvents,
-  type MetricsVizArgs,
-} from '../hooks'
+import { FUNNEL_COLORS, METRICS_COLORS } from '..'
+import { seriesRangeToRows, useActiveContent, useTopEvents, type MetricsVizArgs } from '../hooks'
 
 import { ChartFrame } from './ChartFrame'
 import { MetricsLineChart } from './MetricsLineChart'

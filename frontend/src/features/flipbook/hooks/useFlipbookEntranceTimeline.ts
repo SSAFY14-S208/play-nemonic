@@ -1,7 +1,6 @@
 'use client'
 
-import type { RefObject } from 'react'
-import { useState } from 'react'
+import { useState, type RefObject } from 'react'
 import {
   useMotionValueEvent,
   useReducedMotion,

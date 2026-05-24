@@ -3,9 +3,9 @@
 // Zustand store가 아닌 모듈 스코프 싱글턴으로 구현한다.
 
 import { runtime } from '@/shared/config'
-import { useLogFlowStore } from '@/shared/stores/logFlowStore'
-import { useLogSessionStore } from '@/shared/stores/logSessionStore'
-import { useUserStore } from '@/shared/stores/userStore'
+import { useLogFlowStore, useLogSessionStore, useUserStore } from '@/shared/stores'
+
+
 import type {
   LogContentType,
   LogErrorInfo,

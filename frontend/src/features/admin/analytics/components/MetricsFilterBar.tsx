@@ -5,7 +5,7 @@ import type { ChangeEvent } from 'react'
 
 import { cn } from '@/shared/libs'
 
-import { METRICS_TIME_RANGE_PRESETS } from '../constants'
+import { METRICS_TIME_RANGE_PRESETS } from '..'
 import type { MetricsFiltersState, MetricsTimeRangePresetKey } from '../types'
 
 type Props = {

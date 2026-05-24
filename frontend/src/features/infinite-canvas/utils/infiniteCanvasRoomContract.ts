@@ -1,15 +1,5 @@
-import type {
-  InfiniteCanvasCreateResponse,
-  InfiniteCanvasLeaveResponse,
-  InfiniteCanvasParticipantColorUpdateRequest,
-  InfiniteCanvasParticipantResponse,
-  InfiniteCanvasStateResponse,
-} from '@/shared/types'
+import { INFINITE_CANVAS_WS_EVENT_PAYLOAD_KIND, INFINITE_CANVAS_WS_EVENT_TYPES, type InfiniteCanvasCreateResponse, type InfiniteCanvasLeaveResponse, type InfiniteCanvasParticipantColorUpdateRequest, type InfiniteCanvasParticipantResponse, type InfiniteCanvasStateResponse } from '@/shared/types'
 
-import {
-  INFINITE_CANVAS_WS_EVENT_PAYLOAD_KIND,
-  INFINITE_CANVAS_WS_EVENT_TYPES,
-} from '@/shared/types'
 import { takeInfiniteCanvasCreatedRoomSnapshot } from './infiniteCanvasEntry'
 
 const PARTICIPANT_RESPONSE = {

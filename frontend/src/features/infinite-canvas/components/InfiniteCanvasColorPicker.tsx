@@ -1,6 +1,6 @@
 import Image from 'next/image'
 
-import type { InfiniteCanvasColorOption } from '../constants'
+import type { InfiniteCanvasColorOption } from '..'
 
 interface InfiniteCanvasColorPickerProps {
   options: readonly InfiniteCanvasColorOption[]

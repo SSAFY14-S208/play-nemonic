@@ -1,6 +1,6 @@
 'use client'
 
-import { SERVICE_UP_TARGETS } from '../constants'
+import { SERVICE_UP_TARGETS } from '..'
 import { useServiceUpStatus, type MetricsVizArgs } from '../hooks'
 
 import { ServiceStatusDot } from './ServiceStatusDot'

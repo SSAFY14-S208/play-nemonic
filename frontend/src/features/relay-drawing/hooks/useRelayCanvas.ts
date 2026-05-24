@@ -5,7 +5,7 @@ import type { KonvaEventObject } from 'konva/lib/Node'
 import { createBucketFillLine } from '@/shared/utils'
 import { RELAY_ROUND_RULES, RELAY_STAGE_SIZE } from '../constants'
 import { useRelayDrawingStore } from '../stores'
-import { isPointInsideArea } from '../utils'
+import { isPointInsideArea } from '../utils/canvas-rendering'
 
 export function useRelayCanvas() {
   const isDrawing = useRef(false)

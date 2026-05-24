@@ -13,10 +13,7 @@ import {
   ROOM_PREVIEW_RENDERING_PROFILES,
   type RoomPreviewVariant,
 } from "./constants";
-import {
-  RoomPreviewLightDebugPanel,
-  useRoomPreviewLightDebugEnabled,
-} from "./light-debug";
+import { RoomPreviewLightDebugPanel, useRoomPreviewLightDebugEnabled } from './light-debug';
 import RoomPreviewScene from "./RoomPreviewScene";
 import { useRoomPreviewHubHitboxCalibration } from "./useRoomPreviewHubHitboxCalibration";
 

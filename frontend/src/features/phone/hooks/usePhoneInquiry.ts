@@ -1,11 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { postInquiry } from '@/shared/apis'
-import { ApiError } from '@/shared/apis/apiError'
+import { postInquiry, ApiError } from '@/shared/apis'
+
 import type { CsInquiryType } from '@/shared/types'
 import { PHONE_INQUIRY_TYPE_OPTIONS } from '../constants'
-import { usePhoneStore } from '../phoneStore'
+import { usePhoneStore } from '..'
 
 interface InquiryFieldErrors {
   title?: string

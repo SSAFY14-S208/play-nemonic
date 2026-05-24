@@ -1,26 +1,14 @@
 'use client'
 
-import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { ReactElement, RefObject } from 'react'
+import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement, type RefObject } from 'react'
 import { Stage, Layer, Rect, Ellipse, Line, Transformer, Label, Tag, Text, Circle, Path, Group } from 'react-konva'
 import Konva from 'konva'
 
-import { INFINITY_LINE_TENSION } from '../constants'
-import type { InfinityImage, InfinityLine, InfinityObject, InfinityShape, InfinityText as InfinityTextObject, InfinityToolKey } from '../constants'
+import { INFINITY_LINE_TENSION, sortInfinityObjectsByLayer, type InfinityImage, type InfinityLine, type InfinityObject, type InfinityShape, type InfinityText as InfinityTextObject, type InfinityToolKey } from '..'
+
 import type { useInfinityDrawing } from '../hooks'
-import { sortInfinityObjectsByLayer } from '../infinityObjectUtils'
-import {
-  CursorPreview,
-  DotGridShape,
-  KonvaFill,
-  KonvaEllipse,
-  KonvaImageObject,
-  KonvaLine,
-  KonvaRect,
-  KonvaText,
-  OBJECT_DRAG_DISTANCE,
-  SelectionBox,
-} from './stage'
+
+import { CursorPreview, DotGridShape, KonvaFill, KonvaEllipse, KonvaImageObject, KonvaLine, KonvaRect, KonvaText, OBJECT_DRAG_DISTANCE, SelectionBox } from './stage'
 
 type DrawingState = ReturnType<typeof useInfinityDrawing>
 

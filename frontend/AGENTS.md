@@ -870,7 +870,7 @@ shared/components/
 
 ## Barrel Exports
 
-Every folder exposes a single `index.ts` entry point. Never import from internal paths directly.
+Every public code folder exposes a single `index.ts` entry point. External consumers import from the folder barrel, not from internal file paths.
 
 ```ts
 // ✅
@@ -880,10 +880,23 @@ import { useRelayDrawing } from "@/features/relay-drawing";
 import { useRelayDrawing } from "@/features/relay-drawing/useRelayDrawing";
 ```
 
+Internal implementation imports:
+
+- Files inside the same folder may import sibling implementation files directly (`./useLogin`, `./loginStore`, etc.).
+- Do not import a folder barrel from a file exported by that same barrel. This avoids self-referential graphs such as `index.ts -> LoginPage.tsx -> index.ts`.
+- Files inside the same feature import through the narrowest meaningful entry point:
+  - Resource folder exists (`hooks/index.ts`, `utils/index.ts`, `types/index.ts`, `stores/index.ts`, `components/index.ts`) → import from the resource folder barrel (`../hooks`, `../utils`, `../types`, etc.).
+  - Resource is still a single flat file (`constants.ts`, `types.ts`, `fooStore.ts`) → import that explicit file (`../constants`, `../types`, `../fooStore`).
+  - Avoid broad parent barrels such as `..` for feature-internal constants/hooks/types/utils/stores because they hide the source module.
+- Do not bypass an existing resource folder barrel with internal file paths such as `../hooks/useFoo` or `./utils/formatFoo`.
+- Merge imports from the same source into one declaration. If a resource barrel combines exports from multiple files, group specifiers with short comments inside the import block instead of creating repeated imports from the same path.
+- Crossing into another feature, shared module, or world module still uses that module's public barrel instead of internal file paths.
+
 Exceptions:
 
-- `_infra/` files are imported directly (no barrel to avoid circular refs)
+- `_infra/` files are imported directly (no barrel; these are singleton-like scene infrastructure files where a barrel can easily create circular graphs)
 - `use*Interaction.ts` may import feature store files directly for write access
+- Next.js `app/` route files (`page.tsx`, `layout.tsx`, `route.ts`, etc.) and CSS/asset side-effect imports are not barrel targets
 
 ---
 
@@ -923,6 +936,7 @@ Before completing any task, verify:
 - [ ] Business logic extracted to `use*.ts` hook
 - [ ] Shared state extracted to `*Store.ts`
 - [ ] `index.ts` barrel updated if a new public export was added
+- [ ] External consumers use folder barrels; feature-internal implementation imports use narrow resource barrels or explicit flat resource files, and do not import the barrel that exports them
 - [ ] **Resource folderization**: if this PR adds the 2nd file of a resource type (hook/constant/util/type/component), the folder + `index.ts` barrel is created in the same PR
 - [ ] No cross-feature direct imports (`features/A` ↔ `features/B` forbidden)
 - [ ] No direct `worlds/` ↔ `features/` component or hook imports

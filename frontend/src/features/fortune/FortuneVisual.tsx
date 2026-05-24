@@ -2,8 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import type { CSSProperties } from 'react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
 import { useNemonicPrintVibration } from '@/shared/hooks'

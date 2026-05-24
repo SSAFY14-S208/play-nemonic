@@ -1,6 +1,5 @@
 import { Text, useTexture } from '@react-three/drei'
-import type { ThreeEvent } from '@react-three/fiber'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import {
   Suspense,
   type MutableRefObject,
@@ -23,10 +22,13 @@ import {
 } from '@/shared/stores'
 import type { HubGameId } from '@/shared/types'
 import { trackHubInvalidate } from '@/shared/utils'
-import type { MonitorEntranceProgressRef, MonitorGameAction } from './hooks'
 import {
-  useMonitorEntranceSequence,
+  // useMonitorGameSelector.ts
+  type MonitorGameAction,
   useMonitorGameSelector,
+  // useMonitorScreenAnimations.ts
+  type MonitorEntranceProgressRef,
+  useMonitorEntranceSequence,
   useMonitorLayerEntranceAnimation,
   useMonitorLogoAnimation,
   useMonitorStartButtonAnimation,

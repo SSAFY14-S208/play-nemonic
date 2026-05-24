@@ -36,7 +36,7 @@ import type {
   InfiniteCanvasStateResponse,
 } from '@/shared/types'
 import { takeInfiniteCanvasCreatedRoomSnapshot } from '../../utils'
-import { INFINITY_COLORS } from '../constants'
+import { INFINITY_COLORS } from '..'
 import { useInfinityRealtimeConnection } from './useInfinityRealtimeConnection'
 
 const INFINITE_CANVAS_FILE_CONTENT_TYPE = 'image/png'

@@ -1,15 +1,11 @@
 import { Moon, Sun } from "lucide-react";
-import { useState } from "react";
-import type { ChangeEvent, FormEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { cn } from "@/shared/libs";
 
-import { useFortuneSessionStore } from "../fortuneSessionStore";
-import type { FortuneCalendarType } from "../types";
-import { isBirthInfoComplete } from "../utils";
-
-import FortuneBirthOptionButton from "./FortuneBirthOptionButton";
+import { useFortuneSessionStore, type FortuneCalendarType } from '..';
+import { isBirthInfoComplete } from '../utils';import FortuneBirthOptionButton from "./FortuneBirthOptionButton";
 
 interface FortuneBirthFormProps {
   onSubmit: () => Promise<void>;

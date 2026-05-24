@@ -8,7 +8,8 @@ import { useUserStore } from '@/shared/stores'
 
 import { PART_TO_ROUND_KEY, RELAY_ROUND_RULES, RELAY_STAGE_SIZE } from '../constants'
 import { useRelayDrawingStore } from '../stores'
-import { relayToast, renderLinesToRasterCanvas } from '../utils'
+import { relayToast } from '../utils'
+import { renderLinesToRasterCanvas } from '../utils/canvas-rendering'
 
 interface UseRelayDrawingGameReturn {
   submitDrawing: () => Promise<void>

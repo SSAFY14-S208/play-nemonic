@@ -6,13 +6,13 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/shared/libs";
 import { writeCommunityCanvasHandoffDraft } from "@/shared/utils";
 
-import { useRelayResult, useRelayResultAutoCycle } from "../hooks";
+import { useRelayResult, useRelayResultAutoCycle } from '../hooks';
 import { useRelayDrawingStore } from "../stores";
 import { PhoneLauncherButton } from "@/shared/components";
 
 import RelayBgmToggle from "./RelayBgmToggle";
 import RelayHowToPlayButton from "./RelayHowToPlayButton";
-import { ResultRevealAnimation, ResultRightPanel } from "./result-view";
+import { ResultRevealAnimation, ResultRightPanel } from './result-view';
 
 const PANEL_CARD_CLASS =
   "rounded-3xl bg-relay-paper px-6 py-5 shadow-[0_4px_16px_10px_rgba(184,121,22,0.1)] sm:px-8";
