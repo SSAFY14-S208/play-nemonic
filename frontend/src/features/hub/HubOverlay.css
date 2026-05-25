@@ -1,0 +1,39 @@
+/* HubOverlay — ambient keyframe animations.
+   Infinite-loop animations allowed per docs/rules.md */
+
+@keyframes hubMusicPulse {
+  0%,
+  100% {
+    opacity: 0.68;
+    transform: scale(0.96);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes hubPrinterPromptTap {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  48% {
+    transform: translateY(0.08rem) scale(0.94);
+  }
+}
+
+@keyframes hubPrinterPromptBeam {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: scaleY(0.72);
+  }
+
+  50% {
+    opacity: 0.86;
+    transform: scaleY(1);
+  }
+}

@@ -14,7 +14,7 @@ import { usePhoneLauncherStore } from "@/shared/stores";
 import { writeCommunityCanvasHandoffDraft } from "@/shared/utils";
 
 import { FortuneDialoguePanel, FORTUNE_DIALOGUES, FortuneBackToggle, FortuneBgmToggle, FortuneBirthForm, FortuneDrawPanel, FortuneEntrySpotlightCover, FortuneErrorView, FortuneLimitNotice, FortuneLoadingView, FortuneMagicBackdrop, FortunePrintStatus, FortuneResultCard } from './components';
-import { useFortuneSessionStore } from "./fortuneSessionStore";
+import { useFortuneSessionStore } from './fortuneStore'
 import FortuneVisual from "./FortuneVisual";
 import { useFortuneActions, useFortuneAudio, useFortuneBgm, useFortuneReducedMotion, useFortuneSessionHydration } from './hooks';
 import { createFortuneCommunityImageDataUrl } from "./utils";

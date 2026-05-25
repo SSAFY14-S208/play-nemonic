@@ -1,4 +1,4 @@
 export { default as FlipbookPage } from './FlipbookPage'
 export * from './constants'
-export * from './flipbookRealtimeStore'
+export * from './flipbookStore'
 export type * from './types'

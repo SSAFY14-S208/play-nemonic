@@ -1,5 +1,5 @@
 export { default as FortunePage } from './FortunePage'
 export * from './constants'
-export * from './fortuneSessionStore'
+export * from './fortuneStore'
 export type * from './types'
 export * from './utils'

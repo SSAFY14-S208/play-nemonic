@@ -1,0 +1,43 @@
+/* HubLoadingOverlay — curtain reveal animation.
+   mask-image + CSS custom property @keyframes: allowed per docs/animation.md */
+
+.hlo-curtain {
+  --hub-room-reveal-radius: 0.001rem;
+
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    var(--hub-loading-gradient),
+    var(--color-surface-default);
+  animation: hub-room-reveal-curtain
+    var(--hub-room-reveal-duration, 1700ms) cubic-bezier(0.16, 1, 0.3, 1)
+    forwards;
+  mask-image: radial-gradient(
+    circle at center,
+    transparent 0,
+    transparent var(--hub-room-reveal-radius),
+    #000 calc(var(--hub-room-reveal-radius) + 1px)
+  );
+  -webkit-mask-image: radial-gradient(
+    circle at center,
+    transparent 0,
+    transparent var(--hub-room-reveal-radius),
+    #000 calc(var(--hub-room-reveal-radius) + 1px)
+  );
+  will-change: mask-image, -webkit-mask-image;
+}
+
+@keyframes hub-room-reveal-curtain {
+  0%   { --hub-room-reveal-radius: 0.001rem; }
+  12%  { --hub-room-reveal-radius: 4.75rem; }
+  42%  { --hub-room-reveal-radius: 18rem; }
+  100% { --hub-room-reveal-radius: 160vmax; }
+}
+
+@property --hub-room-reveal-radius {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0;
+}
