@@ -133,6 +133,27 @@ export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)) }
 <div className={`body-r text-fg-primary ${isActive ? "text-primary-2" : ""}`} />
 ```
 
+### State-driven styling — JSX state in cn(), NOT data-* attributes
+
+`data-*` + CSS child selector patterns are **FORBIDDEN** for conditional visual state.
+Pass the JSX boolean directly to `cn()` instead.
+
+```tsx
+// ❌ Wrong — data-* attribute + CSS child selector for runtime state
+<button data-playing={isBgmPlaying} className="group">
+  <Music2 className="group-data-[playing=true]:animate-pulse text-primary" />
+</button>
+
+// ✅ Correct — JSX state directly in cn()
+<button>
+  <Music2 className={cn('text-primary', isBgmPlaying && 'animate-pulse')} />
+</button>
+```
+
+The `group` + `group-data-[*]:` pattern is only justified when a **parent DOM node** drives
+child styling and the parent's state is impossible to thread as a prop (e.g., third-party
+wrappers). For first-party components this situation never arises — use `cn()` directly.
+
 ## CVA — Variant Components
 
 ```tsx
