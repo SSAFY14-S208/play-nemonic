@@ -23,6 +23,7 @@ import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
+import com.nemonicworld.support.ArtifactGalleryTestFixture;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
@@ -90,10 +91,7 @@ class RelayRoomAssignmentControllerIntegrationTest {
 
     @BeforeEach
     void prepare() {
-        prepareArtifactTables();
-        jdbcTemplate.update("DELETE FROM relay_drawing_artifact");
-        jdbcTemplate.update("DELETE FROM gallery");
-        jdbcTemplate.update("DELETE FROM artifact");
+        new ArtifactGalleryTestFixture(jdbcTemplate).resetRelayArtifactTables();
         jdbcTemplate.update("DELETE FROM app_user");
 
         valueOperations = createValueOperationsMock();
@@ -416,34 +414,6 @@ class RelayRoomAssignmentControllerIntegrationTest {
         verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
         verify(stringRedisTemplate, never()).execute(any(SessionCallback.class));
         verifyNoInteractions(relayRoomEventPublisher, minioClient);
-    }
-
-    private void prepareArtifactTables() {
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS artifact (
-                id UUID PRIMARY KEY,
-                kind VARCHAR(32) NOT NULL,
-                source_room_id VARCHAR(64) NULL,
-                thumbnail_url VARCHAR(200) NOT NULL,
-                meta VARCHAR(1000) NOT NULL DEFAULT '{}',
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS gallery (
-                id UUID PRIMARY KEY,
-                user_id UUID NOT NULL,
-                artifact_id UUID NOT NULL,
-                deleted_at TIMESTAMP NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS relay_drawing_artifact (
-                artifact_id UUID PRIMARY KEY,
-                combined_preview_url VARCHAR(200) NULL
-            )
-            """);
     }
 
     private UUID createExistingUserWithNickname(String nickname) {

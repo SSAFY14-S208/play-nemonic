@@ -19,6 +19,7 @@ import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.support.AbstractIntegrationTest;
 import com.nemonicworld.support.AdminUserTestFixture;
+import com.nemonicworld.support.ArtifactGalleryTestFixture;
 import com.nemonicworld.support.BackofficeSettingTestFixture;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
@@ -65,12 +66,9 @@ class RelayRoomStateControllerIntegrationTest extends AbstractIntegrationTest {
 
     @BeforeEach
     void prepare() {
-        prepareArtifactTables();
+        new ArtifactGalleryTestFixture(jdbcTemplate).resetRelayArtifactTables();
         prepareBackofficeSettingTables();
         backofficeSettingFixture.deleteAll();
-        jdbcTemplate.update("DELETE FROM relay_drawing_artifact");
-        jdbcTemplate.update("DELETE FROM gallery");
-        jdbcTemplate.update("DELETE FROM artifact");
         jdbcTemplate.update("DELETE FROM app_user");
 
         valueOperations = createValueOperationsMock();
@@ -366,34 +364,6 @@ class RelayRoomStateControllerIntegrationTest extends AbstractIntegrationTest {
 
         verify(valueOperations).get("relay:room:ZZZZZZ");
         verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
-    }
-
-    private void prepareArtifactTables() {
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS artifact (
-                id UUID PRIMARY KEY,
-                kind VARCHAR(32) NOT NULL,
-                source_room_id VARCHAR(64) NULL,
-                thumbnail_url VARCHAR(200) NOT NULL,
-                meta VARCHAR(1000) NOT NULL DEFAULT '{}',
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS gallery (
-                id UUID PRIMARY KEY,
-                user_id UUID NOT NULL,
-                artifact_id UUID NOT NULL,
-                deleted_at TIMESTAMP NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS relay_drawing_artifact (
-                artifact_id UUID PRIMARY KEY,
-                combined_preview_url VARCHAR(200) NULL
-            )
-            """);
     }
 
     private void prepareBackofficeSettingTables() {
