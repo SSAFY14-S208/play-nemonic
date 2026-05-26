@@ -2,21 +2,27 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
-import { ColorPanel, DrawingCompleteButton, MobileBrushOpacityBar, MobileColorBar, MobileToolBar, ProgressRail, ToolPanel, TopStatusBar, PhoneLauncherButton } from "@/shared/components";
 import {
-  DRAWING_COLORS,
-  DRAWING_STROKE_WIDTH_OPTIONS,
-} from "@/shared/constants";
+  ColorPanel,
+  DrawingCompleteButton,
+  MobileBrushOpacityBar,
+  MobileColorBar,
+  MobileToolBar,
+  PhoneLauncherButton,
+  ProgressRail,
+  ToolPanel,
+  TopStatusBar,
+} from "@/shared/components";
+import { DRAWING_COLORS, DRAWING_STROKE_WIDTH_OPTIONS } from "@/shared/constants";
 import { useDrawingKeyboardShortcuts } from "@/shared/hooks";
 import { cn } from "@/shared/libs";
 import type { DrawingToolKey } from "@/shared/types";
-import { RELAY_ROUND_ORDER, RELAY_ROUND_SEGMENTS, RELAY_STAGE_SIZE } from "@/features/relay-drawing/constants";
-import { useRelayDrawingStore } from "@/features/relay-drawing/stores";
-import { useRelayDrawingGame, useRelayTimer } from './hooks';
-import PartTimeUpOverlay from "./sections/PartTimeUpOverlay";
-
+import { RELAY_ROUND_ORDER, RELAY_STAGE_SIZE } from "@/features/relay-drawing/constants";
 import RelayBgmToggle from "@/features/relay-drawing/components/RelayBgmToggle";
 import RelayHowToPlayButton from "@/features/relay-drawing/components/RelayHowToPlayButton";
+
+import PartTimeUpOverlay from "./sections/PartTimeUpOverlay";
+import { useRelayDrawingViewState } from "./hooks/useRelayDrawingViewState";
 
 const RelayDrawingStage = dynamic(() => import("../../RelayDrawingStage"), {
   ssr: false,
@@ -30,65 +36,32 @@ const DESKTOP_DESIGN_WIDTH = 1536;
 const DESKTOP_DESIGN_HEIGHT = 1024;
 
 export default function RelayDrawingView() {
-  const activeRoundKey = useRelayDrawingStore((state) => state.activeRoundKey);
-  const isPartTimeUp = useRelayDrawingStore((state) => state.isPartTimeUp);
-  const selectedToolKey = useRelayDrawingStore(
-    (state) => state.selectedToolKey,
-  );
-  const selectedColor = useRelayDrawingStore((state) => state.selectedColor);
-  const selectedOpacity = useRelayDrawingStore(
-    (state) => state.selectedOpacity,
-  );
-  const strokeWidth = useRelayDrawingStore((state) => state.strokeWidth);
-  const recentColors = useRelayDrawingStore((state) => state.recentColors);
-  const roundLines = useRelayDrawingStore((state) => state.roundLines);
-  const roundRedoStack = useRelayDrawingStore((state) => state.roundRedoStack);
-  const setSelectedToolKey = useRelayDrawingStore(
-    (state) => state.setSelectedToolKey,
-  );
-  const setSelectedColor = useRelayDrawingStore(
-    (state) => state.setSelectedColor,
-  );
-  const setSelectedOpacity = useRelayDrawingStore(
-    (state) => state.setSelectedOpacity,
-  );
-  const setStrokeWidth = useRelayDrawingStore((state) => state.setStrokeWidth);
-  const undoLine = useRelayDrawingStore((state) => state.undoLine);
-  const redoLine = useRelayDrawingStore((state) => state.redoLine);
-  const clearRoundLines = useRelayDrawingStore(
-    (state) => state.clearRoundLines,
-  );
-  const { remainingSeconds, formattedTime } = useRelayTimer();
   const {
+    selectedToolKey,
+    selectedColor,
+    selectedOpacity,
+    strokeWidth,
+    recentColors,
+    setSelectedToolKey,
+    setSelectedColor,
+    setSelectedOpacity,
+    setStrokeWidth,
+    undoLine,
+    redoLine,
+    clearRoundLines,
+    canUndoDrawing,
+    canRedoDrawing,
+    isDrawingLocked,
+    isPartTimeUp,
+    activeRound,
+    activeRoundIndex,
+    isLastRound,
+    remainingSeconds,
+    formattedTime,
     submitDrawing,
-    isSubmitting,
-    isSubmitted,
-    submittedCount,
-    totalCount,
-  } = useRelayDrawingGame();
-
-  const activeRound = RELAY_ROUND_SEGMENTS[activeRoundKey];
-  const activeRoundIndex = RELAY_ROUND_ORDER.findIndex(
-    (roundKey) => roundKey === activeRoundKey,
-  );
-  const isLastRound = activeRoundKey === "legs";
-  const canUndoDrawing = roundLines[activeRoundKey].length > 0;
-  const canRedoDrawing = roundRedoStack[activeRoundKey].length > 0;
-  const isDrawingLocked = isSubmitting || isSubmitted || isPartTimeUp;
-  const completionStatusText =
-    isSubmitted && totalCount > 0 ? ` (${submittedCount}/${totalCount})` : "";
-  const buttonLabel = (() => {
-    if (isSubmitting) return "제출 중";
-    if (isSubmitted) return `대기 중${completionStatusText}`;
-    return isLastRound ? "완료하기" : `${activeRound.label} 저장하기`;
-  })();
-  const overlayMessage = isPartTimeUp
-    ? "다음 파트를 준비하고 있어요"
-    : isSubmitted
-      ? "제출 완료! 다음 파트를 기다리는 중이에요"
-      : isSubmitting
-        ? "그림을 제출하고 있어요"
-        : null;
+    buttonLabel,
+    overlayMessage,
+  } = useRelayDrawingViewState();
 
   const handleSelectTool = (toolKey: DrawingToolKey) => {
     if (toolKey === "marker") return;
@@ -109,6 +82,7 @@ export default function RelayDrawingView() {
   // 정확히 들어맞는 scale을 계산. 측정 전 0이면 인너가 사라져 클리핑/플래시를
   // 방지한다. ResizeObserver가 콜백에서 setState하므로 React Compiler effect-body
   // 동기 setState 규칙을 위반하지 않는다.
+  // 이 컴포넌트에서만 사용하므로 훅으로 분리하지 않는다 (YAGNI).
   const desktopWrapperRef = useRef<HTMLDivElement>(null);
   const [desktopScale, setDesktopScale] = useState(0);
 
