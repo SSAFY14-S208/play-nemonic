@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { motion } from 'motion/react'
-import { RELAY_ROUND_RULES, type RelayRoundKey } from '../../constants'
+import { RELAY_ROUND_RULES, type RelayRoundKey } from '../../../../constants'
 
 const FRAME_HEIGHT = 640
 const SLOT_HEIGHT = FRAME_HEIGHT / 3

@@ -4,7 +4,7 @@ import Konva from 'konva'
 import { useEffect, useRef } from 'react'
 import { Group, Rect, Text } from 'react-konva'
 
-import { RELAY_STAGE_SIZE, type RelayRoundArea } from '../../constants'
+import { RELAY_STAGE_SIZE, type RelayRoundArea } from '../../../../constants'
 import DashedGuide from './DashedGuide'
 import HintPill from './HintPill'
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { Rect } from 'react-konva'
-import { RELAY_STAGE_SIZE } from '../../constants'
+import { RELAY_STAGE_SIZE } from '../../../../constants'
 
 interface DashedGuideProps {
   verticalPosition: number

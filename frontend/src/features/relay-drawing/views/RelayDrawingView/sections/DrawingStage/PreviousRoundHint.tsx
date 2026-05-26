@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Group, Image as KonvaImage } from 'react-konva'
-import { RELAY_STAGE_SIZE } from '../../constants'
+import { RELAY_STAGE_SIZE } from '../../../../constants'
 import DashedGuide from './DashedGuide'
 import HintPill from './HintPill'
 

@@ -13,11 +13,12 @@ import {
   nemonicDrawingLobbyBg,
   relayDrawingGameStart,
 } from '@/features/relay-drawing/assets'
-import { RelayButton, RelayDismissalModal, RelayDrawingView, RelayFinalizingView, RelayFloatingControls, RelayNicknameModal, RelayResultView } from './components'
+import { RelayButton, RelayDismissalModal, RelayFinalizingView, RelayFloatingControls, RelayNicknameModal, RelayResultView } from './components'
 import { RELAY_LEAVE_CANCEL_BUTTON_CLASS, RELAY_LEAVE_CONFIRM_BUTTON_CLASS } from './constants'
 import { useRelayAbandonmentTracking, useRelayRoom } from './hooks'
 import { useRelayDrawingStore } from './stores'
 import { relayToast } from './utils'
+import RelayDrawingView from './views/RelayDrawingView'
 import RelayLobbyView from './views/RelayLobbyView'
 import './relay-drawing.css'
 
