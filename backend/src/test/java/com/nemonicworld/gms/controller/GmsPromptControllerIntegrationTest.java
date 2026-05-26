@@ -18,11 +18,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.admin.entity.AdminRole;
-import com.nemonicworld.admin.entity.AdminUser;
-import com.nemonicworld.auth.service.AdminTokenStore;
-import com.nemonicworld.auth.service.IssuedAdminRefreshToken;
-import com.nemonicworld.auth.service.StoredAdminRefreshToken;
-import com.nemonicworld.common.jwt.AdminTokenClaims;
 import com.nemonicworld.common.jwt.JwtTokenProvider;
 import com.nemonicworld.fortune.service.gms.FortuneGmsClient;
 import com.nemonicworld.fortune.service.gms.FortuneGmsResult;
@@ -30,17 +25,12 @@ import com.nemonicworld.support.AbstractReadOnlyIntegrationTest;
 import com.nemonicworld.support.AdminUserTestFixture;
 import com.nemonicworld.support.BackofficeAuthTestFixture;
 import java.sql.Timestamp;
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpHeaders;
@@ -1020,44 +1010,4 @@ class GmsPromptControllerIntegrationTest extends AbstractReadOnlyIntegrationTest
         throw new AssertionError("Audit log not found. eventName=" + eventName);
     }
 
-    @TestConfiguration
-    static class AdminTokenStoreTestConfig {
-
-    }
-
-    static class NoOpAdminTokenStore implements AdminTokenStore {
-
-        @Override
-        public IssuedAdminRefreshToken issueRefreshToken(AdminUser adminUser) {
-            Instant expiresAt = Instant.now().plusSeconds(60);
-
-            return new IssuedAdminRefreshToken("unused", OffsetDateTime.ofInstant(expiresAt, ZoneOffset.UTC));
-        }
-
-        @Override
-        public Optional<StoredAdminRefreshToken> findRefreshToken(String refreshToken) {
-            return Optional.empty();
-        }
-
-        @Override
-        public void revokeRefreshToken(String refreshToken) {
-        }
-
-        @Override
-        public void revokeAllRefreshTokens(Long adminId) {
-        }
-
-        @Override
-        public void blacklistAccessToken(AdminTokenClaims claims) {
-        }
-
-        @Override
-        public void revokeAccessTokensIssuedBefore(Long adminId, Instant revokedAt) {
-        }
-
-        @Override
-        public boolean isAccessTokenRevoked(AdminTokenClaims claims) {
-            return false;
-        }
-    }
 }

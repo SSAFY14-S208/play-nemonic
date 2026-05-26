@@ -11,24 +11,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.admin.entity.AdminRole;
-import com.nemonicworld.admin.entity.AdminUser;
-import com.nemonicworld.auth.service.AdminTokenStore;
-import com.nemonicworld.auth.service.IssuedAdminRefreshToken;
-import com.nemonicworld.auth.service.StoredAdminRefreshToken;
 import com.nemonicworld.common.exception.EmailDeliveryException;
-import com.nemonicworld.common.jwt.AdminTokenClaims;
 import com.nemonicworld.common.jwt.JwtTokenProvider;
 import com.nemonicworld.inquiry.service.InquiryMailSender;
 import com.nemonicworld.support.AbstractReadOnlyIntegrationTest;
 import com.nemonicworld.support.AdminUserTestFixture;
 import com.nemonicworld.support.BackofficeAuthTestFixture;
 import java.sql.Timestamp;
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,7 +39,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
 @ExtendWith(OutputCaptureExtension.class)
-@Import(AdminInquiryControllerIntegrationTest.InquiryAdminTokenStoreTestConfig.class)
+@Import(AdminInquiryControllerIntegrationTest.InquiryMailSenderTestConfig.class)
 class AdminInquiryControllerIntegrationTest extends AbstractReadOnlyIntegrationTest {
 
     private static final long ADMIN_ID = 1L;
@@ -795,7 +786,7 @@ class AdminInquiryControllerIntegrationTest extends AbstractReadOnlyIntegrationT
     }
 
     @TestConfiguration
-    static class InquiryAdminTokenStoreTestConfig {
+    static class InquiryMailSenderTestConfig {
 
         @Bean
         @Primary
@@ -831,42 +822,6 @@ class AdminInquiryControllerIntegrationTest extends AbstractReadOnlyIntegrationT
             to = null;
             subject = null;
             message = null;
-        }
-    }
-
-    static class NoOpAdminTokenStore implements AdminTokenStore {
-
-        @Override
-        public IssuedAdminRefreshToken issueRefreshToken(AdminUser adminUser) {
-            Instant expiresAt = Instant.now().plusSeconds(60);
-
-            return new IssuedAdminRefreshToken("unused", OffsetDateTime.ofInstant(expiresAt, ZoneOffset.UTC));
-        }
-
-        @Override
-        public Optional<StoredAdminRefreshToken> findRefreshToken(String refreshToken) {
-            return Optional.empty();
-        }
-
-        @Override
-        public void revokeRefreshToken(String refreshToken) {
-        }
-
-        @Override
-        public void revokeAllRefreshTokens(Long adminId) {
-        }
-
-        @Override
-        public void blacklistAccessToken(AdminTokenClaims claims) {
-        }
-
-        @Override
-        public void revokeAccessTokensIssuedBefore(Long adminId, Instant revokedAt) {
-        }
-
-        @Override
-        public boolean isAccessTokenRevoked(AdminTokenClaims claims) {
-            return false;
         }
     }
 }
