@@ -3,78 +3,28 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import {
-  ApiError,
-  getArtifactDownload,
-  postArtifactShare,
-  postRelayRoomClose,
-} from '@/shared/apis'
+import { ApiError, getArtifactDownload, postArtifactShare } from '@/shared/apis'
 import { logEvent, reachFunnelGoal } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
-import type { RelayPart } from '@/shared/types'
 import {
   downloadBlob,
-  type ExternalImageShareResult,
   inferImageExtensionFromBlob,
   sanitizeDownloadFilename,
   shareExternalImage,
 } from '@/shared/utils'
 
-import { RELAY_ROUND_RULES, SEGMENT_TAG_CLASSNAMES, type RelayRoundKey, type RelayResultSegment } from '@/features/relay-drawing/constants'
+import { RELAY_ROUND_RULES, SEGMENT_TAG_CLASSNAMES, type RelayResultSegment } from '@/features/relay-drawing/constants'
 import { useRelayDrawingStore } from '@/features/relay-drawing/stores'
 
-// ── 유틸 ──────────────────────────────────────────────────────────────
-
-const RELAY_EXTERNAL_SHARE_TEXT = '네모닉 릴레이 드로잉 결과를 공유해요.'
-const RELAY_SHARE_IMAGE_COPIED_MESSAGE =
-  '릴레이 드로잉 QR 공유 이미지를 복사했어요. 채팅창에 붙여 넣어 주세요.'
-const RELAY_SHARE_IMAGE_LINK_COPIED_MESSAGE =
-  '릴레이 드로잉 QR 공유 이미지 링크를 복사했어요.'
-const RELAY_SHARE_GIF_LINK_COPIED_MESSAGE =
-  '릴레이 드로잉 QR GIF 공유 링크를 복사했어요.'
-
-function partToRoundKey(part: RelayPart): RelayRoundKey {
-  return part.toLowerCase() as RelayRoundKey
-}
-
-function isRealArtifactId(artifactId: string | null | undefined) {
-  return Boolean(artifactId && !artifactId.startsWith('dummy-'))
-}
-
-function getResultTitle({
-  faceDrawerNickname,
-  canvasIndex,
-}: {
-  faceDrawerNickname: string | null | undefined
-  canvasIndex: number
-}) {
-  return faceDrawerNickname
-    ? `${faceDrawerNickname}의 릴레이 드로잉`
-    : `릴레이 드로잉 ${canvasIndex + 1}`
-}
-
-function getExternalShareSuccessMessage(shareResult: ExternalImageShareResult) {
-  if (shareResult === 'copied-gif-link') return RELAY_SHARE_GIF_LINK_COPIED_MESSAGE
-  if (shareResult === 'copied-image') return RELAY_SHARE_IMAGE_COPIED_MESSAGE
-  if (shareResult === 'copied-image-link') return RELAY_SHARE_IMAGE_LINK_COPIED_MESSAGE
-
-  return null
-}
-
-function toExternalShareErrorMessage(error: unknown) {
-  if (error instanceof ApiError) return error.message || '외부 공유 정보를 만들 수 없어요.'
-  if (error instanceof Error) {
-    if (error.message === 'file-share-unavailable') {
-      return '이 브라우저에서는 이미지 파일 공유를 사용할 수 없어요.'
-    }
-
-    return error.message || '외부 공유 정보를 만들 수 없어요.'
-  }
-
-  return '외부 공유 정보를 만들 수 없어요.'
-}
-
-// ── 훅 ────────────────────────────────────────────────────────────────
+import {
+  RELAY_EXTERNAL_SHARE_TEXT,
+  getExternalShareSuccessMessage,
+  getResultTitle,
+  isRealArtifactId,
+  partToRoundKey,
+  toExternalShareErrorMessage,
+} from '../relayResultUtils'
+import { useRelayRoomClose } from './useRelayRoomClose'
 
 export function useRelayResult() {
   const roomCode = useRelayDrawingStore((state) => state.roomCode)
@@ -86,30 +36,7 @@ export function useRelayResult() {
   const currentUserUuid = useUserStore((state) => state.userUuid)
   const isHost = currentUserUuid !== null && currentUserUuid === hostUserUuid
 
-  // 호스트 전용 방 종료 — 가이드 §21.
-  // 성공 시 ROOM_CLOSED WS 이벤트가 도착해 dismissalReason이 세팅되고,
-  // RelayDismissalModal이 자동으로 안내한다. 여기서는 store를 직접 건드리지 않는다.
-  const [isClosingRoom, setIsClosingRoom] = useState(false)
-  const [closeRoomError, setCloseRoomError] = useState<string | null>(null)
-
-  const closeRoom = () => {
-    if (!roomCode || !isHost || isClosingRoom) return
-    setCloseRoomError(null)
-    setIsClosingRoom(true)
-    void (async () => {
-      try {
-        await postRelayRoomClose(roomCode)
-      } catch (caughtError) {
-        const message =
-          caughtError instanceof ApiError
-            ? caughtError.message
-            : '방 종료에 실패했어요'
-        setCloseRoomError(message)
-      } finally {
-        setIsClosingRoom(false)
-      }
-    })()
-  }
+  const { isClosingRoom, closeRoomError, closeRoom } = useRelayRoomClose({ roomCode, isHost })
 
   // 현재 활성 작품을 디바이스에 다운로드. GET /artifacts/{artifactId}/download가
   // raw Blob을 반환하므로 브라우저 a[download] 트리거로 OS 저장 다이얼로그를 띄움.
@@ -148,9 +75,7 @@ export function useRelayResult() {
         })
       } catch (caughtError) {
         const message =
-          caughtError instanceof ApiError
-            ? caughtError.message
-            : '다운로드에 실패했어요'
+          caughtError instanceof ApiError ? caughtError.message : '다운로드에 실패했어요'
         setDownloadError(message)
       } finally {
         setIsDownloading(false)
@@ -226,24 +151,20 @@ export function useRelayResult() {
       }
     }
 
-    const dynamicSegments: RelayResultSegment[] = activeResultItem.parts.map(
-      (partItem) => {
-        const roundKey = partToRoundKey(partItem.part)
-        const roundRule = RELAY_ROUND_RULES[roundKey]
-        const isMe = partItem.drawerUserUuid === currentUserUuid
-        const displayName = isMe
-          ? `${partItem.drawerNickname} (나)`
-          : partItem.drawerNickname
+    const dynamicSegments: RelayResultSegment[] = activeResultItem.parts.map((partItem) => {
+      const roundKey = partToRoundKey(partItem.part)
+      const roundRule = RELAY_ROUND_RULES[roundKey]
+      const isMe = partItem.drawerUserUuid === currentUserUuid
+      const displayName = isMe ? `${partItem.drawerNickname} (나)` : partItem.drawerNickname
 
-        return {
-          key: roundKey,
-          participantName: displayName,
-          roleLabel: roundRule.label,
-          tagLabel: `${partItem.drawerNickname} · ${roundRule.label}`,
-          tagClassName: SEGMENT_TAG_CLASSNAMES[roundKey],
-        }
-      },
-    )
+      return {
+        key: roundKey,
+        participantName: displayName,
+        roleLabel: roundRule.label,
+        tagLabel: `${partItem.drawerNickname} · ${roundRule.label}`,
+        tagClassName: SEGMENT_TAG_CLASSNAMES[roundKey],
+      }
+    })
 
     return {
       segments: dynamicSegments,
