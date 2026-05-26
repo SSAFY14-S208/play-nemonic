@@ -1,0 +1,1 @@
+export { useResultRevealAnimation } from './useResultRevealAnimation'
