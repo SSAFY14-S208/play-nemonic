@@ -20,8 +20,8 @@ import {
   shareExternalImage,
 } from '@/shared/utils'
 
-import { RELAY_ROUND_RULES, SEGMENT_TAG_CLASSNAMES, type RelayRoundKey, type RelayResultSegment } from '../constants'
-import { useRelayDrawingStore } from '../stores'
+import { RELAY_ROUND_RULES, SEGMENT_TAG_CLASSNAMES, type RelayRoundKey, type RelayResultSegment } from '../../../constants'
+import { useRelayDrawingStore } from '../../../stores'
 
 // ── 유틸 ──────────────────────────────────────────────────────────────
 

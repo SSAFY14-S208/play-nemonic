@@ -3,8 +3,8 @@
 import type { RelayRoomResultItemResponse } from '@/shared/types'
 import { cn } from '@/shared/libs'
 
-import { RELAY_RESULT_ACTIONS } from '../../constants'
-import { RelayButton } from '..'
+import { RELAY_RESULT_ACTIONS } from '../../../../constants'
+import RelayButton from '../../../../components/RelayButton'
 
 interface ResultRightPanelProps {
   resultItems: RelayRoomResultItemResponse[]

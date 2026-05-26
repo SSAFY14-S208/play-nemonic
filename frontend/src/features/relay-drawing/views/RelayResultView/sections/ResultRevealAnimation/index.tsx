@@ -10,10 +10,10 @@ import { useCallback, useEffect, useState } from "react";
 
 import { cn } from "@/shared/libs";
 
-import { RELAY_FINAL_STAGE_SIZE, RELAY_ROUND_ORDER, RELAY_ROUND_RULES, RELAY_STAGE_SIZE, type RelayRoundKey, type RelayResultSegment } from '../../constants';
+import { RELAY_FINAL_STAGE_SIZE, RELAY_ROUND_ORDER, RELAY_ROUND_RULES, RELAY_STAGE_SIZE, type RelayRoundKey, type RelayResultSegment } from '../../../../constants';
 
-import { LabelPaperCard } from '..';
-import ResultSegmentTags from "./ResultSegmentTags";
+import LabelPaperCard from "../../../../components/LabelPaperCard";
+import ResultSegmentTags from "../ResultSegmentTags";
 
 // 박스 비율 — 최종 합성 이미지(848:1920)와 동일하게 잡아 fade-in 전후 비율 점프 없음.
 const BOX_ASPECT_RATIO = `${RELAY_STAGE_SIZE.width} / ${RELAY_FINAL_STAGE_SIZE.height}`;
