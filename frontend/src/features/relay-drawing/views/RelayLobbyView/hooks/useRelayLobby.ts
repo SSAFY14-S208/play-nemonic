@@ -10,8 +10,8 @@ import {
 import { completeFunnelStep } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 
-import { useRelayDrawingStore } from '../../../stores'
-import { relayToast } from '../../../utils'
+import { useRelayDrawingStore } from '@/features/relay-drawing/stores'
+import { relayToast } from '@/features/relay-drawing/utils'
 
 interface UseRelayLobbyReturn {
   // 현재 사용자가 호스트인지. 시작 버튼/시간 설정/강퇴 등 호스트 전용 UI 게이트.

@@ -1,7 +1,7 @@
 'use client'
 
 import { cn } from '@/shared/libs'
-import { RELAY_ROUND_ORDER, RELAY_ROUNDS, type RelayRoundKey } from '../../../../constants'
+import { RELAY_ROUND_ORDER, RELAY_ROUNDS, type RelayRoundKey } from '@/features/relay-drawing/constants'
 import TransitionSticker from './TransitionSticker'
 
 interface StickerEntry {

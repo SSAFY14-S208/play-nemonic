@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 
-import RelayArtworkCard from '../../../../components/RelayArtworkCard'
+import RelayArtworkCard from '@/features/relay-drawing/components/RelayArtworkCard'
 import { CAMERA_PAN_TRANSITION, PART_GAP } from './constants'
 import type { Measurement } from './types'
 

@@ -2,7 +2,7 @@
 
 import { cn } from '@/shared/libs'
 
-import type { RelayResultSegment } from '../../../../constants'
+import type { RelayResultSegment } from '@/features/relay-drawing/constants'
 import { BOX_ASPECT_RATIO } from './constants'
 import FinalResultImage from './FinalResultImage'
 import { useResultRevealAnimation } from './hooks'

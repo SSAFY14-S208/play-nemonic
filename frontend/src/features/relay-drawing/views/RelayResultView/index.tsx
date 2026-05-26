@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 
 import { cn } from "@/shared/libs";
 import { writeCommunityCanvasHandoffDraft } from "@/shared/utils";
+import RelayBgmToggle from "@/features/relay-drawing/components/RelayBgmToggle";
+import RelayHowToPlayButton from "@/features/relay-drawing/components/RelayHowToPlayButton";
+import { useRelayDrawingStore } from "@/features/relay-drawing/stores";
 
-import { useRelayDrawingStore } from "../../stores";
 import { PhoneLauncherButton } from "@/shared/components";
 
-import RelayBgmToggle from "../../components/RelayBgmToggle";
-import RelayHowToPlayButton from "../../components/RelayHowToPlayButton";
 import { useRelayResult, useRelayResultAutoCycle } from './hooks';
 import { ResultRevealAnimation, ResultRightPanel } from './sections';
 

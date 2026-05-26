@@ -3,7 +3,7 @@ import {
   RELAY_ROUND_RULES,
   RELAY_STAGE_SIZE,
   type RelayRoundKey,
-} from '../../../../constants'
+} from '@/features/relay-drawing/constants'
 
 export const BOX_ASPECT_RATIO = `${RELAY_STAGE_SIZE.width} / ${RELAY_FINAL_STAGE_SIZE.height}`
 

@@ -5,9 +5,9 @@ import Image from "next/image";
 import { useState } from "react";
 
 import { relayDrawingTitle } from "@/features/relay-drawing/assets";
-import RelayButton from "../../components/RelayButton";
-import RelayJoinRoomModal from "../../components/RelayJoinRoomModal";
-import RelayNicknameModal from "../../components/RelayNicknameModal";
+import RelayButton from "@/features/relay-drawing/components/RelayButton";
+import RelayJoinRoomModal from "@/features/relay-drawing/components/RelayJoinRoomModal";
+import RelayNicknameModal from "@/features/relay-drawing/components/RelayNicknameModal";
 import { useRelayBooth } from "./hooks";
 import RelayBoothBackground from "./sections/RelayBoothBackground";
 import RelayBoothEntrance from "./sections/RelayBoothEntrance";

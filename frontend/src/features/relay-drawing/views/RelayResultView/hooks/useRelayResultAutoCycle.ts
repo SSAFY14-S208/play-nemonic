@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 
-import { RELAY_RESULT_AUTO_ADVANCE_MS } from '../../../constants'
+import { RELAY_RESULT_AUTO_ADVANCE_MS } from '@/features/relay-drawing/constants'
 
 interface UseRelayResultAutoCycleParams {
   resultCount: number

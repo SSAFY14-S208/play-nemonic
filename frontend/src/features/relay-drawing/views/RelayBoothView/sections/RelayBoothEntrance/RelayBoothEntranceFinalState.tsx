@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 
 import { cn } from '@/shared/libs'
 
-import RelayArtworkCard from '../../../../components/RelayArtworkCard'
+import RelayArtworkCard from '@/features/relay-drawing/components/RelayArtworkCard'
 
 interface RelayBoothEntranceFinalStateProps {
   onReveal: () => void

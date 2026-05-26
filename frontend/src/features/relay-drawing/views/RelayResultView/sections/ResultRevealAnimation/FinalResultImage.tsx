@@ -3,8 +3,8 @@ import { motion } from 'motion/react'
 import {
   RELAY_FINAL_STAGE_SIZE,
   RELAY_STAGE_SIZE,
-} from '../../../../constants'
-import LabelPaperCard from '../../../../components/LabelPaperCard'
+} from '@/features/relay-drawing/constants'
+import LabelPaperCard from '@/features/relay-drawing/components/LabelPaperCard'
 import type { RevealPhase } from './types'
 
 interface FinalResultImageProps {

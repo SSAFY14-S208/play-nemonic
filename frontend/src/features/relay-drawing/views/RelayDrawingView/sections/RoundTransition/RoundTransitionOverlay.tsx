@@ -1,7 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'motion/react'
-import { RELAY_ROUND_ORDER, type RelayRoundKey } from '../../../../constants'
+import { RELAY_ROUND_ORDER, type RelayRoundKey } from '@/features/relay-drawing/constants'
 import type { TransitionPhase } from '../../hooks'
 import TransitionFrame from './TransitionFrame'
 

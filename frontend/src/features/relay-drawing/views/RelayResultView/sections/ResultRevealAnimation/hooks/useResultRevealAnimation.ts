@@ -1,7 +1,7 @@
 import { useReducedMotion } from 'motion/react'
 import { useCallback, useEffect, useState } from 'react'
 
-import { RELAY_ROUND_ORDER } from '../../../../../constants'
+import { RELAY_ROUND_ORDER } from '@/features/relay-drawing/constants'
 import { STRAIGHTEN_HOLD_MS, TILT_HOLD_MS } from '../constants'
 import type { RevealPhase } from '../types'
 

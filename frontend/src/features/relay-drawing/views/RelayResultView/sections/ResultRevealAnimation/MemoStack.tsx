@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 
-import { RELAY_ROUND_ORDER } from '../../../../constants'
+import { RELAY_ROUND_ORDER } from '@/features/relay-drawing/constants'
 import { stackVariants } from './animationVariants'
 import { TILT_BY_ROUND } from './constants'
 import MemoSlice from './MemoSlice'

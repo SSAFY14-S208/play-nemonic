@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react'
 
-import type { RelayResultSegment } from '../../../../constants'
+import type { RelayResultSegment } from '@/features/relay-drawing/constants'
 import ResultSegmentTags from '../ResultSegmentTags'
 
 interface SegmentTagsOverlayProps {

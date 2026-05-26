@@ -6,10 +6,10 @@ import { GameLobbyLayout, PhoneLauncherButton, type GameLobbyTheme } from '@/sha
 import { useUserStore } from '@/shared/stores'
 
 import { relayDrawingTitle } from '@/features/relay-drawing/assets'
-import RelayBgmToggle from '../../components/RelayBgmToggle'
-import RelayHowToPlayButton from '../../components/RelayHowToPlayButton'
-import { RELAY_ROOM_CODE } from '../../constants'
-import { useRelayDrawingStore, useRelayHowToPlayStore } from '../../stores'
+import RelayBgmToggle from '@/features/relay-drawing/components/RelayBgmToggle'
+import RelayHowToPlayButton from '@/features/relay-drawing/components/RelayHowToPlayButton'
+import { RELAY_ROOM_CODE } from '@/features/relay-drawing/constants'
+import { useRelayDrawingStore, useRelayHowToPlayStore } from '@/features/relay-drawing/stores'
 import { useRelayLobby } from './hooks'
 
 const RELAY_LOBBY_THEME: GameLobbyTheme = {

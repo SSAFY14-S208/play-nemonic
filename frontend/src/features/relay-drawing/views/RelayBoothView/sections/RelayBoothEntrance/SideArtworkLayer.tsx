@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 
-import RelayArtworkCard from '../../../../components/RelayArtworkCard'
+import RelayArtworkCard from '@/features/relay-drawing/components/RelayArtworkCard'
 import { SIDE_ROTATION_TRANSITION } from './constants'
 import type { FanTarget } from './types'
 

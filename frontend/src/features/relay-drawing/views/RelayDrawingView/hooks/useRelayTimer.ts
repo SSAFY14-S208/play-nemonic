@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useRelayDrawingStore } from '../../../stores'
+import { useRelayDrawingStore } from '@/features/relay-drawing/stores'
 
 const EXPIRING_THRESHOLD_SECONDS = 10
 // 매 250ms tick — 1초 단위 표시 정확도와 deadline 도달 감지 지연을 동시에 잡기 위함.

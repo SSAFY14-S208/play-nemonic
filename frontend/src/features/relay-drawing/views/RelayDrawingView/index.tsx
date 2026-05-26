@@ -10,13 +10,13 @@ import {
 import { useDrawingKeyboardShortcuts } from "@/shared/hooks";
 import { cn } from "@/shared/libs";
 import type { DrawingToolKey } from "@/shared/types";
-import { RELAY_ROUND_ORDER, RELAY_ROUND_SEGMENTS, RELAY_STAGE_SIZE } from '../../constants';
-import { useRelayDrawingStore } from "../../stores";
+import { RELAY_ROUND_ORDER, RELAY_ROUND_SEGMENTS, RELAY_STAGE_SIZE } from "@/features/relay-drawing/constants";
+import { useRelayDrawingStore } from "@/features/relay-drawing/stores";
 import { useRelayDrawingGame, useRelayTimer } from './hooks';
 import PartTimeUpOverlay from "./sections/PartTimeUpOverlay";
 
-import RelayBgmToggle from "../../components/RelayBgmToggle";
-import RelayHowToPlayButton from "../../components/RelayHowToPlayButton";
+import RelayBgmToggle from "@/features/relay-drawing/components/RelayBgmToggle";
+import RelayHowToPlayButton from "@/features/relay-drawing/components/RelayHowToPlayButton";
 
 const RelayDrawingStage = dynamic(() => import("../../RelayDrawingStage"), {
   ssr: false,

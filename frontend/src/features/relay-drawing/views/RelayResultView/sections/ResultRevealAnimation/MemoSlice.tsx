@@ -5,8 +5,8 @@ import {
   RELAY_ROUND_RULES,
   RELAY_STAGE_SIZE,
   type RelayRoundKey,
-} from '../../../../constants'
-import LabelPaperCard from '../../../../components/LabelPaperCard'
+} from '@/features/relay-drawing/constants'
+import LabelPaperCard from '@/features/relay-drawing/components/LabelPaperCard'
 import { memoVariants } from './animationVariants'
 import { getSliceTopPct, SLICE_HEIGHT_PCT } from './constants'
 

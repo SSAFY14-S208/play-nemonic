@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { RELAY_ROUND_ORDER, RELAY_ROUND_RULES, type RelayRoundKey } from '../../../constants';
-import { useRelayDrawingStore } from "../../../stores";
-import { renderLinesToRasterCanvas } from '../../../utils/canvas-rendering';
+import { RELAY_ROUND_ORDER, RELAY_ROUND_RULES, type RelayRoundKey } from '@/features/relay-drawing/constants'
+import { useRelayDrawingStore } from '@/features/relay-drawing/stores'
+import { renderLinesToRasterCanvas } from '@/features/relay-drawing/utils/canvas-rendering'
 
 const TOTAL_DURATION_MS = 3000;
 

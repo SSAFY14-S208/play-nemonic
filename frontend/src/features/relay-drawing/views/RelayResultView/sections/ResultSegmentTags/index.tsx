@@ -1,4 +1,4 @@
-import type { RelayResultSegment } from '../../../../constants'
+import type { RelayResultSegment } from '@/features/relay-drawing/constants'
 import { cn } from '@/shared/libs'
 
 interface ResultSegmentTagsProps {
