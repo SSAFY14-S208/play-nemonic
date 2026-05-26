@@ -22,6 +22,8 @@ import com.nemonicworld.common.jwt.AdminTokenClaims;
 import com.nemonicworld.common.jwt.JwtTokenProvider;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationClient;
 import com.nemonicworld.support.AbstractReadOnlyIntegrationTest;
+import com.nemonicworld.support.AdminUserTestFixture;
+import com.nemonicworld.support.BackofficeAuthTestFixture;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -47,6 +49,7 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
 
     private static final long ADMIN_ID = 1L;
     private static final String ADMIN_LOGIN_ID = "community-admin";
+    private static final String ADMIN_NICKNAME = "Community Admin";
     private static final String ADMIN_EMAIL = "community-admin@example.com";
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String ORIGINAL_OBJECT_KEY = "uploads/community/admin/original.png";
@@ -66,11 +69,14 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
+    private AdminUserTestFixture adminUserFixture;
+
     @MockitoBean
     private CommunityMemoModerationClient moderationClient;
 
     @BeforeEach
     void prepareTables() {
+        adminUserFixture = new AdminUserTestFixture(jdbcTemplate);
         createTables();
         cleanTables();
         insertAdminUser();
@@ -499,20 +505,7 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
     }
 
     private void createTables() {
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS admin_user (
-                id BIGINT PRIMARY KEY,
-                login_id VARCHAR(64) NOT NULL UNIQUE,
-                password_hash VARCHAR(255) NOT NULL,
-                nickname VARCHAR(20) NOT NULL,
-                email VARCHAR(255) NOT NULL,
-                role VARCHAR(32) NOT NULL,
-                last_login_at TIMESTAMP NULL,
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL,
-                deleted_at TIMESTAMP NULL
-            )
-            """);
+        adminUserFixture.ensureTable();
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS app_user (
                 id UUID NOT NULL PRIMARY KEY,
@@ -623,17 +616,11 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
         jdbcTemplate.update("DELETE FROM community_memo");
         jdbcTemplate.update("DELETE FROM artifact");
         jdbcTemplate.update("DELETE FROM app_user");
-        jdbcTemplate.update("DELETE FROM admin_user");
+        adminUserFixture.deleteAll();
     }
 
     private void insertAdminUser() {
-        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        jdbcTemplate.update("""
-            INSERT INTO admin_user (
-                id, login_id, password_hash, nickname, email, role, last_login_at, created_at, updated_at, deleted_at
-            )
-            VALUES (?, ?, 'encoded', 'Community Admin', ?, 'admin', NULL, ?, ?, NULL)
-            """, ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_EMAIL, now, now);
+        adminUserFixture.insertEncoded(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_NICKNAME, ADMIN_EMAIL, AdminRole.ADMIN);
     }
 
     private UUID insertAppUser(String nickname) {
@@ -709,11 +696,8 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
     }
 
     private String bearerAccessToken() {
-        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        AdminUser adminUser = new AdminUser(ADMIN_ID, ADMIN_LOGIN_ID, "encoded", "Community Admin", ADMIN_EMAIL,
-            AdminRole.ADMIN, null, now, now, null);
-
-        return "Bearer %s".formatted(jwtTokenProvider.createAccessToken(adminUser).accessToken());
+        return BackofficeAuthTestFixture.bearerAccessToken(jwtTokenProvider, ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_NICKNAME,
+            ADMIN_EMAIL, AdminRole.ADMIN);
     }
 
     private void assertPreservedMemoSnapshot(UUID memoId) {
