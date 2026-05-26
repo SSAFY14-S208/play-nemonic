@@ -44,9 +44,9 @@ import com.nemonicworld.invite.redis.InviteMetadata;
 import com.nemonicworld.support.AbstractIntegrationTest;
 import com.nemonicworld.support.AdminUserTestFixture;
 import com.nemonicworld.support.BackofficeSettingTestFixture;
+import com.nemonicworld.support.FileUploadTestFixture;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -116,6 +116,7 @@ class InfiniteCanvasControllerIntegrationTest extends AbstractIntegrationTest {
     private Map<String, String> redisValues;
     private Map<String, List<String>> redisLists;
     private BackofficeSettingTestFixture backofficeSettingFixture;
+    private FileUploadTestFixture fileUploadFixture;
 
     @BeforeEach
     void prepare() {
@@ -129,7 +130,7 @@ class InfiniteCanvasControllerIntegrationTest extends AbstractIntegrationTest {
         jdbcTemplate.update("DELETE FROM phone_artifact");
         jdbcTemplate.update("DELETE FROM gallery");
         jdbcTemplate.update("DELETE FROM artifact");
-        jdbcTemplate.update("DELETE FROM file_upload");
+        fileUploadFixture.deleteAll();
         backofficeSettingFixture.deleteAll();
         userRepository.deleteAll();
 
@@ -918,22 +919,8 @@ class InfiniteCanvasControllerIntegrationTest extends AbstractIntegrationTest {
                 deleted_at TIMESTAMP NULL
             )
             """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS file_upload (
-                id UUID PRIMARY KEY,
-                user_id UUID NOT NULL,
-                purpose VARCHAR(32) NOT NULL,
-                original_file_name VARCHAR(255) NOT NULL,
-                content_type VARCHAR(100) NOT NULL,
-                byte_size BIGINT NOT NULL,
-                object_key VARCHAR(500) NOT NULL,
-                status VARCHAR(32) NOT NULL,
-                expires_at TIMESTAMP NOT NULL,
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL,
-                deleted_at TIMESTAMP NULL
-            )
-            """);
+        fileUploadFixture = new FileUploadTestFixture(jdbcTemplate);
+        fileUploadFixture.ensureTable();
     }
 
     private void insertInfiniteCanvasParticipantLimitSetting(String settingValue) {
@@ -961,29 +948,10 @@ class InfiniteCanvasControllerIntegrationTest extends AbstractIntegrationTest {
 
     private UUID insertFileUpload(UUID userUuid, String purpose, String status, String objectKey,
         LocalDateTime deletedAt) {
-        UUID fileId = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.now().minusMinutes(5).truncatedTo(ChronoUnit.SECONDS);
-        jdbcTemplate.update("""
-            INSERT INTO file_upload (
-                id,
-                user_id,
-                purpose,
-                original_file_name,
-                content_type,
-                byte_size,
-                object_key,
-                status,
-                expires_at,
-                created_at,
-                updated_at,
-                deleted_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, fileId, userUuid, purpose, "canvas.png", "image/png", 1024L, objectKey, status,
-            Timestamp.valueOf(now.plusHours(1)), Timestamp.valueOf(now), Timestamp.valueOf(now),
-            deletedAt == null ? null : Timestamp.valueOf(deletedAt));
 
-        return fileId;
+        return fileUploadFixture.insert(userUuid, purpose, "canvas.png", "image/png", 1024L, objectKey, status,
+            now.plusHours(1), now, now, deletedAt);
     }
 
     private InfiniteCanvasState activeCanvasState(UUID ownerUuid, int maxParticipants) {

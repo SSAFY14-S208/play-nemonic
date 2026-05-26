@@ -10,10 +10,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.support.FileUploadTestFixture;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
@@ -46,6 +46,8 @@ class GalleryPhoneDrawingControllerIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    private FileUploadTestFixture fileUploadFixture;
 
     @BeforeEach
     void prepareTables() {
@@ -118,22 +120,8 @@ class GalleryPhoneDrawingControllerIntegrationTest {
             """);
         jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS body_image_url VARCHAR(1000)");
         jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS thumbnail_image_url VARCHAR(1000)");
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS file_upload (
-                id UUID PRIMARY KEY,
-                user_id UUID NOT NULL,
-                purpose VARCHAR(32) NOT NULL,
-                original_file_name VARCHAR(255) NOT NULL,
-                content_type VARCHAR(100) NOT NULL,
-                byte_size BIGINT NOT NULL,
-                object_key TEXT NOT NULL,
-                status VARCHAR(32) NOT NULL,
-                expires_at TIMESTAMP NOT NULL,
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL,
-                deleted_at TIMESTAMP NULL
-            )
-            """);
+        fileUploadFixture = new FileUploadTestFixture(jdbcTemplate);
+        fileUploadFixture.ensureTable();
 
         jdbcTemplate.update("DELETE FROM fortune_artifact");
         jdbcTemplate.update("DELETE FROM relay_drawing_artifact");
@@ -143,7 +131,7 @@ class GalleryPhoneDrawingControllerIntegrationTest {
         jdbcTemplate.update("DELETE FROM community_memo");
         jdbcTemplate.update("DELETE FROM gallery");
         jdbcTemplate.update("DELETE FROM artifact");
-        jdbcTemplate.update("DELETE FROM file_upload");
+        fileUploadFixture.deleteAll();
         jdbcTemplate.update("DELETE FROM app_user");
     }
 
@@ -369,30 +357,10 @@ class GalleryPhoneDrawingControllerIntegrationTest {
 
     private UUID insertFileUpload(UUID userUuid, String purpose, String status, String objectKey,
         LocalDateTime deletedAt) {
-        UUID fileId = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.now().minusMinutes(1).truncatedTo(ChronoUnit.SECONDS);
-        Timestamp deletedTimestamp = deletedAt == null ? null : Timestamp.valueOf(deletedAt);
 
-        jdbcTemplate.update("""
-            INSERT INTO file_upload (
-                id,
-                user_id,
-                purpose,
-                original_file_name,
-                content_type,
-                byte_size,
-                object_key,
-                status,
-                expires_at,
-                created_at,
-                updated_at,
-                deleted_at
-            )
-            VALUES (?, ?, ?, 'drawing.png', 'image/png', 1024, ?, ?, ?, ?, ?, ?)
-            """, fileId, userUuid, purpose, objectKey, status, Timestamp.valueOf(now.plusMinutes(10)),
-            Timestamp.valueOf(now), Timestamp.valueOf(now), deletedTimestamp);
-
-        return fileId;
+        return fileUploadFixture.insert(userUuid, purpose, "drawing.png", "image/png", 1024, objectKey, status,
+            now.plusMinutes(10), now, now, deletedAt);
     }
 
     private String saveRequestBody(UUID imageFileId, UUID thumbnailFileId, String metaJson) {

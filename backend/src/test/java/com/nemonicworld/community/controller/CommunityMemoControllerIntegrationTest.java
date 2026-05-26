@@ -31,6 +31,7 @@ import com.nemonicworld.community.service.moderation.CommunityMemoModerationResu
 import com.nemonicworld.support.AbstractIntegrationTest;
 import com.nemonicworld.support.AdminUserTestFixture;
 import com.nemonicworld.support.BackofficeSettingTestFixture;
+import com.nemonicworld.support.FileUploadTestFixture;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
 import java.sql.Types;
@@ -89,6 +90,7 @@ class CommunityMemoControllerIntegrationTest extends AbstractIntegrationTest {
     private ArtifactQrComposer artifactQrComposer;
 
     private BackofficeSettingTestFixture backofficeSettingFixture;
+    private FileUploadTestFixture fileUploadFixture;
 
     @BeforeEach
     void prepareCommunityTables() {
@@ -1526,22 +1528,8 @@ class CommunityMemoControllerIntegrationTest extends AbstractIntegrationTest {
                 deleted_at TIMESTAMP NULL
             )
             """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS file_upload (
-                id UUID PRIMARY KEY,
-                user_id UUID NOT NULL,
-                purpose VARCHAR(32) NOT NULL,
-                original_file_name VARCHAR(255) NOT NULL,
-                content_type VARCHAR(100) NOT NULL,
-                byte_size BIGINT NOT NULL,
-                object_key VARCHAR(1000) NOT NULL,
-                status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
-                expires_at TIMESTAMP NOT NULL,
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL,
-                deleted_at TIMESTAMP NULL
-            )
-            """);
+        fileUploadFixture = new FileUploadTestFixture(jdbcTemplate);
+        fileUploadFixture.ensureTable();
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS community_memo (
                 id UUID PRIMARY KEY,
@@ -1613,7 +1601,7 @@ class CommunityMemoControllerIntegrationTest extends AbstractIntegrationTest {
         jdbcTemplate.update("DELETE FROM community_memo_report");
         jdbcTemplate.update("DELETE FROM community_memo");
         jdbcTemplate.update("DELETE FROM gallery");
-        jdbcTemplate.update("DELETE FROM file_upload");
+        fileUploadFixture.deleteAll();
         jdbcTemplate.update("DELETE FROM fortune_artifact_asset");
         jdbcTemplate.update("DELETE FROM fortune_artifact");
         jdbcTemplate.update("DELETE FROM flipbook_artifact");
@@ -1635,17 +1623,10 @@ class CommunityMemoControllerIntegrationTest extends AbstractIntegrationTest {
 
     private UUID insertFileUpload(UUID userUuid, String objectKey, String purpose, String status,
         LocalDateTime deletedAt) {
-        UUID fileId = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        jdbcTemplate.update("""
-            INSERT INTO file_upload (
-                id, user_id, purpose, original_file_name, content_type, byte_size, object_key, status, expires_at,
-                created_at, updated_at, deleted_at
-            )
-            VALUES (?, ?, ?, 'memo.png', 'image/png', 1024, ?, ?, ?, ?, ?, ?)
-            """, fileId, userUuid, purpose, objectKey, status, now.plusHours(1), now, now, deletedAt);
 
-        return fileId;
+        return fileUploadFixture.insert(userUuid, purpose, "memo.png", "image/png", 1024, objectKey, status,
+            now.plusHours(1), now, now, deletedAt);
     }
 
     private void insertCommunityMaxMemoCountSetting(int maxMemoCount) {
