@@ -4,13 +4,13 @@ import { motion } from "motion/react";
 import Image from "next/image";
 import { useState } from "react";
 
-import relayDrawingTitle from "../assets/relay-drawing-title.png";
-import { useRelayBooth } from '../hooks';
-import RelayBoothBackground from "./RelayBoothBackground";
-import RelayBoothEntrance from "./RelayBoothEntrance";
-import RelayButton from "./RelayButton";
-import RelayJoinRoomModal from "./RelayJoinRoomModal";
-import RelayNicknameModal from "./RelayNicknameModal";
+import { relayDrawingTitle } from "@/features/relay-drawing/assets";
+import RelayButton from "../../components/RelayButton";
+import RelayJoinRoomModal from "../../components/RelayJoinRoomModal";
+import RelayNicknameModal from "../../components/RelayNicknameModal";
+import { useRelayBooth } from "./hooks";
+import RelayBoothBackground from "./sections/RelayBoothBackground";
+import RelayBoothEntrance from "./sections/RelayBoothEntrance";
 
 // 익명 닉네임 상태에서 어떤 액션을 누르려 했는지 기억해뒀다가, 닉네임 모달이
 // 닫힌 직후 자동으로 이어서 수행하기 위한 식별자.

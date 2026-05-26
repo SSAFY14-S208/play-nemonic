@@ -3,7 +3,7 @@
 import { motion } from "motion/react";
 import Image from "next/image";
 
-import relayDrawingBg from "../assets/relay-drawing-bg.png";
+import { relayDrawingBg } from "@/features/relay-drawing/assets";
 
 interface RelayBoothBackgroundProps {
   // 인트로 시퀀스가 끝나면(좌측이 페이드 인되는 시점) 배경도 함께 등장.

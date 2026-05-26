@@ -9,7 +9,7 @@ import { useFunnelEntry } from '@/shared/hooks'
 import { completeFunnelStep } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 
-import { useRelayDrawingStore } from '../stores'
+import { useRelayDrawingStore } from '../../../stores'
 
 interface UseRelayBoothReturn {
   // UserBootstrap이 끝나 userUuid가 발급된 상태인지. 부트스트랩 진행 중일 때

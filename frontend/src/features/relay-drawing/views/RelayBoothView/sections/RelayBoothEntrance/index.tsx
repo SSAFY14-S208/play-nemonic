@@ -4,15 +4,17 @@ import { motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import {
+  greenNemoConfused,
+  greenNemoMoved,
+  greenNemoSatisfied,
+  redNemoConfused,
+  redNemoMoved,
+  redNemoSatisfied,
+} from "@/features/relay-drawing/assets";
 import { cn } from "@/shared/libs";
 
-import greenNemoConfused from "../assets/green-nemo-confused.png";
-import greenNemoMoved from "../assets/green-nemo-moved.png";
-import greenNemoSatisfied from "../assets/green-nemo-satisfied.png";
-import redNemoConfused from "../assets/red-nemo-confused.png";
-import redNemoMoved from "../assets/red-nemo-moved.png";
-import redNemoSatisfied from "../assets/red-nemo-satisfied.png";
-import RelayArtworkCard from "./RelayArtworkCard";
+import RelayArtworkCard from "../../../../components/RelayArtworkCard";
 
 // 한 part(label card)의 px 폭. 높이는 PART_ASPECT_RATIO(3:2)로 자동 결정.
 // lg 미만(flex-col 레이아웃)에서는 작은 값을 사용해 카드가 모바일 화면을 넘치지 않도록 한다.

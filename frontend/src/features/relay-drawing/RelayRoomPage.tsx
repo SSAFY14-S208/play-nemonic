@@ -9,8 +9,10 @@ import { WorldHomeLink } from '@/shared/components'
 import { DEFAULT_USER_NICKNAME } from '@/shared/constants'
 import { usePhoneLauncherStore, useUserStore } from '@/shared/stores'
 
-import relayDrawingGameStart from './assets/relay-drawing-game-start.png'
-import nemonicDrawingLobbyBg from './assets/nemonic-drawing-lobby-bg.png'
+import {
+  nemonicDrawingLobbyBg,
+  relayDrawingGameStart,
+} from '@/features/relay-drawing/assets'
 import { RelayButton, RelayDismissalModal, RelayDrawingView, RelayFinalizingView, RelayFloatingControls, RelayLobbyView, RelayNicknameModal, RelayResultView } from './components'
 import { RELAY_LEAVE_CANCEL_BUTTON_CLASS, RELAY_LEAVE_CONFIRM_BUTTON_CLASS } from './constants'
 import { useRelayAbandonmentTracking, useRelayRoom } from './hooks'

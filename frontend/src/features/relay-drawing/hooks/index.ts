@@ -1,6 +1,5 @@
 export { useRelayAbandonmentTracking } from './useRelayAbandonmentTracking'
 export { useRelayBgm } from './useRelayBgm'
-export { useRelayBooth } from './useRelayBooth'
 export { useRelayCanvas } from './useRelayCanvas'
 export { useRelayDrawingGame } from './useRelayDrawingGame'
 export { useRelayLobby } from './useRelayLobby'
