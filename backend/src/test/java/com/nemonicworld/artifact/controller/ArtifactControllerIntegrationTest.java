@@ -16,6 +16,8 @@ import com.nemonicworld.artifact.service.share.ArtifactShareService;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.share.dto.response.ShareCreateResponse;
 import com.nemonicworld.support.AbstractIntegrationTest;
+import com.nemonicworld.support.ArtifactGalleryTestFixture;
+import com.nemonicworld.support.ArtifactSubtypeTestFixture;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
 import java.time.LocalDateTime;
@@ -52,63 +54,15 @@ class ArtifactControllerIntegrationTest extends AbstractIntegrationTest {
     @MockitoBean
     private ArtifactShareService artifactShareService;
 
+    private ArtifactGalleryTestFixture artifactGalleryFixture;
+    private ArtifactSubtypeTestFixture artifactSubtypeFixture;
+
     @BeforeEach
     void prepareArtifactTables() {
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS artifact (
-                id UUID PRIMARY KEY,
-                kind VARCHAR(32) NOT NULL,
-                source_room_id VARCHAR(64) NULL,
-                thumbnail_url VARCHAR(200) NOT NULL,
-                meta VARCHAR(1000) NOT NULL DEFAULT '{}',
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS gallery (
-                id UUID PRIMARY KEY,
-                user_id UUID NOT NULL,
-                artifact_id UUID NOT NULL,
-                deleted_at TIMESTAMP NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS fortune_artifact (
-                artifact_id UUID PRIMARY KEY,
-                description VARCHAR(1000) NOT NULL,
-                fortune_image_url VARCHAR(200) NOT NULL,
-                user_id UUID NOT NULL,
-                fortune_date DATE NOT NULL
-            )
-            """);
-        jdbcTemplate.execute("ALTER TABLE fortune_artifact ADD COLUMN IF NOT EXISTS user_id UUID");
-        jdbcTemplate.execute("ALTER TABLE fortune_artifact ADD COLUMN IF NOT EXISTS fortune_date DATE");
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS relay_drawing_artifact (
-                artifact_id UUID PRIMARY KEY,
-                combined_preview_url VARCHAR(200) NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS flipbook_artifact (
-                artifact_id UUID PRIMARY KEY,
-                gif_url VARCHAR(200) NULL,
-                first_image VARCHAR(200) NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS infinite_canvas_artifact (
-                artifact_id UUID PRIMARY KEY,
-                canvas_image_url VARCHAR(200) NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS phone_artifact (
-                artifact_id UUID PRIMARY KEY,
-                phone_image_url VARCHAR(200) NULL
-            )
-            """);
+        artifactGalleryFixture = new ArtifactGalleryTestFixture(jdbcTemplate);
+        artifactGalleryFixture.ensureRelayArtifactTables();
+        artifactSubtypeFixture = new ArtifactSubtypeTestFixture(jdbcTemplate);
+        artifactSubtypeFixture.ensureSubtypeTables();
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS community_memo (
                 id UUID PRIMARY KEY,
@@ -140,13 +94,8 @@ class ArtifactControllerIntegrationTest extends AbstractIntegrationTest {
             """);
 
         jdbcTemplate.update("DELETE FROM community_memo");
-        jdbcTemplate.update("DELETE FROM fortune_artifact");
-        jdbcTemplate.update("DELETE FROM relay_drawing_artifact");
-        jdbcTemplate.update("DELETE FROM flipbook_artifact");
-        jdbcTemplate.update("DELETE FROM infinite_canvas_artifact");
-        jdbcTemplate.update("DELETE FROM phone_artifact");
-        jdbcTemplate.update("DELETE FROM gallery");
-        jdbcTemplate.update("DELETE FROM artifact");
+        artifactSubtypeFixture.deleteSubtypeRows();
+        artifactGalleryFixture.deleteRelayArtifactRows();
         jdbcTemplate.update("DELETE FROM app_user");
     }
 
@@ -333,8 +282,7 @@ class ArtifactControllerIntegrationTest extends AbstractIntegrationTest {
     private UUID insertFlipbookArtifact(UUID userUuid, String thumbnailUrl, String gifUrl, String firstImageUrl,
         LocalDateTime deletedAt) {
         UUID artifactId = insertArtifact("flipbook", thumbnailUrl);
-        jdbcTemplate.update("INSERT INTO flipbook_artifact (artifact_id, gif_url, first_image) VALUES (?, ?, ?)",
-            artifactId, gifUrl, firstImageUrl);
+        artifactSubtypeFixture.insertFlipbookArtifact(artifactId, gifUrl, firstImageUrl);
         insertGallery(userUuid, artifactId, deletedAt);
 
         return artifactId;
