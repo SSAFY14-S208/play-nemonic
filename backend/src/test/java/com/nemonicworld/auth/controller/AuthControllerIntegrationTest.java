@@ -10,7 +10,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nemonicworld.admin.entity.AdminUser;
 import com.nemonicworld.common.jwt.AdminTokenClaims;
 import com.nemonicworld.support.AbstractReadOnlyIntegrationTest;
 import com.nemonicworld.support.InMemoryAdminTokenStore;
@@ -18,7 +17,6 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

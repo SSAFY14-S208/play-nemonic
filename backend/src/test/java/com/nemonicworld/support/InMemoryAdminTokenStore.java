@@ -18,10 +18,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * 통합 테스트에서 {@link AdminTokenStore} 의 in-memory 대체 구현이다.
  *
  * <p>
- * {@link com.nemonicworld.auth.repository.RedisAdminTokenStore} 가 실제 Redis 인스턴스에 연결하려고
- * 시도하면 테스트 환경에서 {@code RedisConnectionFailureException} 으로 인증 필터가 401 을 반환한다.
- * H2 in-memory DB 가 컨텍스트별로 격리되면서 한 컨텍스트가 만든 token state 를 다른 컨텍스트가 빌어 쓰는
- * 우연한 통과 동작도 사라졌다. 모든 통합 테스트가 이 in-memory 구현을 {@code @Primary} 빈으로 받아
+ * {@link com.nemonicworld.auth.repository.RedisAdminTokenStore} 가 실제 Redis
+ * 인스턴스에 연결하려고 시도하면 테스트 환경에서 {@code RedisConnectionFailureException} 으로 인증 필터가
+ * 401 을 반환한다. H2 in-memory DB 가 컨텍스트별로 격리되면서 한 컨텍스트가 만든 token state 를 다른 컨텍스트가
+ * 빌어 쓰는 우연한 통과 동작도 사라졌다. 모든 통합 테스트가 이 in-memory 구현을 {@code @Primary} 빈으로 받아
  * Redis 연결 의존을 제거한다.
  * </p>
  */
