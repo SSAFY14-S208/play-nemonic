@@ -10,6 +10,8 @@
 | Scene / domain sub     | `lowercase`  | `landing/`, `hub/`                                   |
 | Resource sub (plural)  | `lowercase`  | `apis/`, `components/`, `hooks/`, `stores/`, `utils/`|
 | Feature unit           | `kebab-case` | `relay-drawing/`, `label-printer/`                   |
+| View folder            | `PascalCase` | `RelayDrawingView/`, `RelayResultView/`              |
+| Section folder         | `PascalCase` | `DrawingStage/`, `RoundTransition/`                  |
 | Infra / shared prefix  | `_prefix`    | `_infra/`, `_shared/`                                |
 
 ## File Naming
