@@ -14,7 +14,7 @@ import {
   FORTUNE_PRINT_VIDEO_PATH,
   FORTUNE_REDUCED_MOTION_DURATION_SECONDS,
 } from './constants'
-import { useFortuneSessionStore } from './fortuneSessionStore'
+import { useFortuneSessionStore } from './fortuneStore'
 import { useFortuneReducedMotion } from './hooks'
 
 interface FortuneVisualProps {

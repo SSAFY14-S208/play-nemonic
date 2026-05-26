@@ -65,6 +65,7 @@
 - Use semantic tokens only — no primitive tokens (`bg-cream-*`, `text-brown-*`) in className
 - Typography via utility classes (`h1-b`, `body-r`, etc.) — no raw Tailwind font class combinations (`text-2xl font-bold`)
 - Conditional class merging via `cn()` — no template literal string concatenation
+- State-driven styling via JSX state in `cn()` — no `data-*` attribute + CSS child selector patterns (`group-data-[*]:`) for runtime state
 - Variant components use CVA (`cva()`) — no manual conditional class switching
 - No feature-scoped visual exceptions — extend the design system with semantic tokens; if the design system cannot cover a case, bring it to team discussion and update the global rules
 
@@ -82,6 +83,10 @@
 - Repeated UI rendered from arrays with stable `key`s — no duplicate JSX blocks
 - Non-decorative `<Image>` must have meaningful `alt` text
 - `aria-hidden` only on purely decorative images, never on meaningful content
+
+## Tooling
+
+- File manipulation scripts MUST use Node.js `fs.readFileSync(path, 'utf8')` / `fs.writeFileSync(path, content, 'utf8')` for any file that contains non-ASCII characters (Korean, emoji, etc.) — NEVER PowerShell `Get-Content` / `Set-Content` (defaults to UTF-16 LE with BOM, silently corrupts non-ASCII content)
 
 ---
 

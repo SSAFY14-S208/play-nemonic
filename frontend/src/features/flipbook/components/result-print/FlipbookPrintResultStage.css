@@ -1,4 +1,7 @@
-.stage {
+/* FlipbookPrintResultStage — complex viewport-unit-based scene layout.
+   prefix: fprs- (flipbook-print-result-stage) */
+
+.fprs-stage {
   position: relative;
   min-height: 100svh;
   overflow: hidden;
@@ -6,13 +9,13 @@
   color: #1f2b1f;
 }
 
-.scene {
+.fprs-scene {
   position: absolute;
   inset: 0;
   overflow: hidden;
 }
 
-.background {
+.fprs-background {
   pointer-events: none;
   position: absolute;
   inset: 0;
@@ -20,7 +23,7 @@
   overflow: hidden;
 }
 
-.topFurniture {
+.fprs-top-furniture {
   pointer-events: none;
   position: absolute;
   left: 8vw;
@@ -31,7 +34,7 @@
   overflow: hidden;
 }
 
-.leftFurniture {
+.fprs-left-furniture {
   pointer-events: none;
   position: absolute;
   left: -28vw;
@@ -42,7 +45,7 @@
   overflow: hidden;
 }
 
-.boardLayer {
+.fprs-board-layer {
   position: absolute;
   left: 4vw;
   top: calc(8.8rem + env(safe-area-inset-top));
@@ -55,7 +58,7 @@
   --result-side-control-width: 11.4%;
 }
 
-.boardImage {
+.fprs-board-image {
   pointer-events: none;
   position: absolute;
   inset: 0;
@@ -65,7 +68,7 @@
   object-fit: fill;
 }
 
-.attachedPaperFrame {
+.fprs-attached-paper-frame {
   position: absolute;
   left: 7.18%;
   top: 9.59%;
@@ -74,7 +77,7 @@
   height: 81.73%;
 }
 
-.printerLayer {
+.fprs-printer-layer {
   position: absolute;
   left: calc(100vw - min(58vw, 280px) + 2vw);
   top: min(54svh, calc(100svh - 15rem));
@@ -84,7 +87,7 @@
   overflow: visible;
 }
 
-.deviceImage {
+.fprs-device-image {
   pointer-events: none;
   position: absolute;
   inset: 0;
@@ -94,7 +97,7 @@
   object-fit: cover;
 }
 
-.slotPrintMask {
+.fprs-slot-print-mask {
   pointer-events: none;
   position: absolute;
   left: 26.7%;
@@ -105,7 +108,7 @@
   overflow: hidden;
 }
 
-.outputSlot {
+.fprs-output-slot {
   pointer-events: none;
   position: absolute;
   left: 26.22%;
@@ -117,7 +120,7 @@
   rotate: 1.75deg;
 }
 
-.participantPanel {
+.fprs-participant-panel {
   position: absolute;
   z-index: 60;
   display: none;
@@ -127,27 +130,27 @@
   padding: 26px 20px 20px;
 }
 
-.participantPanelImage {
+.fprs-participant-panel-image {
   opacity: 1;
 }
 
-.participantPanelHeader {
+.fprs-participant-panel-header {
   flex-shrink: 0;
 }
 
-.participantListViewport {
+.fprs-participant-list-viewport {
   min-height: 0;
 }
 
-.participantListItem {
+.fprs-participant-list-item {
   min-width: 0;
 }
 
-.participantSelectButton {
+.fprs-participant-select-button {
   min-width: 0;
 }
 
-.skipPlaybackButton {
+.fprs-skip-playback-button {
   position: absolute;
   right: var(--result-side-control-right);
   top: 9.8%;
@@ -174,13 +177,13 @@
     opacity 160ms ease;
 }
 
-.skipPlaybackButtonImage {
+.fprs-skip-playback-button-image {
   pointer-events: none;
   object-fit: contain;
   user-select: none;
 }
 
-.skipPlaybackButtonText {
+.fprs-skip-playback-button-text {
   position: relative;
   z-index: 1;
   display: block;
@@ -192,25 +195,25 @@
   white-space: nowrap;
 }
 
-.skipPlaybackButton:hover:not(:disabled) {
+.fprs-skip-playback-button:hover:not(:disabled) {
   transform: translateY(-1px);
 }
 
-.skipPlaybackButton:active:not(:disabled) {
+.fprs-skip-playback-button:active:not(:disabled) {
   transform: translateY(0);
 }
 
-.skipPlaybackButton:disabled {
+.fprs-skip-playback-button:disabled {
   cursor: not-allowed;
   opacity: 0.78;
 }
 
-.skipPlaybackButton:focus-visible {
+.fprs-skip-playback-button:focus-visible {
   outline: 2px solid #ffffff;
   outline-offset: 2px;
 }
 
-.frameArtistBadge {
+.fprs-frame-artist-badge {
   position: absolute;
   right: var(--result-side-control-right);
   top: 18%;
@@ -230,14 +233,14 @@
   font-family: var(--font-paperlogy);
 }
 
-.frameArtistBadgeImage {
+.fprs-frame-artist-badge-image {
   pointer-events: none;
   z-index: 0;
   object-fit: contain;
   user-select: none;
 }
 
-.frameArtistBadgeLabel {
+.fprs-frame-artist-badge-label {
   position: relative;
   z-index: 1;
   max-width: 100%;
@@ -251,7 +254,7 @@
   white-space: nowrap;
 }
 
-.frameArtistBadgeName {
+.fprs-frame-artist-badge-name {
   position: relative;
   z-index: 1;
   max-width: 100%;
@@ -266,21 +269,21 @@
 }
 
 @media (max-width: 767px) {
-  .boardLayer {
+  .fprs-board-layer {
     --result-side-control-max-width: 64px;
     --result-side-control-min-width: 58px;
     --result-side-control-right: 2.4%;
     --result-side-control-width: 16.5%;
   }
 
-  .skipPlaybackButton {
+  .fprs-skip-playback-button {
     right: var(--result-side-control-right);
     left: auto;
     top: 2.5%;
     font-size: clamp(10px, 3.2vw, 12px);
   }
 
-  .frameArtistBadge {
+  .fprs-frame-artist-badge {
     right: var(--result-side-control-right);
     left: auto;
     top: 10.6%;
@@ -288,43 +291,43 @@
     padding: 6px 5px;
   }
 
-  .frameArtistBadgeLabel {
+  .fprs-frame-artist-badge-label {
     font-size: clamp(9px, 2.7vw, 11px);
   }
 
-  .frameArtistBadgeName {
+  .fprs-frame-artist-badge-name {
     font-size: clamp(13px, 3.6vw, 15px);
   }
 }
 
 @media (min-width: 768px) {
-  .topFurniture {
+  .fprs-top-furniture {
     left: 16vw;
     top: -5svh;
     width: 58vw;
     height: 26svh;
   }
 
-  .leftFurniture {
+  .fprs-left-furniture {
     left: -6vw;
     top: 45svh;
     width: 48vw;
     height: 58svh;
   }
 
-  .boardLayer {
+  .fprs-board-layer {
     left: 31vw;
     top: 14svh;
     width: min(61vw, calc(70svh * 1113 / 744));
   }
 
-  .printerLayer {
+  .fprs-printer-layer {
     left: 72vw;
     top: 62svh;
     width: min(31vw, calc(34svh * 1551 / 1035));
   }
 
-  .participantPanel {
+  .fprs-participant-panel {
     display: flex;
     left: 4vw;
     top: 15svh;
@@ -334,19 +337,19 @@
 }
 
 @media (min-width: 768px) and (max-aspect-ratio: 1 / 1) {
-  .boardLayer {
+  .fprs-board-layer {
     left: 14vw;
     top: 12svh;
     width: min(72vw, calc(50svh * 1113 / 744));
   }
 
-  .printerLayer {
+  .fprs-printer-layer {
     left: 75vw;
     top: 62svh;
     width: min(24vw, calc(24svh * 1551 / 1035));
   }
 
-  .participantPanel {
+  .fprs-participant-panel {
     display: flex;
     left: 14vw;
     top: 62svh;
@@ -361,22 +364,22 @@
     backdrop-filter: blur(8px);
   }
 
-  .participantPanelImage {
+  .fprs-participant-panel-image {
     display: none;
   }
 
-  .participantPanelHeader {
+  .fprs-participant-panel-header {
     height: auto;
     align-items: center;
     padding-left: 0;
   }
 
-  .participantPanelHeader p {
+  .fprs-participant-panel-header p {
     font-size: 16px;
     line-height: 1.35;
   }
 
-  .participantListViewport {
+  .fprs-participant-list-viewport {
     display: flex;
     gap: 10px;
     overflow-x: auto;
@@ -386,7 +389,7 @@
     scroll-snap-type: x mandatory;
   }
 
-  .participantListItem {
+  .fprs-participant-list-item {
     min-height: 86px;
     min-width: 176px;
     width: 176px;
@@ -397,50 +400,50 @@
     scroll-snap-align: start;
   }
 
-  .participantSelectButton {
+  .fprs-participant-select-button {
     grid-template-columns: 58px minmax(0, 1fr);
     gap: 8px;
   }
 
-  .skipPlaybackButton {
+  .fprs-skip-playback-button {
     right: var(--result-side-control-right);
     top: 10%;
   }
 
-  .frameArtistBadge {
+  .fprs-frame-artist-badge {
     right: var(--result-side-control-right);
     top: 18.2%;
   }
 }
 
 @media (min-width: 1024px) {
-  .topFurniture {
+  .fprs-top-furniture {
     left: 17.43vw;
     top: -5.33svh;
     width: 58.36vw;
     height: 27.74svh;
   }
 
-  .leftFurniture {
+  .fprs-left-furniture {
     left: -5.05vw;
     top: 44.91svh;
     width: 47.97vw;
     height: 62.5svh;
   }
 
-  .boardLayer {
+  .fprs-board-layer {
     left: 30.89vw;
     top: 12.78svh;
     width: min(57.97vw, calc(69.44svh * 1113 / 744));
   }
 
-  .printerLayer {
+  .fprs-printer-layer {
     left: 75.36vw;
     top: 61.02svh;
     width: min(26.93vw, calc(31.91svh * 1551 / 1035));
   }
 
-  .participantPanel {
+  .fprs-participant-panel {
     left: 6.67vw;
     top: 13.7svh;
     width: min(19.43vw, 373px);
@@ -449,19 +452,19 @@
 }
 
 @media (min-width: 1024px) and (max-aspect-ratio: 1 / 1) {
-  .boardLayer {
+  .fprs-board-layer {
     left: 14vw;
     top: 12svh;
     width: min(72vw, calc(50svh * 1113 / 744));
   }
 
-  .printerLayer {
+  .fprs-printer-layer {
     left: 75vw;
     top: 62svh;
     width: min(24vw, calc(24svh * 1551 / 1035));
   }
 
-  .participantPanel {
+  .fprs-participant-panel {
     left: 14vw;
     top: 62svh;
     width: min(60vw, 620px);
@@ -470,12 +473,12 @@
 }
 
 @media (max-width: 767px) and (max-height: 720px) {
-  .boardLayer {
+  .fprs-board-layer {
     top: calc(7.2rem + env(safe-area-inset-top));
     width: min(86vw, 560px);
   }
 
-  .printerLayer {
+  .fprs-printer-layer {
     top: min(56svh, calc(100svh - 12.8rem));
     width: min(50vw, 230px);
     left: calc(100vw - min(50vw, 230px) + 1vw);
@@ -483,17 +486,17 @@
 }
 
 @media (min-width: 768px) and (max-height: 760px) {
-  .boardLayer {
+  .fprs-board-layer {
     top: 11svh;
     width: min(55vw, calc(66svh * 1113 / 744));
   }
 
-  .printerLayer {
+  .fprs-printer-layer {
     top: 60svh;
     width: min(25vw, calc(32svh * 1551 / 1035));
   }
 
-  .participantPanel {
+  .fprs-participant-panel {
     top: 12svh;
     height: 70svh;
   }

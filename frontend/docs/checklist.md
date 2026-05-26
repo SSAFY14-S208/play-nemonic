@@ -73,6 +73,7 @@ Run this checklist before marking any task complete.
 - [ ] Components reference only Semantic tokens — no Primitive token (`bg-cream-*`, `text-brown-*`) in className
 - [ ] Typography uses utility classes (`h1-b`, `body-r`, etc.) — no raw Tailwind font class combinations
 - [ ] Conditional class merging uses `cn()` — no template literal string concatenation
+- [ ] State-driven styling uses JSX state in `cn()` — no `data-*` attribute + CSS child selector patterns (`group-data-[*]:`) for runtime state
 - [ ] Variant components use CVA (`cva()`) — no manual variant switching via conditionals
 - [ ] No exception document created (ADR, scope note, bypass comment) — code complies with convention, or convention was extended via team discussion and global instruction doc update
 - [ ] New animation: uses `motion` unless infinite-loop ambient or CSS-variable-parameterized — then feature-scoped `@keyframes` only
