@@ -19,6 +19,7 @@ import com.nemonicworld.community.service.moderation.CommunityMemoModerationClie
 import com.nemonicworld.support.AbstractReadOnlyIntegrationTest;
 import com.nemonicworld.support.AdminUserTestFixture;
 import com.nemonicworld.support.BackofficeAuthTestFixture;
+import com.nemonicworld.support.CommunityMemoTestFixture;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
@@ -60,6 +61,7 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
     private JwtTokenProvider jwtTokenProvider;
 
     private AdminUserTestFixture adminUserFixture;
+    private CommunityMemoTestFixture communityMemoFixture;
 
     @MockitoBean
     private CommunityMemoModerationClient moderationClient;
@@ -530,80 +532,12 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
             )
             """);
         jdbcTemplate.execute("ALTER TABLE flipbook_artifact ADD COLUMN IF NOT EXISTS first_image VARCHAR(1000)");
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS community_memo (
-                id UUID PRIMARY KEY,
-                user_id UUID NOT NULL,
-                artifact_id UUID NULL,
-                position_x DOUBLE PRECISION NOT NULL DEFAULT 0,
-                position_y DOUBLE PRECISION NOT NULL DEFAULT 0,
-                z_index INT NOT NULL DEFAULT 0,
-                rotation_deg REAL NOT NULL DEFAULT 0,
-                decoration VARCHAR(1000) NULL DEFAULT '{}',
-                body_image_url VARCHAR(1000) NULL,
-                thumbnail_image_url VARCHAR(1000) NULL,
-                attached_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                report_count INT NOT NULL DEFAULT 0,
-                is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
-                hidden_reason VARCHAR(32) NULL,
-                hidden_at TIMESTAMP NULL,
-                moderation_status VARCHAR(32) NOT NULL DEFAULT 'pending',
-                ocr_text VARCHAR(1000) NULL,
-                ocr_categories VARCHAR(1000) NULL,
-                moderation_checked_at TIMESTAMP NULL,
-                reviewed_by BIGINT NULL,
-                reviewed_at TIMESTAMP NULL,
-                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                deleted_at TIMESTAMP NULL,
-                deleted_reason VARCHAR(32) NULL
-            )
-            """);
-        jdbcTemplate
-            .execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS position_x DOUBLE PRECISION DEFAULT 0");
-        jdbcTemplate
-            .execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS position_y DOUBLE PRECISION DEFAULT 0");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS z_index INT DEFAULT 0");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS rotation_deg REAL DEFAULT 0");
-        jdbcTemplate
-            .execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS decoration VARCHAR(1000) DEFAULT '{}'");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS body_image_url VARCHAR(1000)");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS thumbnail_image_url VARCHAR(1000)");
-        jdbcTemplate.execute(
-            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS attached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS report_count INT DEFAULT 0");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS hidden_reason VARCHAR(32)");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS hidden_at TIMESTAMP");
-        jdbcTemplate.execute(
-            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS moderation_status VARCHAR(32) DEFAULT 'pending'");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS ocr_text VARCHAR(1000)");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS ocr_categories VARCHAR(1000)");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS moderation_checked_at TIMESTAMP");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS reviewed_by BIGINT");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP");
-        jdbcTemplate.execute(
-            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
-        jdbcTemplate.execute(
-            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS deleted_reason VARCHAR(32)");
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS community_memo_report (
-                id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-                memo_id UUID NOT NULL,
-                user_id UUID NOT NULL,
-                reason VARCHAR(32) NOT NULL,
-                reason_detail VARCHAR(1000) NULL,
-                created_at TIMESTAMP NOT NULL,
-                CONSTRAINT uq_community_memo_report_memo_user UNIQUE (memo_id, user_id)
-            )
-            """);
+        communityMemoFixture = new CommunityMemoTestFixture(jdbcTemplate);
+        communityMemoFixture.ensureCommunityMemoTables();
     }
 
     private void cleanTables() {
-        jdbcTemplate.update("DELETE FROM community_memo_report");
-        jdbcTemplate.update("DELETE FROM community_memo");
+        communityMemoFixture.deleteCommunityMemoRows();
         jdbcTemplate.update("DELETE FROM artifact");
         jdbcTemplate.update("DELETE FROM app_user");
         adminUserFixture.deleteAll();
@@ -630,14 +564,7 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
 
     private long insertCommunityMemoReport(UUID memoId, UUID reporterUuid, String reason, String reasonDetail,
         LocalDateTime createdAt) {
-        Long reportId = jdbcTemplate.queryForObject("SELECT COALESCE(MAX(id), 0) + 1 FROM community_memo_report",
-            Long.class);
-        jdbcTemplate.update("""
-            INSERT INTO community_memo_report (id, memo_id, user_id, reason, reason_detail, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """, reportId, memoId, reporterUuid, reason, reasonDetail, createdAt);
-
-        return reportId == null ? 0 : reportId;
+        return communityMemoFixture.insertReportWithNextId(memoId, reporterUuid, reason, reasonDetail, createdAt);
     }
 
     private void insertArtifact(UUID artifactId, String kind, LocalDateTime createdAt) {
@@ -658,19 +585,9 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
         boolean hidden, String hiddenReason, LocalDateTime hiddenAt, int reportCount, String moderationStatus,
         String ocrText, Long reviewedBy, LocalDateTime createdAt, LocalDateTime updatedAt, LocalDateTime deletedAt) {
         UUID memoId = UUID.randomUUID();
-        jdbcTemplate.update("""
-            INSERT INTO community_memo (
-                id, user_id, artifact_id, position_x, position_y, z_index, rotation_deg, decoration, body_image_url,
-                thumbnail_image_url, attached_at, report_count, is_hidden, hidden_reason, hidden_at,
-                moderation_status, ocr_text, ocr_categories, moderation_checked_at, reviewed_by, created_at,
-                updated_at, deleted_at, deleted_reason
-            )
-            VALUES (
-                ?, ?, ?, 120.5, -30.0, 12, 5.5, '{"scale":1.0}', ?, ?, ?, ?, ?, ?, ?, ?, ?, '["safe"]', ?, ?, ?, ?,
-                ?, NULL
-            )
-            """, memoId, userUuid, artifactId, bodyImageUrl, thumbnailImageUrl, createdAt, reportCount, hidden,
-            hiddenReason, hiddenAt, moderationStatus, ocrText, createdAt, reviewedBy, createdAt, updatedAt, deletedAt);
+        communityMemoFixture.insertMemo(memoId, userUuid, artifactId, 120.5, -30.0, 12, 5.5, "{\"scale\":1.0}",
+            bodyImageUrl, thumbnailImageUrl, createdAt, reportCount, hidden, hiddenReason, hiddenAt, moderationStatus,
+            ocrText, "[\"safe\"]", createdAt, reviewedBy, null, createdAt, updatedAt, deletedAt, null);
 
         return memoId;
     }

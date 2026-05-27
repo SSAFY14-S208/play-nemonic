@@ -1,0 +1,173 @@
+package com.nemonicworld.support;
+
+import java.sql.Types;
+import java.time.LocalDateTime;
+import java.util.UUID;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+public class CommunityMemoTestFixture {
+
+    private final JdbcTemplate jdbcTemplate;
+
+    public CommunityMemoTestFixture(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    public void resetCommunityMemoTables() {
+        ensureCommunityMemoTables();
+        deleteCommunityMemoRows();
+    }
+
+    public void ensureCommunityMemoTables() {
+        ensureMemoTable();
+        ensureMemoReportTable();
+    }
+
+    public void ensureMemoTable() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS community_memo (
+                id UUID PRIMARY KEY,
+                user_id UUID NOT NULL,
+                artifact_id UUID NULL,
+                position_x DOUBLE PRECISION NOT NULL DEFAULT 0,
+                position_y DOUBLE PRECISION NOT NULL DEFAULT 0,
+                z_index INT NOT NULL DEFAULT 0,
+                rotation_deg REAL NOT NULL DEFAULT 0,
+                decoration VARCHAR(1000) NULL DEFAULT '{}',
+                body_image_url VARCHAR(1000) NULL,
+                thumbnail_image_url VARCHAR(1000) NULL,
+                attached_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                report_count INT NOT NULL DEFAULT 0,
+                is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
+                hidden_reason VARCHAR(32) NULL,
+                hidden_at TIMESTAMP NULL,
+                moderation_status VARCHAR(32) NOT NULL DEFAULT 'pending',
+                ocr_text VARCHAR(1000) NULL,
+                ocr_categories VARCHAR(1000) NULL,
+                moderation_checked_at TIMESTAMP NULL,
+                reviewed_by BIGINT NULL,
+                reviewed_at TIMESTAMP NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                deleted_at TIMESTAMP NULL,
+                deleted_reason VARCHAR(32) NULL
+            )
+            """);
+        jdbcTemplate
+            .execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS position_x DOUBLE PRECISION DEFAULT 0");
+        jdbcTemplate
+            .execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS position_y DOUBLE PRECISION DEFAULT 0");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS z_index INT DEFAULT 0");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS rotation_deg REAL DEFAULT 0");
+        jdbcTemplate
+            .execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS decoration VARCHAR(1000) DEFAULT '{}'");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS body_image_url VARCHAR(1000)");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS thumbnail_image_url VARCHAR(1000)");
+        jdbcTemplate.execute(
+            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS attached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS report_count INT DEFAULT 0");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS hidden_reason VARCHAR(32)");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS hidden_at TIMESTAMP");
+        jdbcTemplate.execute(
+            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS moderation_status VARCHAR(32) DEFAULT 'pending'");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS ocr_text VARCHAR(1000)");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS ocr_categories VARCHAR(1000)");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS moderation_checked_at TIMESTAMP");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS reviewed_by BIGINT");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP");
+        jdbcTemplate.execute(
+            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+        jdbcTemplate.execute(
+            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP");
+        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS deleted_reason VARCHAR(32)");
+    }
+
+    public void ensureMemoReportTable() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS community_memo_report (
+                id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                memo_id UUID NOT NULL,
+                user_id UUID NOT NULL,
+                reason VARCHAR(32) NOT NULL,
+                reason_detail VARCHAR(1000) NULL,
+                created_at TIMESTAMP NOT NULL,
+                CONSTRAINT uq_community_memo_report_memo_user UNIQUE (memo_id, user_id)
+            )
+            """);
+    }
+
+    public void deleteCommunityMemoRows() {
+        jdbcTemplate.update("DELETE FROM community_memo_report");
+        jdbcTemplate.update("DELETE FROM community_memo");
+    }
+
+    public void insertMemo(UUID memoId, UUID userUuid, UUID artifactId, double positionX, double positionY, int zIndex,
+        double rotationDeg, String decoration, String bodyImageUrl, String thumbnailImageUrl, LocalDateTime attachedAt,
+        int reportCount, boolean hidden, String hiddenReason, LocalDateTime hiddenAt, String moderationStatus,
+        String ocrText, String ocrCategories, LocalDateTime moderationCheckedAt, Long reviewedBy,
+        LocalDateTime reviewedAt, LocalDateTime createdAt, LocalDateTime updatedAt, LocalDateTime deletedAt,
+        String deletedReason) {
+        jdbcTemplate.update("""
+            INSERT INTO community_memo (
+                id,
+                user_id,
+                artifact_id,
+                position_x,
+                position_y,
+                z_index,
+                rotation_deg,
+                decoration,
+                body_image_url,
+                thumbnail_image_url,
+                attached_at,
+                report_count,
+                is_hidden,
+                hidden_reason,
+                hidden_at,
+                moderation_status,
+                ocr_text,
+                ocr_categories,
+                moderation_checked_at,
+                reviewed_by,
+                reviewed_at,
+                created_at,
+                updated_at,
+                deleted_at,
+                deleted_reason
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            new Object[]{memoId, userUuid, artifactId, positionX, positionY, zIndex, rotationDeg, decoration,
+                bodyImageUrl, thumbnailImageUrl, attachedAt, reportCount, hidden, hiddenReason, hiddenAt,
+                moderationStatus, ocrText, ocrCategories, moderationCheckedAt, reviewedBy, reviewedAt, createdAt,
+                updatedAt, deletedAt, deletedReason},
+            new int[]{Types.OTHER, Types.OTHER, Types.OTHER, Types.DOUBLE, Types.DOUBLE, Types.INTEGER, Types.DOUBLE,
+                Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.TIMESTAMP, Types.INTEGER, Types.BOOLEAN,
+                Types.VARCHAR, Types.TIMESTAMP, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.TIMESTAMP,
+                Types.BIGINT, Types.TIMESTAMP, Types.TIMESTAMP, Types.TIMESTAMP, Types.TIMESTAMP, Types.VARCHAR});
+    }
+
+    public void insertReport(UUID memoId, UUID userUuid, String reason, String reasonDetail, LocalDateTime createdAt) {
+        jdbcTemplate.update("""
+            INSERT INTO community_memo_report (memo_id, user_id, reason, reason_detail, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """, new Object[]{memoId, userUuid, reason, reasonDetail, createdAt},
+            new int[]{Types.OTHER, Types.OTHER, Types.VARCHAR, Types.VARCHAR, Types.TIMESTAMP});
+    }
+
+    public long insertReportWithNextId(UUID memoId, UUID userUuid, String reason, String reasonDetail,
+        LocalDateTime createdAt) {
+        Long reportId = jdbcTemplate.queryForObject("SELECT COALESCE(MAX(id), 0) + 1 FROM community_memo_report",
+            Long.class);
+        long nextReportId = reportId == null ? 0 : reportId;
+
+        jdbcTemplate.update("""
+            INSERT INTO community_memo_report (id, memo_id, user_id, reason, reason_detail, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """, nextReportId, memoId, userUuid, reason, reasonDetail, createdAt);
+
+        return nextReportId;
+    }
+}
