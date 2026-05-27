@@ -34,7 +34,9 @@ import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationAsyncTri
 import com.nemonicworld.relay.service.submission.RelaySubmissionStorage;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
+import com.nemonicworld.support.AppUserTestFixture;
 import com.nemonicworld.support.ArtifactGalleryTestFixture;
+import com.nemonicworld.support.FileUploadTestFixture;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
@@ -121,8 +123,8 @@ class RelayRoomSubmissionControllerIntegrationTest {
     @BeforeEach
     void prepare() {
         new ArtifactGalleryTestFixture(jdbcTemplate).resetRelayArtifactTables();
-        jdbcTemplate.update("DELETE FROM file_upload");
-        jdbcTemplate.update("DELETE FROM app_user");
+        new FileUploadTestFixture(jdbcTemplate).deleteAll();
+        new AppUserTestFixture(jdbcTemplate).deleteAll();
 
         valueOperations = createValueOperationsMock();
         redisOperations = createRedisOperationsMock();

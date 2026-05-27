@@ -23,6 +23,7 @@ import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
+import com.nemonicworld.support.AppUserTestFixture;
 import com.nemonicworld.support.ArtifactGalleryTestFixture;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
@@ -92,7 +93,7 @@ class RelayRoomAssignmentControllerIntegrationTest {
     @BeforeEach
     void prepare() {
         new ArtifactGalleryTestFixture(jdbcTemplate).resetRelayArtifactTables();
-        jdbcTemplate.update("DELETE FROM app_user");
+        new AppUserTestFixture(jdbcTemplate).deleteAll();
 
         valueOperations = createValueOperationsMock();
         given(stringRedisTemplate.opsForValue()).willReturn(valueOperations);

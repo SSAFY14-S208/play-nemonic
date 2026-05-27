@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.support.AbstractIntegrationTest;
+import com.nemonicworld.support.AppUserTestFixture;
 import com.nemonicworld.support.ArtifactGalleryTestFixture;
 import com.nemonicworld.support.ArtifactSubtypeTestFixture;
 import com.nemonicworld.support.CommunityMemoTestFixture;
@@ -59,7 +60,7 @@ class GalleryControllerIntegrationTest extends AbstractIntegrationTest {
         communityMemoFixture.deleteMemoRows();
         artifactSubtypeFixture.deleteSubtypeRows();
         artifactGalleryFixture.deleteRelayArtifactRows();
-        jdbcTemplate.update("DELETE FROM app_user");
+        new AppUserTestFixture(jdbcTemplate).deleteAll();
     }
 
     /**

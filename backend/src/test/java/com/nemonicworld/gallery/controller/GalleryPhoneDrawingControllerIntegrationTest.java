@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.support.AppUserTestFixture;
 import com.nemonicworld.support.ArtifactGalleryTestFixture;
 import com.nemonicworld.support.ArtifactSubtypeTestFixture;
 import com.nemonicworld.support.CommunityMemoTestFixture;
@@ -67,7 +68,7 @@ class GalleryPhoneDrawingControllerIntegrationTest {
         artifactSubtypeFixture.deleteSubtypeRows();
         artifactGalleryFixture.deleteRelayArtifactRows();
         fileUploadFixture.deleteAll();
-        jdbcTemplate.update("DELETE FROM app_user");
+        new AppUserTestFixture(jdbcTemplate).deleteAll();
     }
 
     @Test

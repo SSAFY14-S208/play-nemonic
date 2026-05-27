@@ -21,6 +21,7 @@ import com.nemonicworld.common.exception.RoomCodeGenerationException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.support.AbstractIntegrationTest;
 import com.nemonicworld.support.AdminUserTestFixture;
+import com.nemonicworld.support.AppUserTestFixture;
 import com.nemonicworld.support.ArtifactGalleryTestFixture;
 import com.nemonicworld.support.BackofficeSettingTestFixture;
 import com.nemonicworld.user.entity.AppUser;
@@ -77,7 +78,7 @@ class RelayRoomControllerIntegrationTest extends AbstractIntegrationTest {
         new ArtifactGalleryTestFixture(jdbcTemplate).resetRelayArtifactTables();
         prepareBackofficeSettingTables();
         backofficeSettingFixture.deleteAll();
-        jdbcTemplate.update("DELETE FROM app_user");
+        new AppUserTestFixture(jdbcTemplate).deleteAll();
 
         valueOperations = createValueOperationsMock();
         given(stringRedisTemplate.opsForValue()).willReturn(valueOperations);

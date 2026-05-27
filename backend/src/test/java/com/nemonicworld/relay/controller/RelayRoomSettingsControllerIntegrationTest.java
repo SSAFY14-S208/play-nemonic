@@ -28,6 +28,7 @@ import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import com.nemonicworld.relay.service.support.RelayRuntimeSettingsSnapshot;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import com.nemonicworld.support.AbstractIntegrationTest;
+import com.nemonicworld.support.AppUserTestFixture;
 import com.nemonicworld.support.ArtifactGalleryTestFixture;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
@@ -90,7 +91,7 @@ class RelayRoomSettingsControllerIntegrationTest extends AbstractIntegrationTest
     @BeforeEach
     void prepare() {
         new ArtifactGalleryTestFixture(jdbcTemplate).resetRelayArtifactTables();
-        jdbcTemplate.update("DELETE FROM app_user");
+        new AppUserTestFixture(jdbcTemplate).deleteAll();
 
         valueOperations = createValueOperationsMock();
         redisOperations = createRedisOperationsMock();
