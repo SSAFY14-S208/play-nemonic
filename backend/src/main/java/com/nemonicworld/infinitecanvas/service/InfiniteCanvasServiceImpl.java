@@ -3,7 +3,6 @@ package com.nemonicworld.infinitecanvas.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
-import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasColorUpdateRequest;
@@ -32,6 +31,7 @@ import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasParticipant;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasState;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasStatus;
 import com.nemonicworld.infinitecanvas.repository.InfiniteCanvasRepository;
+import com.nemonicworld.infinitecanvas.service.lock.InfiniteCanvasLockUseCase;
 import com.nemonicworld.infinitecanvas.service.output.InfiniteCanvasOutputSaveUseCase;
 import com.nemonicworld.infinitecanvas.service.room.InfiniteCanvasConnectionUseCase;
 import com.nemonicworld.infinitecanvas.service.support.InfiniteCanvasInviteMetadataSyncService;
@@ -40,7 +40,6 @@ import com.nemonicworld.infinitecanvas.service.support.InfiniteCanvasRuntimeSett
 import com.nemonicworld.invite.repository.InviteRepository;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -62,7 +61,6 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     private static final String NOT_PARTICIPANT_MESSAGE = "무한 캔버스 참여자가 아닙니다.";
     private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
     private static final String INVALID_CURSOR_MESSAGE = "커서 좌표 형식이 올바르지 않습니다.";
-    private static final String INVALID_LOCK_MESSAGE = "요소 lock 요청 형식이 올바르지 않습니다.";
     private static final String INVALID_ELEMENTS_MESSAGE = "캔버스 요소 목록 형식이 올바르지 않습니다.";
     private static final String INVALID_OPERATIONS_MESSAGE = "캔버스 편집 연산 목록 형식이 올바르지 않습니다.";
     private static final String INVALID_COLOR_MESSAGE = "색상 값이 올바르지 않습니다.";
@@ -70,9 +68,7 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     private static final String STALE_REVISION_MESSAGE = "캔버스 revision이 최신이 아닙니다. 서버 상태를 다시 동기화해주세요.";
     private static final String SNAPSHOT_HOST_MESSAGE = "캔버스 방장만 전체 스냅샷을 교체할 수 있습니다.";
     private static final String LOCK_CONFLICT_MESSAGE = "다른 참여자가 해당 요소를 편집 중입니다.";
-    private static final String LOCK_OWNER_MESSAGE = "요소 lock을 보유한 참여자만 해제할 수 있습니다.";
     private static final String UPDATE_CONFLICT_MESSAGE = "무한 캔버스 상태 갱신 충돌이 발생했습니다. 다시 시도해주세요.";
-    private static final Duration LOCK_TTL = Duration.ofSeconds(30);
     private static final int UPDATE_MAX_RETRIES = 8;
     private static final int MAX_ELEMENTS = 5000;
     private static final int MAX_OPERATIONS_PER_MESSAGE = 100;
@@ -86,6 +82,7 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     private final InfiniteCanvasRepository infiniteCanvasRepository;
     private final InfiniteCanvasInviteMetadataSyncService infiniteCanvasInviteMetadataSyncService;
     private final InfiniteCanvasRuntimeSettingsProvider infiniteCanvasRuntimeSettingsProvider;
+    private final InfiniteCanvasLockUseCase infiniteCanvasLockUseCase;
     private final InfiniteCanvasConnectionUseCase infiniteCanvasConnectionUseCase;
     private final InfiniteCanvasOutputSaveUseCase infiniteCanvasOutputSaveUseCase;
 
@@ -93,6 +90,7 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         InviteRepository inviteRepository, InfiniteCanvasRepository infiniteCanvasRepository,
         InfiniteCanvasInviteMetadataSyncService infiniteCanvasInviteMetadataSyncService,
         InfiniteCanvasRuntimeSettingsProvider infiniteCanvasRuntimeSettingsProvider,
+        InfiniteCanvasLockUseCase infiniteCanvasLockUseCase,
         InfiniteCanvasConnectionUseCase infiniteCanvasConnectionUseCase,
         InfiniteCanvasOutputSaveUseCase infiniteCanvasOutputSaveUseCase) {
         this.anonymousUserResolver = anonymousUserResolver;
@@ -101,6 +99,7 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         this.infiniteCanvasRepository = infiniteCanvasRepository;
         this.infiniteCanvasInviteMetadataSyncService = infiniteCanvasInviteMetadataSyncService;
         this.infiniteCanvasRuntimeSettingsProvider = infiniteCanvasRuntimeSettingsProvider;
+        this.infiniteCanvasLockUseCase = infiniteCanvasLockUseCase;
         this.infiniteCanvasConnectionUseCase = infiniteCanvasConnectionUseCase;
         this.infiniteCanvasOutputSaveUseCase = infiniteCanvasOutputSaveUseCase;
     }
@@ -140,63 +139,14 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     @Transactional(readOnly = true)
     public InfiniteCanvasLockResponse acquireLock(String userUuidValue, String roomCode,
         InfiniteCanvasLockRequest request) {
-        AppUser user = anonymousUserResolver.resolve(userUuidValue);
-        String userUuid = user.getId().toString();
-        String normalizedRoomCode = normalizeRoomCode(roomCode);
-        String elementId = normalizeElementId(request == null ? null : request.elementId());
-
-        for (int attempt = 0; attempt < UPDATE_MAX_RETRIES; attempt++) {
-            InfiniteCanvasState state = findActiveState(normalizedRoomCode);
-            requireParticipant(state, userUuid);
-            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-            Map<String, InfiniteCanvasLock> locks = removeExpiredLocks(state.locks(), now);
-            InfiniteCanvasLock existingLock = locks.get(elementId);
-            if (existingLock != null && !userUuid.equals(existingLock.userUuid())) {
-                throw new ConflictException(LOCK_CONFLICT_MESSAGE);
-            }
-
-            InfiniteCanvasLock lock = new InfiniteCanvasLock(elementId, userUuid, now, now.plus(LOCK_TTL));
-            locks.put(elementId, lock);
-            InfiniteCanvasState updatedState = copyState(state, state.participants(), state.elements(),
-                state.operations(), locks, state.cursors(), state.viewport(), state.revision(), now, state.closedAt());
-
-            if (infiniteCanvasRepository.saveIfUnchanged(state, updatedState)) {
-                return new InfiniteCanvasLockResponse(normalizedRoomCode, elementId, lock);
-            }
-        }
-
-        throw new ConflictException(UPDATE_CONFLICT_MESSAGE);
+        return infiniteCanvasLockUseCase.acquireLock(userUuidValue, roomCode, request);
     }
 
     @Override
     @Transactional(readOnly = true)
     public InfiniteCanvasLockResponse releaseLock(String userUuidValue, String roomCode,
         InfiniteCanvasLockRequest request) {
-        AppUser user = anonymousUserResolver.resolve(userUuidValue);
-        String userUuid = user.getId().toString();
-        String normalizedRoomCode = normalizeRoomCode(roomCode);
-        String elementId = normalizeElementId(request == null ? null : request.elementId());
-
-        for (int attempt = 0; attempt < UPDATE_MAX_RETRIES; attempt++) {
-            InfiniteCanvasState state = findActiveState(normalizedRoomCode);
-            requireParticipant(state, userUuid);
-            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-            Map<String, InfiniteCanvasLock> locks = removeExpiredLocks(state.locks(), now);
-            InfiniteCanvasLock existingLock = locks.get(elementId);
-            if (existingLock != null && !userUuid.equals(existingLock.userUuid())) {
-                throw new ForbiddenException(LOCK_OWNER_MESSAGE);
-            }
-
-            locks.remove(elementId);
-            InfiniteCanvasState updatedState = copyState(state, state.participants(), state.elements(),
-                state.operations(), locks, state.cursors(), state.viewport(), state.revision(), now, state.closedAt());
-
-            if (infiniteCanvasRepository.saveIfUnchanged(state, updatedState)) {
-                return new InfiniteCanvasLockResponse(normalizedRoomCode, elementId, null);
-            }
-        }
-
-        throw new ConflictException(UPDATE_CONFLICT_MESSAGE);
+        return infiniteCanvasLockUseCase.releaseLock(userUuidValue, roomCode, request);
     }
 
     @Override
@@ -457,14 +407,6 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         }
 
         return roomCode.trim();
-    }
-
-    private String normalizeElementId(String elementId) {
-        if (!StringUtils.hasText(elementId) || elementId.trim().length() > 128) {
-            throw new BadRequestException(INVALID_LOCK_MESSAGE);
-        }
-
-        return elementId.trim();
     }
 
     private List<JsonNode> normalizeElements(List<JsonNode> elements) {
