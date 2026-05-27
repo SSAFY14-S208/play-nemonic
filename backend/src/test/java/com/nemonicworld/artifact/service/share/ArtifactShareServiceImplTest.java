@@ -41,8 +41,10 @@ class ArtifactShareServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        artifactShareService = new ArtifactShareServiceImpl(artifactQrAssetService, minioPublicUrlResolver,
-            new ShareProperties("https://nemonic.example.com/", "test-share-token-secret"), shareEventLogger);
+        ArtifactShareCreateUseCase artifactShareCreateUseCase = new ArtifactShareCreateUseCase(artifactQrAssetService,
+            minioPublicUrlResolver, new ShareProperties("https://nemonic.example.com/", "test-share-token-secret"),
+            shareEventLogger, new ArtifactShareUrlSupport());
+        artifactShareService = new ArtifactShareServiceImpl(artifactShareCreateUseCase);
     }
 
     /**
