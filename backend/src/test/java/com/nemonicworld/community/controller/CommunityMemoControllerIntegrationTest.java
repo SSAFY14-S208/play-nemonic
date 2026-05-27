@@ -37,7 +37,6 @@ import com.nemonicworld.support.CommunityMemoTestFixture;
 import com.nemonicworld.support.FileUploadTestFixture;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
-import java.sql.Types;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
@@ -1550,11 +1549,7 @@ class CommunityMemoControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     private void insertArtifact(UUID artifactId, String kind, String thumbnailUrl, LocalDateTime createdAt) {
-        jdbcTemplate.update("""
-            INSERT INTO artifact (id, kind, source_room_id, thumbnail_url, meta, created_at, updated_at)
-            VALUES (?, ?, NULL, ?, '{}', ?, ?)
-            """, new Object[]{artifactId, kind, thumbnailUrl, createdAt, createdAt},
-            new int[]{Types.OTHER, Types.OTHER, Types.VARCHAR, Types.TIMESTAMP, Types.TIMESTAMP});
+        artifactGalleryFixture.insertArtifact(artifactId, kind, null, thumbnailUrl, "{}", createdAt, createdAt);
     }
 
     private void insertFlipbookArtifact(UUID artifactId, String gifUrl, String firstImageUrl) {
@@ -1563,8 +1558,7 @@ class CommunityMemoControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     private void insertGallery(UUID galleryId, UUID userUuid, UUID artifactId, LocalDateTime deletedAt) {
-        jdbcTemplate.update("INSERT INTO gallery (id, user_id, artifact_id, deleted_at) VALUES (?, ?, ?, ?)", galleryId,
-            userUuid, artifactId, deletedAt);
+        artifactGalleryFixture.insertGallery(galleryId, userUuid, artifactId, deletedAt);
     }
 
     private void insertCommunityMemo(UUID memoId, UUID userUuid, UUID artifactId, String bodyImageUrl,

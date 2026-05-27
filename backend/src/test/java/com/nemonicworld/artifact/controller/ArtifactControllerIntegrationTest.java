@@ -248,8 +248,7 @@ class ArtifactControllerIntegrationTest extends AbstractIntegrationTest {
 
     private UUID insertRelayArtifact(UUID userUuid, String thumbnailUrl, String contentUrl, LocalDateTime deletedAt) {
         UUID artifactId = insertArtifact("relay_drawing", thumbnailUrl);
-        jdbcTemplate.update("INSERT INTO relay_drawing_artifact (artifact_id, combined_preview_url) VALUES (?, ?)",
-            artifactId, contentUrl);
+        artifactGalleryFixture.insertRelayDrawingArtifact(artifactId, contentUrl);
         insertGallery(userUuid, artifactId, deletedAt);
 
         return artifactId;
@@ -267,17 +266,13 @@ class ArtifactControllerIntegrationTest extends AbstractIntegrationTest {
     private UUID insertArtifact(String kind, String thumbnailUrl) {
         UUID artifactId = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        jdbcTemplate.update("""
-            INSERT INTO artifact (id, kind, source_room_id, thumbnail_url, meta, created_at, updated_at)
-            VALUES (?, ?, ?, ?, '{}', ?, ?)
-            """, artifactId, kind, "ROOM-1", thumbnailUrl, now, now);
+        artifactGalleryFixture.insertArtifact(artifactId, kind, "ROOM-1", thumbnailUrl, "{}", now, now);
 
         return artifactId;
     }
 
     private void insertGallery(UUID userUuid, UUID artifactId, LocalDateTime deletedAt) {
-        jdbcTemplate.update("INSERT INTO gallery (id, user_id, artifact_id, deleted_at) VALUES (?, ?, ?, ?)",
-            UUID.randomUUID(), userUuid, artifactId, deletedAt);
+        artifactGalleryFixture.insertGallery(UUID.randomUUID(), userUuid, artifactId, deletedAt);
     }
 
     private void assertArtifactImageUrlNotFound(UUID userUuid, UUID artifactId) throws Exception {

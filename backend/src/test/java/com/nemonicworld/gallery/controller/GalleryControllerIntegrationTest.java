@@ -567,12 +567,7 @@ class GalleryControllerIntegrationTest extends AbstractIntegrationTest {
 
     private void insertArtifact(UUID artifactId, String kind, String thumbnailUrl, String sourceRoomId,
         LocalDateTime createdAt, String meta) {
-        String sql = """
-            INSERT INTO artifact (id, kind, source_room_id, thumbnail_url, meta, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """;
-
-        jdbcTemplate.update(sql, artifactId, kind, sourceRoomId, thumbnailUrl, meta, createdAt, createdAt);
+        artifactGalleryFixture.insertArtifact(artifactId, kind, sourceRoomId, thumbnailUrl, meta, createdAt, createdAt);
     }
 
     private void insertSubtypeArtifact(String kind, UUID artifactId, String contentUrl, UUID userUuid,
@@ -580,8 +575,7 @@ class GalleryControllerIntegrationTest extends AbstractIntegrationTest {
         if ("fortune".equals(kind)) {
             artifactSubtypeFixture.insertFortuneArtifact(artifactId, "{}", contentUrl, userUuid, fortuneDate);
         } else if ("relay_drawing".equals(kind)) {
-            jdbcTemplate.update("INSERT INTO relay_drawing_artifact (artifact_id, combined_preview_url) VALUES (?, ?)",
-                artifactId, contentUrl);
+            artifactGalleryFixture.insertRelayDrawingArtifact(artifactId, contentUrl);
         } else if ("flipbook".equals(kind)) {
             artifactSubtypeFixture.insertFlipbookArtifact(artifactId, contentUrl, "first-image");
         } else if ("infinite_canvas".equals(kind)) {
@@ -592,8 +586,7 @@ class GalleryControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     private void insertGalleryOnly(UUID galleryId, UUID userUuid, UUID artifactId, LocalDateTime deletedAt) {
-        jdbcTemplate.update("INSERT INTO gallery (id, user_id, artifact_id, deleted_at) VALUES (?, ?, ?, ?)", galleryId,
-            userUuid, artifactId, deletedAt);
+        artifactGalleryFixture.insertGallery(galleryId, userUuid, artifactId, deletedAt);
     }
 
     private UUID insertCommunityMemo(UUID userUuid, UUID artifactId) {

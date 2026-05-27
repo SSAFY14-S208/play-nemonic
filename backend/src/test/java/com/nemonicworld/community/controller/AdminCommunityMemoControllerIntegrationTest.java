@@ -543,10 +543,8 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
     }
 
     private void insertArtifact(UUID artifactId, String kind, LocalDateTime createdAt) {
-        jdbcTemplate.update("""
-            INSERT INTO artifact (id, kind, source_room_id, thumbnail_url, meta, created_at, updated_at)
-            VALUES (?, ?, NULL, 'artifact-thumbnail.png', '{}', ?, ?)
-            """, artifactId, kind, createdAt, createdAt);
+        artifactGalleryFixture.insertArtifact(artifactId, kind, null, "artifact-thumbnail.png", "{}", createdAt,
+            createdAt);
     }
 
     private UUID insertCommunityMemo(UUID userUuid, UUID artifactId, String bodyImageUrl, String thumbnailImageUrl,

@@ -54,11 +54,13 @@ class RelayRoomResultsControllerIntegrationTest extends AbstractIntegrationTest 
     @MockitoBean
     private StringRedisTemplate stringRedisTemplate;
 
+    private ArtifactGalleryTestFixture artifactGalleryFixture;
     private ValueOperations<String, String> valueOperations;
 
     @BeforeEach
     void prepare() {
-        new ArtifactGalleryTestFixture(jdbcTemplate).resetRelayArtifactTables();
+        artifactGalleryFixture = new ArtifactGalleryTestFixture(jdbcTemplate);
+        artifactGalleryFixture.resetRelayArtifactTables();
         new AppUserTestFixture(jdbcTemplate).deleteAll();
 
         valueOperations = createValueOperationsMock();
@@ -153,15 +155,13 @@ class RelayRoomResultsControllerIntegrationTest extends AbstractIntegrationTest 
 
     private void insertRelayResult(UUID ownerUuid, int canvasIndex, LocalDateTime createdAt, boolean deleted) {
         UUID artifactId = UUID.randomUUID();
-        jdbcTemplate.update("""
-            INSERT INTO artifact (id, kind, source_room_id, thumbnail_url, meta, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, artifactId, "relay_drawing", ROOM_CODE, "relay/results/%d/thumbnail.png".formatted(canvasIndex),
-            meta(ownerUuid, canvasIndex), createdAt, createdAt);
-        jdbcTemplate.update("INSERT INTO relay_drawing_artifact (artifact_id, combined_preview_url) VALUES (?, ?)",
-            artifactId, "relay/results/%d/original.png".formatted(canvasIndex));
-        jdbcTemplate.update("INSERT INTO gallery (id, user_id, artifact_id, deleted_at) VALUES (?, ?, ?, ?)",
-            UUID.randomUUID(), ownerUuid, artifactId, deleted ? createdAt.plusSeconds(1) : null);
+        artifactGalleryFixture.insertArtifact(artifactId, "relay_drawing", ROOM_CODE,
+            "relay/results/%d/thumbnail.png".formatted(canvasIndex), meta(ownerUuid, canvasIndex), createdAt,
+            createdAt);
+        artifactGalleryFixture.insertRelayDrawingArtifact(artifactId,
+            "relay/results/%d/original.png".formatted(canvasIndex));
+        artifactGalleryFixture.insertGallery(UUID.randomUUID(), ownerUuid, artifactId,
+            deleted ? createdAt.plusSeconds(1) : null);
     }
 
     private String meta(UUID ownerUuid, int canvasIndex) {
