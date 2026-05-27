@@ -29,16 +29,14 @@ import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasOperation;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasOperationType;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasParticipant;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasState;
-import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasStatus;
 import com.nemonicworld.infinitecanvas.repository.InfiniteCanvasRepository;
 import com.nemonicworld.infinitecanvas.service.lock.InfiniteCanvasLockUseCase;
 import com.nemonicworld.infinitecanvas.service.output.InfiniteCanvasOutputSaveUseCase;
+import com.nemonicworld.infinitecanvas.service.participant.InfiniteCanvasLeaveUseCase;
 import com.nemonicworld.infinitecanvas.service.participant.InfiniteCanvasParticipantProfileUseCase;
 import com.nemonicworld.infinitecanvas.service.room.InfiniteCanvasConnectionUseCase;
-import com.nemonicworld.infinitecanvas.service.support.InfiniteCanvasInviteMetadataSyncService;
-import com.nemonicworld.infinitecanvas.service.support.InfiniteCanvasParticipantLimit;
-import com.nemonicworld.infinitecanvas.service.support.InfiniteCanvasRuntimeSettingsProvider;
-import com.nemonicworld.invite.repository.InviteRepository;
+import com.nemonicworld.infinitecanvas.service.room.InfiniteCanvasRoomCreateUseCase;
+import com.nemonicworld.infinitecanvas.service.room.InfiniteCanvasRoomQueryUseCase;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
 import java.time.LocalDateTime;
@@ -60,7 +58,6 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     private static final String INVALID_ROOM_CODE_MESSAGE = "유효하지 않은 방코드입니다.";
     private static final String CANVAS_NOT_FOUND_MESSAGE = "활성 무한 캔버스를 찾을 수 없습니다.";
     private static final String NOT_PARTICIPANT_MESSAGE = "무한 캔버스 참여자가 아닙니다.";
-    private static final String NICKNAME_REQUIRED_MESSAGE = "닉네임을 먼저 설정해주세요.";
     private static final String INVALID_CURSOR_MESSAGE = "커서 좌표 형식이 올바르지 않습니다.";
     private static final String INVALID_ELEMENTS_MESSAGE = "캔버스 요소 목록 형식이 올바르지 않습니다.";
     private static final String INVALID_OPERATIONS_MESSAGE = "캔버스 편집 연산 목록 형식이 올바르지 않습니다.";
@@ -73,36 +70,34 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     private static final int MAX_ELEMENTS = 5000;
     private static final int MAX_OPERATIONS_PER_MESSAGE = 100;
     private static final int RECENT_OPERATION_LIMIT = 200;
-    private static final List<String> DEFAULT_COLORS = List.of("#2F80ED", "#27AE60", "#EB5757", "#F2994A", "#9B51E0",
-        "#00A3A3");
 
     private final AnonymousUserResolver anonymousUserResolver;
     private final RoomCodeGenerator roomCodeGenerator;
-    private final InviteRepository inviteRepository;
     private final InfiniteCanvasRepository infiniteCanvasRepository;
-    private final InfiniteCanvasInviteMetadataSyncService infiniteCanvasInviteMetadataSyncService;
-    private final InfiniteCanvasRuntimeSettingsProvider infiniteCanvasRuntimeSettingsProvider;
     private final InfiniteCanvasLockUseCase infiniteCanvasLockUseCase;
     private final InfiniteCanvasConnectionUseCase infiniteCanvasConnectionUseCase;
+    private final InfiniteCanvasRoomCreateUseCase infiniteCanvasRoomCreateUseCase;
+    private final InfiniteCanvasRoomQueryUseCase infiniteCanvasRoomQueryUseCase;
+    private final InfiniteCanvasLeaveUseCase infiniteCanvasLeaveUseCase;
     private final InfiniteCanvasParticipantProfileUseCase infiniteCanvasParticipantProfileUseCase;
     private final InfiniteCanvasOutputSaveUseCase infiniteCanvasOutputSaveUseCase;
 
     public InfiniteCanvasServiceImpl(AnonymousUserResolver anonymousUserResolver, RoomCodeGenerator roomCodeGenerator,
-        InviteRepository inviteRepository, InfiniteCanvasRepository infiniteCanvasRepository,
-        InfiniteCanvasInviteMetadataSyncService infiniteCanvasInviteMetadataSyncService,
-        InfiniteCanvasRuntimeSettingsProvider infiniteCanvasRuntimeSettingsProvider,
-        InfiniteCanvasLockUseCase infiniteCanvasLockUseCase,
+        InfiniteCanvasRepository infiniteCanvasRepository, InfiniteCanvasLockUseCase infiniteCanvasLockUseCase,
         InfiniteCanvasConnectionUseCase infiniteCanvasConnectionUseCase,
+        InfiniteCanvasRoomCreateUseCase infiniteCanvasRoomCreateUseCase,
+        InfiniteCanvasRoomQueryUseCase infiniteCanvasRoomQueryUseCase,
+        InfiniteCanvasLeaveUseCase infiniteCanvasLeaveUseCase,
         InfiniteCanvasParticipantProfileUseCase infiniteCanvasParticipantProfileUseCase,
         InfiniteCanvasOutputSaveUseCase infiniteCanvasOutputSaveUseCase) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.roomCodeGenerator = roomCodeGenerator;
-        this.inviteRepository = inviteRepository;
         this.infiniteCanvasRepository = infiniteCanvasRepository;
-        this.infiniteCanvasInviteMetadataSyncService = infiniteCanvasInviteMetadataSyncService;
-        this.infiniteCanvasRuntimeSettingsProvider = infiniteCanvasRuntimeSettingsProvider;
         this.infiniteCanvasLockUseCase = infiniteCanvasLockUseCase;
         this.infiniteCanvasConnectionUseCase = infiniteCanvasConnectionUseCase;
+        this.infiniteCanvasRoomCreateUseCase = infiniteCanvasRoomCreateUseCase;
+        this.infiniteCanvasRoomQueryUseCase = infiniteCanvasRoomQueryUseCase;
+        this.infiniteCanvasLeaveUseCase = infiniteCanvasLeaveUseCase;
         this.infiniteCanvasParticipantProfileUseCase = infiniteCanvasParticipantProfileUseCase;
         this.infiniteCanvasOutputSaveUseCase = infiniteCanvasOutputSaveUseCase;
     }
@@ -110,32 +105,13 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     @Override
     @Transactional(readOnly = true)
     public InfiniteCanvasCreateResponse createCanvas(String userUuidValue, InfiniteCanvasCreateRequest request) {
-        AppUser hostUser = anonymousUserResolver.resolve(userUuidValue);
-        validateNicknameRegistered(hostUser);
-        String hostUserUuid = hostUser.getId().toString();
-        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        String roomCode = roomCodeGenerator.generateUnique(inviteRepository::existsByInviteCode);
-        InfiniteCanvasParticipantLimit participantLimit = infiniteCanvasRuntimeSettingsProvider
-            .currentParticipantLimit();
-        InfiniteCanvasParticipant hostParticipant = createParticipant(hostUser, request, true, now);
-        InfiniteCanvasState state = InfiniteCanvasState.create(roomCode, hostUserUuid, hostParticipant, null,
-            participantLimit.maxParticipants(), now);
-
-        infiniteCanvasRepository.save(state);
-        infiniteCanvasInviteMetadataSyncService.syncWithCanvasState(state);
-
-        return InfiniteCanvasCreateResponse.from(state);
+        return infiniteCanvasRoomCreateUseCase.createCanvas(userUuidValue, request);
     }
 
     @Override
     @Transactional(readOnly = true)
     public InfiniteCanvasStateResponse getCanvasState(String userUuidValue, String roomCode) {
-        AppUser user = anonymousUserResolver.resolve(userUuidValue);
-        String userUuid = user.getId().toString();
-        String normalizedRoomCode = normalizeRoomCode(roomCode);
-        InfiniteCanvasState state = findActiveState(normalizedRoomCode);
-
-        return InfiniteCanvasStateResponse.from(state, userUuid);
+        return infiniteCanvasRoomQueryUseCase.getCanvasState(userUuidValue, roomCode);
     }
 
     @Override
@@ -264,46 +240,7 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     @Override
     @Transactional(readOnly = true)
     public InfiniteCanvasLeaveResponse leaveCanvas(String userUuidValue, String roomCode) {
-        AppUser user = anonymousUserResolver.resolve(userUuidValue);
-        String userUuid = user.getId().toString();
-        String normalizedRoomCode = normalizeRoomCode(roomCode);
-
-        for (int attempt = 0; attempt < UPDATE_MAX_RETRIES; attempt++) {
-            InfiniteCanvasState state = findActiveState(normalizedRoomCode);
-            if (!state.hasParticipant(userUuid)) {
-                throw new NotFoundException(NOT_PARTICIPANT_MESSAGE);
-            }
-
-            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-            List<InfiniteCanvasParticipant> participants = state.participants().stream()
-                .filter(participant -> !participant.userUuid().equals(userUuid)).toList();
-            Map<String, InfiniteCanvasLock> locks = removeParticipantLocks(state.locks(), userUuid, now);
-            Map<String, InfiniteCanvasCursor> cursors = new LinkedHashMap<>(state.cursors());
-            cursors.remove(userUuid);
-
-            if (participants.isEmpty()) {
-                InfiniteCanvasState closedState = copyState(state, state.hostUserUuid(), InfiniteCanvasStatus.CLOSED,
-                    participants, locks, cursors, now, now);
-                if (infiniteCanvasRepository.saveIfUnchanged(state, closedState)) {
-                    infiniteCanvasRepository.delete(normalizedRoomCode);
-                    return new InfiniteCanvasLeaveResponse(normalizedRoomCode, userUuid,
-                        findLeavingNickname(state, userUuid), 0, false, null, null, true, now);
-                }
-                continue;
-            }
-
-            HostTransferResult hostTransfer = transferHostIfNeeded(state, participants);
-            InfiniteCanvasState updatedState = copyState(state, hostTransfer.hostUserUuid(), state.status(),
-                hostTransfer.participants(), locks, cursors, now, state.closedAt());
-            if (infiniteCanvasRepository.saveIfUnchanged(state, updatedState)) {
-                infiniteCanvasInviteMetadataSyncService.syncWithCanvasState(updatedState);
-                return new InfiniteCanvasLeaveResponse(normalizedRoomCode, userUuid,
-                    findLeavingNickname(state, userUuid), updatedState.participantCount(), hostTransfer.hostChanged(),
-                    hostTransfer.newHostUserUuid(), hostTransfer.newHostNickname(), false, null);
-            }
-        }
-
-        throw new ConflictException(UPDATE_CONFLICT_MESSAGE);
+        return infiniteCanvasLeaveUseCase.leaveCanvas(userUuidValue, roomCode);
     }
 
     @Override
@@ -318,35 +255,6 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     public InfiniteCanvasOutputSaveResponse saveOutput(String userUuidValue, String roomCode,
         InfiniteCanvasOutputSaveRequest request) {
         return infiniteCanvasOutputSaveUseCase.saveOutput(userUuidValue, roomCode, request);
-    }
-
-    private InfiniteCanvasParticipant createParticipant(AppUser user, InfiniteCanvasCreateRequest request, boolean host,
-        LocalDateTime now) {
-        String userUuid = user.getId().toString();
-
-        return new InfiniteCanvasParticipant(userUuid, user.getNickname(),
-            normalizeColor(request == null ? null : request.color(), defaultColor(userUuid)), null, host, false, now,
-            null, now);
-    }
-
-    private void validateNicknameRegistered(AppUser appUser) {
-        if (!StringUtils.hasText(appUser.getNickname()) || AppUser.ANONYMOUS_NICKNAME.equals(appUser.getNickname())) {
-            throw new BadRequestException(NICKNAME_REQUIRED_MESSAGE);
-        }
-    }
-
-    private String normalizeColor(String value, String fallback) {
-        if (!StringUtils.hasText(value)) {
-            return fallback;
-        }
-
-        String trimmed = value.trim();
-        return trimmed.length() > 32 ? fallback : trimmed;
-    }
-
-    private String defaultColor(String userUuid) {
-        int index = Math.floorMod(userUuid.hashCode(), DEFAULT_COLORS.size());
-        return DEFAULT_COLORS.get(index);
     }
 
     private InfiniteCanvasState findActiveState(String roomCode) {
@@ -701,14 +609,6 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         }
     }
 
-    private InfiniteCanvasState copyState(InfiniteCanvasState state, String hostUserUuid, InfiniteCanvasStatus status,
-        List<InfiniteCanvasParticipant> participants, Map<String, InfiniteCanvasLock> locks,
-        Map<String, InfiniteCanvasCursor> cursors, LocalDateTime updatedAt, LocalDateTime closedAt) {
-        return new InfiniteCanvasState(state.roomCode(), status, hostUserUuid, participants, state.elements(),
-            state.operations(), locks, cursors, state.viewport(), state.maxParticipants(), state.revision(),
-            state.createdAt(), updatedAt, closedAt);
-    }
-
     private InfiniteCanvasState copyState(InfiniteCanvasState state, List<InfiniteCanvasParticipant> participants,
         List<JsonNode> elements, List<InfiniteCanvasOperation> operations, Map<String, InfiniteCanvasLock> locks,
         Map<String, InfiniteCanvasCursor> cursors, JsonNode viewport, long revision, LocalDateTime updatedAt,
@@ -716,40 +616,6 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         return new InfiniteCanvasState(state.roomCode(), state.status(), state.hostUserUuid(), participants, elements,
             operations, locks, cursors, viewport, state.maxParticipants(), revision, state.createdAt(), updatedAt,
             closedAt);
-    }
-
-    private Map<String, InfiniteCanvasLock> removeParticipantLocks(Map<String, InfiniteCanvasLock> locks,
-        String userUuid, LocalDateTime now) {
-        Map<String, InfiniteCanvasLock> activeLocks = new LinkedHashMap<>();
-        locks.forEach((elementId, lock) -> {
-            if (lock != null && !lock.isExpired(now) && !userUuid.equals(lock.userUuid())) {
-                activeLocks.put(elementId, lock);
-            }
-        });
-
-        return activeLocks;
-    }
-
-    private String findLeavingNickname(InfiniteCanvasState state, String userUuid) {
-        return state.findParticipant(userUuid).map(InfiniteCanvasParticipant::nickname).orElse(null);
-    }
-
-    private HostTransferResult transferHostIfNeeded(InfiniteCanvasState state,
-        List<InfiniteCanvasParticipant> participants) {
-        if (participants.stream().anyMatch(participant -> participant.userUuid().equals(state.hostUserUuid()))) {
-            return new HostTransferResult(state.hostUserUuid(), participants, false, null, null);
-        }
-
-        InfiniteCanvasParticipant newHost = participants.getFirst();
-        List<InfiniteCanvasParticipant> transferredParticipants = participants.stream()
-            .map(participant -> participant.withHost(participant.userUuid().equals(newHost.userUuid()))).toList();
-
-        return new HostTransferResult(newHost.userUuid(), transferredParticipants, true, newHost.userUuid(),
-            newHost.nickname());
-    }
-
-    private record HostTransferResult(String hostUserUuid, List<InfiniteCanvasParticipant> participants,
-        boolean hostChanged, String newHostUserUuid, String newHostNickname) {
     }
 
     private Map<String, InfiniteCanvasLock> removeExpiredLocks(Map<String, InfiniteCanvasLock> locks,
