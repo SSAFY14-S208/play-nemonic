@@ -1,17 +1,11 @@
 package com.nemonicworld.infinitecanvas.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.common.exception.ForbiddenException;
 import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.common.util.RoomCodeGenerator;
-import com.nemonicworld.files.entity.FileUpload;
-import com.nemonicworld.files.entity.FileUploadPurpose;
-import com.nemonicworld.files.repository.FileUploadRepository;
-import com.nemonicworld.global.storage.minio.MinioPublicUrlResolver;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasColorUpdateRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasCreateRequest;
 import com.nemonicworld.infinitecanvas.dto.request.InfiniteCanvasCursorRequest;
@@ -37,9 +31,9 @@ import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasOperationType;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasParticipant;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasState;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasStatus;
-import com.nemonicworld.infinitecanvas.repository.InfiniteCanvasOutputCreateCommand;
-import com.nemonicworld.infinitecanvas.repository.InfiniteCanvasOutputRepository;
 import com.nemonicworld.infinitecanvas.repository.InfiniteCanvasRepository;
+import com.nemonicworld.infinitecanvas.service.output.InfiniteCanvasOutputSaveUseCase;
+import com.nemonicworld.infinitecanvas.service.room.InfiniteCanvasConnectionUseCase;
 import com.nemonicworld.infinitecanvas.service.support.InfiniteCanvasInviteMetadataSyncService;
 import com.nemonicworld.infinitecanvas.service.support.InfiniteCanvasParticipantLimit;
 import com.nemonicworld.infinitecanvas.service.support.InfiniteCanvasRuntimeSettingsProvider;
@@ -78,15 +72,6 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     private static final String LOCK_CONFLICT_MESSAGE = "다른 참여자가 해당 요소를 편집 중입니다.";
     private static final String LOCK_OWNER_MESSAGE = "요소 lock을 보유한 참여자만 해제할 수 있습니다.";
     private static final String UPDATE_CONFLICT_MESSAGE = "무한 캔버스 상태 갱신 충돌이 발생했습니다. 다시 시도해주세요.";
-    private static final String ARTIFACT_KIND_INFINITE_CANVAS = "infinite_canvas";
-    private static final String INVALID_IMAGE_FILE_ID_MESSAGE = "유효하지 않은 imageFileId 형식입니다.";
-    private static final String INVALID_THUMBNAIL_FILE_ID_MESSAGE = "유효하지 않은 thumbnailFileId 형식입니다.";
-    private static final String FILE_UPLOAD_NOT_FOUND_MESSAGE = "파일 업로드 정보를 찾을 수 없습니다.";
-    private static final String FILE_ACCESS_DENIED_MESSAGE = "파일에 접근할 권한이 없습니다.";
-    private static final String INVALID_INFINITE_CANVAS_FILE_MESSAGE = "무한 캔버스 출력 파일만 저장할 수 있습니다.";
-    private static final String FILE_UPLOAD_STATUS_CONFLICT_MESSAGE = "확인할 수 없는 파일 업로드 상태입니다.";
-    private static final String INVALID_META_MESSAGE = "메타데이터 형식이 올바르지 않습니다.";
-    private static final String EMPTY_META_JSON = "{}";
     private static final Duration LOCK_TTL = Duration.ofSeconds(30);
     private static final int UPDATE_MAX_RETRIES = 8;
     private static final int MAX_ELEMENTS = 5000;
@@ -99,30 +84,25 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     private final RoomCodeGenerator roomCodeGenerator;
     private final InviteRepository inviteRepository;
     private final InfiniteCanvasRepository infiniteCanvasRepository;
-    private final InfiniteCanvasOutputRepository infiniteCanvasOutputRepository;
     private final InfiniteCanvasInviteMetadataSyncService infiniteCanvasInviteMetadataSyncService;
     private final InfiniteCanvasRuntimeSettingsProvider infiniteCanvasRuntimeSettingsProvider;
-    private final FileUploadRepository fileUploadRepository;
-    private final ObjectMapper objectMapper;
-    private final MinioPublicUrlResolver minioPublicUrlResolver;
+    private final InfiniteCanvasConnectionUseCase infiniteCanvasConnectionUseCase;
+    private final InfiniteCanvasOutputSaveUseCase infiniteCanvasOutputSaveUseCase;
 
     public InfiniteCanvasServiceImpl(AnonymousUserResolver anonymousUserResolver, RoomCodeGenerator roomCodeGenerator,
         InviteRepository inviteRepository, InfiniteCanvasRepository infiniteCanvasRepository,
-        InfiniteCanvasOutputRepository infiniteCanvasOutputRepository,
         InfiniteCanvasInviteMetadataSyncService infiniteCanvasInviteMetadataSyncService,
         InfiniteCanvasRuntimeSettingsProvider infiniteCanvasRuntimeSettingsProvider,
-        FileUploadRepository fileUploadRepository, ObjectMapper objectMapper,
-        MinioPublicUrlResolver minioPublicUrlResolver) {
+        InfiniteCanvasConnectionUseCase infiniteCanvasConnectionUseCase,
+        InfiniteCanvasOutputSaveUseCase infiniteCanvasOutputSaveUseCase) {
         this.anonymousUserResolver = anonymousUserResolver;
         this.roomCodeGenerator = roomCodeGenerator;
         this.inviteRepository = inviteRepository;
         this.infiniteCanvasRepository = infiniteCanvasRepository;
-        this.infiniteCanvasOutputRepository = infiniteCanvasOutputRepository;
         this.infiniteCanvasInviteMetadataSyncService = infiniteCanvasInviteMetadataSyncService;
         this.infiniteCanvasRuntimeSettingsProvider = infiniteCanvasRuntimeSettingsProvider;
-        this.fileUploadRepository = fileUploadRepository;
-        this.objectMapper = objectMapper;
-        this.minioPublicUrlResolver = minioPublicUrlResolver;
+        this.infiniteCanvasConnectionUseCase = infiniteCanvasConnectionUseCase;
+        this.infiniteCanvasOutputSaveUseCase = infiniteCanvasOutputSaveUseCase;
     }
 
     @Override
@@ -271,60 +251,13 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     @Override
     @Transactional(readOnly = true)
     public InfiniteCanvasStateResponse connectCanvas(String userUuidValue, String roomCode) {
-        AppUser user = anonymousUserResolver.resolve(userUuidValue);
-        String userUuid = user.getId().toString();
-        String normalizedRoomCode = normalizeRoomCode(roomCode);
-
-        for (int attempt = 0; attempt < UPDATE_MAX_RETRIES; attempt++) {
-            InfiniteCanvasState state = findActiveState(normalizedRoomCode);
-            InfiniteCanvasParticipant participant = state.findParticipant(userUuid)
-                .orElseThrow(() -> new NotFoundException(NOT_PARTICIPANT_MESSAGE));
-
-            if (participant.connected()) {
-                return InfiniteCanvasStateResponse.from(state, userUuid);
-            }
-
-            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-            InfiniteCanvasParticipant connectedParticipant = participant.connect(now);
-            InfiniteCanvasState updatedState = copyState(state,
-                replaceParticipant(state.participants(), connectedParticipant), now);
-
-            if (infiniteCanvasRepository.saveIfUnchanged(state, updatedState)) {
-                infiniteCanvasInviteMetadataSyncService.syncWithCanvasState(updatedState);
-                return InfiniteCanvasStateResponse.from(updatedState, userUuid);
-            }
-        }
-
-        throw new ConflictException(UPDATE_CONFLICT_MESSAGE);
+        return infiniteCanvasConnectionUseCase.connectCanvas(userUuidValue, roomCode);
     }
 
     @Override
     @Transactional(readOnly = true)
     public InfiniteCanvasStateResponse disconnectCanvas(String userUuidValue, String roomCode) {
-        AppUser user = anonymousUserResolver.resolve(userUuidValue);
-        String userUuid = user.getId().toString();
-        String normalizedRoomCode = normalizeRoomCode(roomCode);
-
-        for (int attempt = 0; attempt < UPDATE_MAX_RETRIES; attempt++) {
-            InfiniteCanvasState state = findActiveState(normalizedRoomCode);
-            InfiniteCanvasParticipant participant = state.findParticipant(userUuid)
-                .orElseThrow(() -> new NotFoundException(NOT_PARTICIPANT_MESSAGE));
-            LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-            InfiniteCanvasParticipant disconnectedParticipant = participant.disconnect(now);
-            Map<String, InfiniteCanvasLock> locks = removeParticipantLocks(state.locks(), userUuid, now);
-            Map<String, InfiniteCanvasCursor> cursors = new LinkedHashMap<>(state.cursors());
-            cursors.remove(userUuid);
-            InfiniteCanvasState updatedState = copyState(state, state.hostUserUuid(), state.status(),
-                replaceParticipant(state.participants(), disconnectedParticipant), locks, cursors, now,
-                state.closedAt());
-
-            if (infiniteCanvasRepository.saveIfUnchanged(state, updatedState)) {
-                infiniteCanvasInviteMetadataSyncService.syncWithCanvasState(updatedState);
-                return InfiniteCanvasStateResponse.from(updatedState, userUuid);
-            }
-        }
-
-        throw new ConflictException(UPDATE_CONFLICT_MESSAGE);
+        return infiniteCanvasConnectionUseCase.disconnectCanvas(userUuidValue, roomCode);
     }
 
     @Override
@@ -451,39 +384,7 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
     @Transactional
     public InfiniteCanvasOutputSaveResponse saveOutput(String userUuidValue, String roomCode,
         InfiniteCanvasOutputSaveRequest request) {
-        AppUser user = anonymousUserResolver.resolve(userUuidValue);
-        UUID userUuid = user.getId();
-        String normalizedRoomCode = normalizeRoomCode(roomCode);
-        InfiniteCanvasState state = findActiveState(normalizedRoomCode);
-        requireParticipant(state, userUuid.toString());
-
-        UUID imageFileId = parseRequiredFileId(request == null ? null : request.imageFileId(),
-            INVALID_IMAGE_FILE_ID_MESSAGE);
-        UUID thumbnailFileId = parseOptionalFileId(request == null ? null : request.thumbnailFileId(),
-            INVALID_THUMBNAIL_FILE_ID_MESSAGE);
-        String meta = serializeMeta(request == null ? null : request.meta());
-
-        FileUpload imageFileUpload = findFileUpload(imageFileId);
-        validateInfiniteCanvasFile(imageFileUpload, userUuid);
-
-        FileUpload thumbnailFileUpload = null;
-        if (thumbnailFileId != null) {
-            thumbnailFileUpload = findFileUpload(thumbnailFileId);
-            validateInfiniteCanvasFile(thumbnailFileUpload, userUuid);
-        }
-
-        String imageObjectKey = imageFileUpload.getObjectKey();
-        String thumbnailObjectKey = thumbnailFileUpload == null ? imageObjectKey : thumbnailFileUpload.getObjectKey();
-        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        UUID artifactId = UUID.randomUUID();
-        UUID galleryId = UUID.randomUUID();
-
-        infiniteCanvasOutputRepository.save(new InfiniteCanvasOutputCreateCommand(galleryId, artifactId, userUuid,
-            ARTIFACT_KIND_INFINITE_CANVAS, normalizedRoomCode, imageObjectKey, thumbnailObjectKey, meta, now, now));
-
-        return new InfiniteCanvasOutputSaveResponse(galleryId.toString(), artifactId.toString(),
-            ARTIFACT_KIND_INFINITE_CANVAS, normalizedRoomCode, minioPublicUrlResolver.resolve(thumbnailObjectKey),
-            minioPublicUrlResolver.resolve(imageObjectKey), now);
+        return infiniteCanvasOutputSaveUseCase.saveOutput(userUuidValue, roomCode, request);
     }
 
     private InfiniteCanvasParticipant createParticipant(AppUser user, InfiniteCanvasCreateRequest request, boolean host,
@@ -967,62 +868,4 @@ public class InfiniteCanvasServiceImpl implements InfiniteCanvasService {
         return activeLocks;
     }
 
-    private UUID parseRequiredFileId(String value, String invalidMessage) {
-        if (!StringUtils.hasText(value)) {
-            throw new BadRequestException(invalidMessage);
-        }
-
-        return parseFileId(value, invalidMessage);
-    }
-
-    private UUID parseOptionalFileId(String value, String invalidMessage) {
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-
-        return parseFileId(value, invalidMessage);
-    }
-
-    private UUID parseFileId(String value, String invalidMessage) {
-        try {
-            return UUID.fromString(value);
-        } catch (IllegalArgumentException e) {
-            throw new BadRequestException(invalidMessage);
-        }
-    }
-
-    private FileUpload findFileUpload(UUID fileId) {
-        return fileUploadRepository.findById(fileId)
-            .orElseThrow(() -> new NotFoundException(FILE_UPLOAD_NOT_FOUND_MESSAGE));
-    }
-
-    private void validateInfiniteCanvasFile(FileUpload fileUpload, UUID userUuid) {
-        if (!fileUpload.isOwnedBy(userUuid)) {
-            throw new ForbiddenException(FILE_ACCESS_DENIED_MESSAGE);
-        }
-
-        if (!fileUpload.hasPurpose(FileUploadPurpose.INFINITE_CANVAS)) {
-            throw new BadRequestException(INVALID_INFINITE_CANVAS_FILE_MESSAGE);
-        }
-
-        if (fileUpload.isDeleted() || !fileUpload.isUploaded()) {
-            throw new ConflictException(FILE_UPLOAD_STATUS_CONFLICT_MESSAGE);
-        }
-    }
-
-    private String serializeMeta(JsonNode meta) {
-        if (meta == null || meta.isNull()) {
-            return EMPTY_META_JSON;
-        }
-
-        if (!meta.isObject()) {
-            throw new BadRequestException(INVALID_META_MESSAGE);
-        }
-
-        try {
-            return objectMapper.writeValueAsString(meta);
-        } catch (JsonProcessingException e) {
-            throw new BadRequestException(INVALID_META_MESSAGE);
-        }
-    }
 }
