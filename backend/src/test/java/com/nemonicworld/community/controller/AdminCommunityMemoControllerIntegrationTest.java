@@ -18,6 +18,7 @@ import com.nemonicworld.common.jwt.JwtTokenProvider;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationClient;
 import com.nemonicworld.support.AbstractReadOnlyIntegrationTest;
 import com.nemonicworld.support.AdminUserTestFixture;
+import com.nemonicworld.support.AppUserTestFixture;
 import com.nemonicworld.support.BackofficeAuthTestFixture;
 import com.nemonicworld.support.CommunityMemoTestFixture;
 import java.time.LocalDateTime;
@@ -61,6 +62,7 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
     private JwtTokenProvider jwtTokenProvider;
 
     private AdminUserTestFixture adminUserFixture;
+    private AppUserTestFixture appUserFixture;
     private CommunityMemoTestFixture communityMemoFixture;
 
     @MockitoBean
@@ -69,6 +71,8 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
     @BeforeEach
     void prepareTables() {
         adminUserFixture = new AdminUserTestFixture(jdbcTemplate);
+        appUserFixture = new AppUserTestFixture(jdbcTemplate);
+        communityMemoFixture = new CommunityMemoTestFixture(jdbcTemplate);
         createTables();
         cleanTables();
         insertAdminUser();
@@ -498,19 +502,7 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
 
     private void createTables() {
         adminUserFixture.ensureTable();
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS app_user (
-                id UUID NOT NULL PRIMARY KEY,
-                nickname VARCHAR(10) NOT NULL,
-                last_seen_at TIMESTAMP NOT NULL,
-                birthday DATE NULL,
-                birthtime TIME NULL,
-                is_lunar BOOLEAN NULL,
-                user_agent TEXT NOT NULL,
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL
-            )
-            """);
+        appUserFixture.ensureTable();
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS artifact (
                 id UUID PRIMARY KEY,
@@ -532,14 +524,13 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
             )
             """);
         jdbcTemplate.execute("ALTER TABLE flipbook_artifact ADD COLUMN IF NOT EXISTS first_image VARCHAR(1000)");
-        communityMemoFixture = new CommunityMemoTestFixture(jdbcTemplate);
         communityMemoFixture.ensureCommunityMemoTables();
     }
 
     private void cleanTables() {
         communityMemoFixture.deleteCommunityMemoRows();
         jdbcTemplate.update("DELETE FROM artifact");
-        jdbcTemplate.update("DELETE FROM app_user");
+        appUserFixture.deleteAll();
         adminUserFixture.deleteAll();
     }
 
@@ -550,10 +541,7 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
     private UUID insertAppUser(String nickname) {
         UUID userUuid = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        jdbcTemplate.update("""
-            INSERT INTO app_user (id, nickname, last_seen_at, user_agent, created_at, updated_at)
-            VALUES (?, ?, ?, 'MangoApp/1.0', ?, ?)
-            """, userUuid, nickname, now, now, now);
+        appUserFixture.insertAnonymous(userUuid, nickname, "MangoApp/1.0", now, now, now);
 
         return userUuid;
     }
