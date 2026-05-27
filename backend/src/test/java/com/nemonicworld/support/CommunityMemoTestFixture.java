@@ -100,6 +100,10 @@ public class CommunityMemoTestFixture {
 
     public void deleteCommunityMemoRows() {
         jdbcTemplate.update("DELETE FROM community_memo_report");
+        deleteMemoRows();
+    }
+
+    public void deleteMemoRows() {
         jdbcTemplate.update("DELETE FROM community_memo");
     }
 
