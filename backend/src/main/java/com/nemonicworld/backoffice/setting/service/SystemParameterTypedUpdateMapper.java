@@ -6,12 +6,13 @@ import com.nemonicworld.backoffice.setting.dto.request.SystemParameterTypedUpdat
 import java.util.ArrayList;
 import java.util.List;
 
-final class SystemParameterTypedUpdateMapper {
+public final class SystemParameterTypedUpdateMapper {
 
     private SystemParameterTypedUpdateMapper() {
     }
 
-    static List<TypedUpdateValue> extractUpdates(SystemParameterTypedUpdateRequest request, ObjectMapper objectMapper) {
+    public static List<TypedUpdateValue> extractUpdates(SystemParameterTypedUpdateRequest request,
+        ObjectMapper objectMapper) {
         List<TypedUpdateValue> updates = new ArrayList<>();
         if (request == null) {
             return updates;
@@ -50,6 +51,6 @@ final class SystemParameterTypedUpdateMapper {
         }
     }
 
-    record TypedUpdateValue(String key, JsonNode value) {
+    public record TypedUpdateValue(String key, JsonNode value) {
     }
 }
