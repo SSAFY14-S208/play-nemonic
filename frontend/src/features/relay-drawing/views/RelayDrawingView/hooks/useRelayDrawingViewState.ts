@@ -2,6 +2,8 @@
 
 import { RELAY_ROUND_ORDER, RELAY_ROUND_SEGMENTS } from '@/features/relay-drawing/constants'
 import { useRelayDrawingStore } from '@/features/relay-drawing/stores'
+import { useDrawingKeyboardShortcuts } from '@/shared/hooks'
+import type { DrawingToolKey } from '@/shared/types'
 
 import { useRelayDrawingGame } from './useRelayDrawingGame'
 import { useRelayTimer } from './useRelayTimer'
@@ -51,14 +53,28 @@ export function useRelayDrawingViewState() {
         ? '그림을 제출하고 있어요'
         : null
 
+  const handleSelectTool = (toolKey: DrawingToolKey) => {
+    if (toolKey === 'marker') return
+    setSelectedToolKey(toolKey)
+  }
+
+  const handleSubmitDrawing = () => {
+    void submitDrawing()
+  }
+
+  useDrawingKeyboardShortcuts({
+    enabled: !isDrawingLocked,
+    onUndo: undoLine,
+    onRedo: redoLine,
+  })
+
   return {
     // Drawing tool state
     selectedToolKey,
     selectedColor,
     selectedOpacity,
     strokeWidth,
-    recentColors,
-    setSelectedToolKey,
+    recentColors,
     setSelectedColor,
     setSelectedOpacity,
     setStrokeWidth,
@@ -78,7 +94,8 @@ export function useRelayDrawingViewState() {
     remainingSeconds,
     formattedTime,
     // Submit action
-    submitDrawing,
+    handleSelectTool,
+    handleSubmitDrawing,
     // UI text
     buttonLabel,
     overlayMessage,

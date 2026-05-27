@@ -1,7 +1,6 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
 import {
   ColorPanel,
   DrawingCompleteButton,
@@ -14,26 +13,17 @@ import {
   TopStatusBar,
 } from "@/shared/components";
 import { DRAWING_COLORS, DRAWING_STROKE_WIDTH_OPTIONS } from "@/shared/constants";
-import { useDrawingKeyboardShortcuts } from "@/shared/hooks";
 import { cn } from "@/shared/libs";
-import type { DrawingToolKey } from "@/shared/types";
 import { RELAY_ROUND_ORDER, RELAY_STAGE_SIZE } from "@/features/relay-drawing/constants";
 import RelayBgmToggle from "@/features/relay-drawing/components/RelayBgmToggle";
 import RelayHowToPlayButton from "@/features/relay-drawing/components/RelayHowToPlayButton";
 
 import PartTimeUpOverlay from "./sections/PartTimeUpOverlay";
-import { useRelayDrawingViewState } from "./hooks/useRelayDrawingViewState";
+import { useDesktopStageScale, useRelayDrawingViewState } from "./hooks";
 
 const RelayDrawingStage = dynamic(() => import("../../RelayDrawingStage"), {
   ssr: false,
 });
-
-// 데스크탑(lg+) 그리기 화면은 1536×1024 디자인을 기준으로 절대 좌표로 배치되어
-// 있다. 작은 viewport에선 디자인 그대로 두면 클리핑되므로, 부모 크기를 측정해
-// 가로/세로 중 더 작은 비율로 scale을 동적으로 잡는다. 측정 전에는 0으로 두어
-// 첫 프레임의 클리핑 노출을 막는다.
-const DESKTOP_DESIGN_WIDTH = 1536;
-const DESKTOP_DESIGN_HEIGHT = 1024;
 
 export default function RelayDrawingView() {
   const {
@@ -42,7 +32,6 @@ export default function RelayDrawingView() {
     selectedOpacity,
     strokeWidth,
     recentColors,
-    setSelectedToolKey,
     setSelectedColor,
     setSelectedOpacity,
     setStrokeWidth,
@@ -58,52 +47,17 @@ export default function RelayDrawingView() {
     isLastRound,
     remainingSeconds,
     formattedTime,
-    submitDrawing,
+    handleSelectTool,
+    handleSubmitDrawing,
     buttonLabel,
     overlayMessage,
   } = useRelayDrawingViewState();
-
-  const handleSelectTool = (toolKey: DrawingToolKey) => {
-    if (toolKey === "marker") return;
-    setSelectedToolKey(toolKey);
-  };
-
-  const handleSubmitClick = () => {
-    void submitDrawing();
-  };
-
-  useDrawingKeyboardShortcuts({
-    enabled: !isDrawingLocked,
-    onUndo: undoLine,
-    onRedo: redoLine,
-  });
-
-  // 데스크탑 레이아웃 동적 스케일 — 부모 크기를 측정해 1536×1024 디자인이
-  // 정확히 들어맞는 scale을 계산. 측정 전 0이면 인너가 사라져 클리핑/플래시를
-  // 방지한다. ResizeObserver가 콜백에서 setState하므로 React Compiler effect-body
-  // 동기 setState 규칙을 위반하지 않는다.
-  // 이 컴포넌트에서만 사용하므로 훅으로 분리하지 않는다 (YAGNI).
-  const desktopWrapperRef = useRef<HTMLDivElement>(null);
-  const [desktopScale, setDesktopScale] = useState(0);
-
-  useEffect(() => {
-    const wrapper = desktopWrapperRef.current;
-    if (!wrapper) return;
-    const updateScale = () => {
-      const rect = wrapper.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
-      const widthRatio = rect.width / DESKTOP_DESIGN_WIDTH;
-      const heightRatio = rect.height / DESKTOP_DESIGN_HEIGHT;
-      setDesktopScale(Math.min(widthRatio, heightRatio, 1));
-    };
-    const raf = requestAnimationFrame(updateScale);
-    const observer = new ResizeObserver(updateScale);
-    observer.observe(wrapper);
-    return () => {
-      cancelAnimationFrame(raf);
-      observer.disconnect();
-    };
-  }, []);
+  const {
+    desktopWrapperRef,
+    desktopScale,
+    desktopDesignWidth,
+    desktopDesignHeight,
+  } = useDesktopStageScale();
 
   return (
     <section
@@ -174,7 +128,7 @@ export default function RelayDrawingView() {
         />
 
         <DrawingCompleteButton
-          onComplete={handleSubmitClick}
+          onComplete={handleSubmitDrawing}
           disabled={isDrawingLocked}
           className="min-h-14 rounded-[16px]"
           label={buttonLabel}
@@ -188,8 +142,8 @@ export default function RelayDrawingView() {
         <div
           className="absolute left-1/2 top-1/2 origin-center"
           style={{
-            width: DESKTOP_DESIGN_WIDTH,
-            height: DESKTOP_DESIGN_HEIGHT,
+            width: desktopDesignWidth,
+            height: desktopDesignHeight,
             transform: `translate(-50%, -50%) scale(${desktopScale})`,
           }}
         >
@@ -244,7 +198,7 @@ export default function RelayDrawingView() {
           />
 
           <DrawingCompleteButton
-            onComplete={handleSubmitClick}
+            onComplete={handleSubmitDrawing}
             disabled={isDrawingLocked}
             className="absolute left-[1254px] top-[928px] h-[62px] w-[222px]"
             label={buttonLabel}
