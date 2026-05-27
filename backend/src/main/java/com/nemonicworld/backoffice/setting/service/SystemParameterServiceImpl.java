@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -64,10 +65,6 @@ public class SystemParameterServiceImpl implements SystemParameterService {
     private static final String INVALID_FLIPBOOK_RECONNECT_GRACE_MESSAGE = "플립북 재연결 유예 시간 설정이 올바르지 않습니다.";
     private static final String INVALID_INFINITE_CANVAS_PARTICIPANT_LIMIT_MESSAGE = "무한 캔버스 참여 인원 설정이 올바르지 않습니다.";
     private static final String INVALID_SYSTEM_PARAMETER_VALUE_MESSAGE = "시스템 파라미터 값이 올바르지 않습니다.";
-    private static final Set<String> POSITIVE_VALUE_SETTING_KEYS = Set.of(
-        SystemParameterSettingKeys.COMMUNITY_MAX_MEMO_COUNT, SystemParameterSettingKeys.COMMUNITY_REPORT_HIDE_THRESHOLD,
-        SystemParameterSettingKeys.FORTUNE_DAILY_LIMIT,
-        SystemParameterSettingKeys.CS_INQUIRY_UNRESOLVED_ALERT_THRESHOLD_HOURS);
     private static final String REDACTED_VALUE = "[redacted]";
     private static final List<String> SENSITIVE_KEY_TOKENS = List.of("password", "secret", "token", "jwt",
         "authorization", "webhook", "smtp", "api_key", "apikey", "access_key", "refresh");
@@ -75,12 +72,14 @@ public class SystemParameterServiceImpl implements SystemParameterService {
     private final SystemParameterRepository systemParameterRepository;
     private final ObjectMapper objectMapper;
     private final AdminAuditLogger adminAuditLogger;
+    private final Map<String, Consumer<JsonNode>> validatorsByKey;
 
     public SystemParameterServiceImpl(SystemParameterRepository systemParameterRepository, ObjectMapper objectMapper,
         AdminAuditLogger adminAuditLogger) {
         this.systemParameterRepository = systemParameterRepository;
         this.objectMapper = objectMapper;
         this.adminAuditLogger = adminAuditLogger;
+        this.validatorsByKey = createValidatorsByKey();
     }
 
     @Override
@@ -184,49 +183,30 @@ public class SystemParameterServiceImpl implements SystemParameterService {
     }
 
     private void validateSystemParameterValue(String key, JsonNode value) {
-        if (SystemParameterSettingKeys.RELAY_ROOM_PARTICIPANT_LIMIT.equals(key)) {
-            validateRelayParticipantLimit(value);
-            return;
+        Consumer<JsonNode> validator = validatorsByKey.get(key);
+        if (validator != null) {
+            validator.accept(value);
         }
+    }
 
-        if (SystemParameterSettingKeys.RELAY_ROOM_TIME_LIMIT_SECONDS.equals(key)) {
-            validateRelayRoomTimeLimit(value);
-            return;
-        }
-
-        if (SystemParameterSettingKeys.RELAY_RECONNECT_GRACE_SECONDS.equals(key)) {
-            validateRelayReconnectGrace(value);
-            return;
-        }
-
-        if (SystemParameterSettingKeys.FLIPBOOK_ROOM_PARTICIPANT_LIMIT.equals(key)) {
-            validateFlipbookParticipantLimit(value);
-            return;
-        }
-
-        if (SystemParameterSettingKeys.FLIPBOOK_ROOM_TIME_LIMIT_SECONDS.equals(key)) {
-            validateFlipbookRoomTimeLimit(value);
-            return;
-        }
-
-        if (SystemParameterSettingKeys.FLIPBOOK_MIN_FRAMES_PER_FLIPBOOK.equals(key)) {
-            validateFlipbookMinFramesPerFlipbook(value);
-            return;
-        }
-
-        if (SystemParameterSettingKeys.FLIPBOOK_RECONNECT_GRACE_SECONDS.equals(key)) {
-            validateFlipbookReconnectGrace(value);
-            return;
-        }
-
-        if (SystemParameterSettingKeys.INFINITE_CANVAS_PARTICIPANT_LIMIT.equals(key)) {
-            validateInfiniteCanvasParticipantLimit(value);
-            return;
-        }
-
-        if (POSITIVE_VALUE_SETTING_KEYS.contains(key)) {
-            validatePositiveValue(value);
-        }
+    private Map<String, Consumer<JsonNode>> createValidatorsByKey() {
+        return Map.ofEntries(
+            Map.entry(SystemParameterSettingKeys.RELAY_ROOM_PARTICIPANT_LIMIT, this::validateRelayParticipantLimit),
+            Map.entry(SystemParameterSettingKeys.RELAY_ROOM_TIME_LIMIT_SECONDS, this::validateRelayRoomTimeLimit),
+            Map.entry(SystemParameterSettingKeys.RELAY_RECONNECT_GRACE_SECONDS, this::validateRelayReconnectGrace),
+            Map.entry(SystemParameterSettingKeys.FLIPBOOK_ROOM_PARTICIPANT_LIMIT,
+                this::validateFlipbookParticipantLimit),
+            Map.entry(SystemParameterSettingKeys.FLIPBOOK_ROOM_TIME_LIMIT_SECONDS, this::validateFlipbookRoomTimeLimit),
+            Map.entry(SystemParameterSettingKeys.FLIPBOOK_MIN_FRAMES_PER_FLIPBOOK,
+                this::validateFlipbookMinFramesPerFlipbook),
+            Map.entry(SystemParameterSettingKeys.FLIPBOOK_RECONNECT_GRACE_SECONDS,
+                this::validateFlipbookReconnectGrace),
+            Map.entry(SystemParameterSettingKeys.INFINITE_CANVAS_PARTICIPANT_LIMIT,
+                this::validateInfiniteCanvasParticipantLimit),
+            Map.entry(SystemParameterSettingKeys.COMMUNITY_MAX_MEMO_COUNT, this::validatePositiveValue),
+            Map.entry(SystemParameterSettingKeys.COMMUNITY_REPORT_HIDE_THRESHOLD, this::validatePositiveValue),
+            Map.entry(SystemParameterSettingKeys.FORTUNE_DAILY_LIMIT, this::validatePositiveValue), Map.entry(
+                SystemParameterSettingKeys.CS_INQUIRY_UNRESOLVED_ALERT_THRESHOLD_HOURS, this::validatePositiveValue));
     }
 
     private void validateRelayParticipantLimit(JsonNode value) {
