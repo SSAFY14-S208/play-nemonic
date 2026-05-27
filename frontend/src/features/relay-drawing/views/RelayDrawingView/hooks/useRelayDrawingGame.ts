@@ -6,10 +6,11 @@ import { getRelayRoomAssignmentMe, postRelayRoomSubmission } from '@/shared/apis
 import { completeFunnelStep } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 
-import { PART_TO_ROUND_KEY, RELAY_ROUND_RULES, RELAY_STAGE_SIZE } from '@/features/relay-drawing/constants'
+import { PART_TO_ROUND_KEY } from '@/features/relay-drawing/constants'
 import { useRelayDrawingStore } from '@/features/relay-drawing/stores'
 import { relayToast } from '@/features/relay-drawing/utils'
-import { renderLinesToRasterCanvas } from '@/features/relay-drawing/utils/canvas-rendering'
+
+import { useRelayDrawingCapture } from './useRelayDrawingCapture'
 
 interface UseRelayDrawingGameReturn {
   submitDrawing: () => Promise<void>
@@ -107,82 +108,7 @@ export function useRelayDrawingGame(): UseRelayDrawingGameReturn {
       fetchingPartRef.current = null
     }
   }, [roomStatus, roomCode, partFetchTrigger, setAssignment])
-
-  // 캔버스를 Blob으로 캡처하는 헬퍼.
-  // 모든 파트의 canvasHeight=720, drawArea={y:0, h:720}으로 동일하다.
-  // raster에서 drawArea 영역을 잘라낸 848×720 blob을 만든다.
-  const captureCanvasBlob = useCallback(async (): Promise<Blob | null> => {
-    const { activeRoundKey, roundLines } = useRelayDrawingStore.getState()
-    const roundRule = RELAY_ROUND_RULES[activeRoundKey]
-    const lines = roundLines[activeRoundKey]
-
-    const rasterCanvas = await renderLinesToRasterCanvas(
-      lines,
-      roundRule.canvasHeight,
-    )
-    if (!rasterCanvas) return null
-
-    const drawArea = roundRule.drawArea
-    const submissionCanvas = document.createElement('canvas')
-    submissionCanvas.width = RELAY_STAGE_SIZE.width
-    submissionCanvas.height = drawArea.height
-
-    const submissionContext = submissionCanvas.getContext('2d')
-    if (!submissionContext) return null
-
-    submissionContext.drawImage(
-      rasterCanvas,
-      0,
-      drawArea.y,
-      RELAY_STAGE_SIZE.width,
-      drawArea.height,
-      0,
-      0,
-      RELAY_STAGE_SIZE.width,
-      drawArea.height,
-    )
-
-    return new Promise<Blob | null>((resolve) => {
-      submissionCanvas.toBlob((blob) => resolve(blob), 'image/png')
-    })
-  }, [])
-
-  // outgoing hint 영역을 크롭해서 Blob으로 만드는 헬퍼.
-  // face/body 라운드에서만 호출 — legs는 outgoing hint가 없다.
-  // outgoingHintArea는 캔버스 하단 OVERLAP_HEIGHT 영역 (face/body 모두 y:600, h:120).
-  const captureHintBlob = useCallback(async (): Promise<Blob | null> => {
-    const { activeRoundKey, roundLines } = useRelayDrawingStore.getState()
-    const roundRule = RELAY_ROUND_RULES[activeRoundKey]
-    const outgoingHintArea = roundRule.outgoingHintArea
-    if (!outgoingHintArea) return null
-
-    const lines = roundLines[activeRoundKey]
-    const fullCanvas = await renderLinesToRasterCanvas(
-      lines,
-      roundRule.canvasHeight,
-    )
-    if (!fullCanvas) return null
-
-    const hintCanvas = document.createElement('canvas')
-    hintCanvas.width = RELAY_STAGE_SIZE.width
-    hintCanvas.height = outgoingHintArea.height
-
-    const hintContext = hintCanvas.getContext('2d')
-    if (!hintContext) return null
-
-    hintContext.drawImage(
-      fullCanvas,
-      0, outgoingHintArea.y, RELAY_STAGE_SIZE.width, outgoingHintArea.height,
-      0, 0, RELAY_STAGE_SIZE.width, outgoingHintArea.height,
-    )
-
-    return new Promise<Blob | null>((resolve) => {
-      hintCanvas.toBlob(
-        (blob) => resolve(blob),
-        'image/png',
-      )
-    })
-  }, [])
+  const { captureCanvasBlob, captureHintBlob } = useRelayDrawingCapture()
 
   const submitDrawing = useCallback(async () => {
     const store = useRelayDrawingStore.getState()

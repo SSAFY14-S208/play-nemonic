@@ -1,4 +1,5 @@
 export { useDesktopStageScale } from './useDesktopStageScale'
+export { useRelayDrawingCapture } from './useRelayDrawingCapture'
 export { useRelayDrawingGame } from './useRelayDrawingGame'
 export { useRelayTimer } from './useRelayTimer'
 export { useRelayDrawingViewState } from './useRelayDrawingViewState'
