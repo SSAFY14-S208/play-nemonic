@@ -84,6 +84,13 @@ public class ArtifactSubtypeTestFixture {
         jdbcTemplate.update("DELETE FROM fortune_artifact");
     }
 
+    public void ensureFortuneUserDateUniqueIndex() {
+        jdbcTemplate.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_fortune_artifact_user_date
+            ON fortune_artifact (user_id, fortune_date)
+            """);
+    }
+
     public void insertFortuneArtifact(UUID artifactId, String description, String fortuneImageUrl, UUID userUuid,
         LocalDate fortuneDate) {
         jdbcTemplate.update("""

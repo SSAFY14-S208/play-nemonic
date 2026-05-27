@@ -21,10 +21,11 @@ import com.nemonicworld.fortune.service.gms.FortuneGmsClient;
 import com.nemonicworld.fortune.service.gms.FortuneGmsResult;
 import com.nemonicworld.fortune.service.image.FortuneCardStorage;
 import com.nemonicworld.support.AbstractIntegrationTest;
+import com.nemonicworld.support.ArtifactGalleryTestFixture;
+import com.nemonicworld.support.ArtifactSubtypeTestFixture;
 import com.nemonicworld.support.GmsPromptTestFixture;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
-import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -70,48 +71,24 @@ class FortuneControllerIntegrationTest extends AbstractIntegrationTest {
     @MockitoBean
     private FortuneCardStorage fortuneCardStorage;
 
+    private ArtifactGalleryTestFixture artifactGalleryFixture;
+    private ArtifactSubtypeTestFixture artifactSubtypeFixture;
     private GmsPromptTestFixture gmsPromptFixture;
 
     @BeforeEach
     void prepareFortuneTables() {
         reset(fortuneGmsClient, fortuneCardStorage);
+        artifactGalleryFixture = new ArtifactGalleryTestFixture(jdbcTemplate);
+        artifactSubtypeFixture = new ArtifactSubtypeTestFixture(jdbcTemplate);
         gmsPromptFixture = new GmsPromptTestFixture(jdbcTemplate);
         jdbcTemplate.execute("DROP TABLE IF EXISTS fortune_artifact");
         jdbcTemplate.execute("DROP TABLE IF EXISTS gallery");
         jdbcTemplate.execute("DROP TABLE IF EXISTS artifact");
         gmsPromptFixture.dropPromptTables();
-        jdbcTemplate.execute("""
-            CREATE TABLE artifact (
-                id UUID PRIMARY KEY,
-                kind VARCHAR(32) NOT NULL,
-                source_room_id VARCHAR(64) NULL,
-                thumbnail_url VARCHAR(200) NOT NULL,
-                meta VARCHAR(1000) NOT NULL DEFAULT '{}',
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE fortune_artifact (
-                artifact_id UUID PRIMARY KEY,
-                description VARCHAR(1000) NOT NULL,
-                fortune_image_url VARCHAR(200) NOT NULL,
-                user_id UUID NOT NULL,
-                fortune_date DATE NOT NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE UNIQUE INDEX uq_fortune_artifact_user_date
-            ON fortune_artifact (user_id, fortune_date)
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE gallery (
-                id UUID PRIMARY KEY,
-                user_id UUID NOT NULL,
-                artifact_id UUID NOT NULL,
-                deleted_at TIMESTAMP NULL
-            )
-            """);
+        artifactGalleryFixture.ensureArtifactTable();
+        artifactSubtypeFixture.ensureFortuneArtifactTable();
+        artifactSubtypeFixture.ensureFortuneUserDateUniqueIndex();
+        artifactGalleryFixture.ensureGalleryTable();
         gmsPromptFixture.ensurePromptTables();
     }
 
@@ -526,17 +503,9 @@ class FortuneControllerIntegrationTest extends AbstractIntegrationTest {
         String description) {
         UUID fortuneId = UUID.randomUUID();
 
-        jdbcTemplate.update("""
-            INSERT INTO artifact (id, kind, source_room_id, thumbnail_url, meta, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, fortuneId, "fortune", null, "fortune/thumb.png", "{}", Timestamp.valueOf(createdAt),
-            Timestamp.valueOf(createdAt));
-        jdbcTemplate.update("""
-            INSERT INTO fortune_artifact (
-                artifact_id, description, fortune_image_url, user_id, fortune_date
-            )
-            VALUES (?, ?, ?, ?, ?)
-            """, fortuneId, description, "fortune/card.png", userUuid, fortuneDate);
+        artifactGalleryFixture.insertArtifact(fortuneId, "fortune", null, "fortune/thumb.png", "{}", createdAt,
+            createdAt);
+        artifactSubtypeFixture.insertFortuneArtifact(fortuneId, description, "fortune/card.png", userUuid, fortuneDate);
 
         return fortuneId;
     }
