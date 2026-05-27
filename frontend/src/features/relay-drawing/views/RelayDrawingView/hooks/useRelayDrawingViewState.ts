@@ -101,3 +101,5 @@ export function useRelayDrawingViewState() {
     overlayMessage,
   }
 }
+
+export type RelayDrawingViewState = ReturnType<typeof useRelayDrawingViewState>
