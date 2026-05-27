@@ -1,4 +1,5 @@
 export { default as DashedGuide } from './DashedGuide'
+export { default as DrawingLinesLayer } from './DrawingLinesLayer'
 export { default as HintPill } from './HintPill'
 export { default as OutgoingHint } from './OutgoingHint'
 export { default as PreviousRoundHint } from './PreviousRoundHint'
