@@ -57,7 +57,15 @@ public class ArtifactGalleryTestFixture {
 
     public void deleteRelayArtifactRows() {
         jdbcTemplate.update("DELETE FROM relay_drawing_artifact");
+        deleteGalleryRows();
+        deleteArtifactRows();
+    }
+
+    public void deleteGalleryRows() {
         jdbcTemplate.update("DELETE FROM gallery");
+    }
+
+    public void deleteArtifactRows() {
         jdbcTemplate.update("DELETE FROM artifact");
     }
 }

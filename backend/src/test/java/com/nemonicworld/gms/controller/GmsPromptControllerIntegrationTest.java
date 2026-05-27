@@ -23,6 +23,8 @@ import com.nemonicworld.fortune.service.gms.FortuneGmsClient;
 import com.nemonicworld.fortune.service.gms.FortuneGmsResult;
 import com.nemonicworld.support.AbstractReadOnlyIntegrationTest;
 import com.nemonicworld.support.AdminUserTestFixture;
+import com.nemonicworld.support.ArtifactGalleryTestFixture;
+import com.nemonicworld.support.ArtifactSubtypeTestFixture;
 import com.nemonicworld.support.BackofficeAuthTestFixture;
 import com.nemonicworld.support.GmsPromptTestFixture;
 import java.sql.Timestamp;
@@ -65,6 +67,8 @@ class GmsPromptControllerIntegrationTest extends AbstractReadOnlyIntegrationTest
     private JwtTokenProvider jwtTokenProvider;
 
     private AdminUserTestFixture adminUserFixture;
+    private ArtifactGalleryTestFixture artifactGalleryFixture;
+    private ArtifactSubtypeTestFixture artifactSubtypeFixture;
     private GmsPromptTestFixture gmsPromptFixture;
 
     @MockitoBean
@@ -74,40 +78,17 @@ class GmsPromptControllerIntegrationTest extends AbstractReadOnlyIntegrationTest
     void prepareTables() {
         reset(fortuneGmsClient);
         adminUserFixture = new AdminUserTestFixture(jdbcTemplate);
+        artifactGalleryFixture = new ArtifactGalleryTestFixture(jdbcTemplate);
+        artifactSubtypeFixture = new ArtifactSubtypeTestFixture(jdbcTemplate);
         adminUserFixture.ensureTable();
         gmsPromptFixture = new GmsPromptTestFixture(jdbcTemplate);
         gmsPromptFixture.ensurePromptTables();
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS artifact (
-                id UUID PRIMARY KEY,
-                kind VARCHAR(32) NOT NULL,
-                source_room_id VARCHAR(64) NULL,
-                thumbnail_url VARCHAR(200) NOT NULL,
-                meta VARCHAR(1000) NOT NULL DEFAULT '{}',
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS fortune_artifact (
-                artifact_id UUID PRIMARY KEY,
-                description VARCHAR(1000) NOT NULL,
-                fortune_image_url VARCHAR(200) NOT NULL,
-                user_id UUID NOT NULL,
-                fortune_date DATE NOT NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS gallery (
-                id UUID PRIMARY KEY,
-                user_id UUID NOT NULL,
-                artifact_id UUID NOT NULL,
-                deleted_at TIMESTAMP NULL
-            )
-            """);
-        jdbcTemplate.update("DELETE FROM gallery");
-        jdbcTemplate.update("DELETE FROM fortune_artifact");
-        jdbcTemplate.update("DELETE FROM artifact");
+        artifactGalleryFixture.ensureArtifactTable();
+        artifactSubtypeFixture.ensureFortuneArtifactTable();
+        artifactGalleryFixture.ensureGalleryTable();
+        artifactGalleryFixture.deleteGalleryRows();
+        artifactSubtypeFixture.deleteFortuneArtifactRows();
+        artifactGalleryFixture.deleteArtifactRows();
         gmsPromptFixture.deletePromptRows();
         adminUserFixture.deleteAll();
         insertAdminUser();

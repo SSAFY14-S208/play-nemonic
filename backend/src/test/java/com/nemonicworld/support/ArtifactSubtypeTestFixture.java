@@ -69,10 +69,14 @@ public class ArtifactSubtypeTestFixture {
     }
 
     public void deleteSubtypeRows() {
-        jdbcTemplate.update("DELETE FROM fortune_artifact");
+        deleteFortuneArtifactRows();
         jdbcTemplate.update("DELETE FROM flipbook_artifact");
         jdbcTemplate.update("DELETE FROM infinite_canvas_artifact");
         jdbcTemplate.update("DELETE FROM phone_artifact");
+    }
+
+    public void deleteFortuneArtifactRows() {
+        jdbcTemplate.update("DELETE FROM fortune_artifact");
     }
 
     public void insertFortuneArtifact(UUID artifactId, String description, String fortuneImageUrl, UUID userUuid,
