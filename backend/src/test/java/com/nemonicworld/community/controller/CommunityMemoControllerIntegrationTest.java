@@ -30,6 +30,8 @@ import com.nemonicworld.community.service.moderation.CommunityMemoModerationRequ
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationResult;
 import com.nemonicworld.support.AbstractIntegrationTest;
 import com.nemonicworld.support.AdminUserTestFixture;
+import com.nemonicworld.support.ArtifactGalleryTestFixture;
+import com.nemonicworld.support.ArtifactSubtypeTestFixture;
 import com.nemonicworld.support.BackofficeSettingTestFixture;
 import com.nemonicworld.support.CommunityMemoTestFixture;
 import com.nemonicworld.support.FileUploadTestFixture;
@@ -93,6 +95,8 @@ class CommunityMemoControllerIntegrationTest extends AbstractIntegrationTest {
     private BackofficeSettingTestFixture backofficeSettingFixture;
     private FileUploadTestFixture fileUploadFixture;
     private CommunityMemoTestFixture communityMemoFixture;
+    private ArtifactGalleryTestFixture artifactGalleryFixture;
+    private ArtifactSubtypeTestFixture artifactSubtypeFixture;
 
     @BeforeEach
     void prepareCommunityTables() {
@@ -1473,61 +1477,14 @@ class CommunityMemoControllerIntegrationTest extends AbstractIntegrationTest {
         new AdminUserTestFixture(jdbcTemplate).ensureTable();
         backofficeSettingFixture = new BackofficeSettingTestFixture(jdbcTemplate);
         backofficeSettingFixture.ensureTable();
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS artifact (
-                id UUID PRIMARY KEY,
-                kind VARCHAR(32) NOT NULL,
-                source_room_id VARCHAR(64) NULL,
-                thumbnail_url VARCHAR(1000) NOT NULL,
-                meta VARCHAR(1000) NOT NULL DEFAULT '{}',
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS fortune_artifact (
-                artifact_id UUID PRIMARY KEY,
-                description VARCHAR(1000) NOT NULL DEFAULT '',
-                fortune_image_url VARCHAR(1000) NOT NULL DEFAULT ''
-            )
-            """);
+        artifactGalleryFixture = new ArtifactGalleryTestFixture(jdbcTemplate);
+        artifactGalleryFixture.ensureRelayArtifactTables();
+        artifactSubtypeFixture = new ArtifactSubtypeTestFixture(jdbcTemplate);
+        artifactSubtypeFixture.ensureSubtypeTables();
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS fortune_artifact_asset (
                 id BIGINT PRIMARY KEY,
                 artifact_id UUID NOT NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS flipbook_artifact (
-                artifact_id UUID PRIMARY KEY,
-                gif_url VARCHAR(1000) NOT NULL DEFAULT '',
-                first_image VARCHAR(1000) NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS infinite_canvas_artifact (
-                artifact_id UUID PRIMARY KEY,
-                canvas_image_url VARCHAR(1000) NOT NULL DEFAULT ''
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS phone_artifact (
-                artifact_id UUID PRIMARY KEY,
-                phone_image_url VARCHAR(1000) NOT NULL DEFAULT ''
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS relay_drawing_artifact (
-                artifact_id UUID PRIMARY KEY,
-                combined_preview_url VARCHAR(1000) NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS gallery (
-                id UUID PRIMARY KEY,
-                user_id UUID NOT NULL,
-                artifact_id UUID NOT NULL,
-                deleted_at TIMESTAMP NULL
             )
             """);
         fileUploadFixture = new FileUploadTestFixture(jdbcTemplate);
@@ -1539,15 +1496,10 @@ class CommunityMemoControllerIntegrationTest extends AbstractIntegrationTest {
     private void cleanTables() {
         backofficeSettingFixture.deleteAll();
         communityMemoFixture.deleteCommunityMemoRows();
-        jdbcTemplate.update("DELETE FROM gallery");
         fileUploadFixture.deleteAll();
         jdbcTemplate.update("DELETE FROM fortune_artifact_asset");
-        jdbcTemplate.update("DELETE FROM fortune_artifact");
-        jdbcTemplate.update("DELETE FROM flipbook_artifact");
-        jdbcTemplate.update("DELETE FROM infinite_canvas_artifact");
-        jdbcTemplate.update("DELETE FROM phone_artifact");
-        jdbcTemplate.update("DELETE FROM relay_drawing_artifact");
-        jdbcTemplate.update("DELETE FROM artifact");
+        artifactSubtypeFixture.deleteSubtypeRows();
+        artifactGalleryFixture.deleteRelayArtifactRows();
     }
 
     private UUID createExistingUser(String nickname) {
