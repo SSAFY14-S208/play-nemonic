@@ -19,6 +19,8 @@ import com.nemonicworld.community.service.moderation.CommunityMemoModerationClie
 import com.nemonicworld.support.AbstractReadOnlyIntegrationTest;
 import com.nemonicworld.support.AdminUserTestFixture;
 import com.nemonicworld.support.AppUserTestFixture;
+import com.nemonicworld.support.ArtifactGalleryTestFixture;
+import com.nemonicworld.support.ArtifactSubtypeTestFixture;
 import com.nemonicworld.support.BackofficeAuthTestFixture;
 import com.nemonicworld.support.CommunityMemoTestFixture;
 import java.time.LocalDateTime;
@@ -63,6 +65,8 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
 
     private AdminUserTestFixture adminUserFixture;
     private AppUserTestFixture appUserFixture;
+    private ArtifactGalleryTestFixture artifactGalleryFixture;
+    private ArtifactSubtypeTestFixture artifactSubtypeFixture;
     private CommunityMemoTestFixture communityMemoFixture;
 
     @MockitoBean
@@ -72,6 +76,8 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
     void prepareTables() {
         adminUserFixture = new AdminUserTestFixture(jdbcTemplate);
         appUserFixture = new AppUserTestFixture(jdbcTemplate);
+        artifactGalleryFixture = new ArtifactGalleryTestFixture(jdbcTemplate);
+        artifactSubtypeFixture = new ArtifactSubtypeTestFixture(jdbcTemplate);
         communityMemoFixture = new CommunityMemoTestFixture(jdbcTemplate);
         createTables();
         cleanTables();
@@ -503,33 +509,14 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
     private void createTables() {
         adminUserFixture.ensureTable();
         appUserFixture.ensureTable();
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS artifact (
-                id UUID PRIMARY KEY,
-                kind VARCHAR(32) NOT NULL,
-                source_room_id VARCHAR(64) NULL,
-                thumbnail_url VARCHAR(1000) NOT NULL,
-                meta VARCHAR(1000) NOT NULL DEFAULT '{}',
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS flipbook_artifact (
-                artifact_id UUID PRIMARY KEY,
-                room_code VARCHAR(32) NULL,
-                frame_count INT NULL,
-                gif_url VARCHAR(1000) NULL,
-                first_image VARCHAR(1000) NULL
-            )
-            """);
-        jdbcTemplate.execute("ALTER TABLE flipbook_artifact ADD COLUMN IF NOT EXISTS first_image VARCHAR(1000)");
+        artifactGalleryFixture.ensureArtifactTable();
+        artifactSubtypeFixture.ensureFlipbookArtifactTable();
         communityMemoFixture.ensureCommunityMemoTables();
     }
 
     private void cleanTables() {
         communityMemoFixture.deleteCommunityMemoRows();
-        jdbcTemplate.update("DELETE FROM artifact");
+        artifactGalleryFixture.deleteArtifactRows();
         appUserFixture.deleteAll();
         adminUserFixture.deleteAll();
     }

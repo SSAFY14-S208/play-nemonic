@@ -44,10 +44,15 @@ public class ArtifactSubtypeTestFixture {
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS flipbook_artifact (
                 artifact_id UUID PRIMARY KEY,
+                room_code VARCHAR(32) NULL,
+                frame_count INT NULL,
                 gif_url VARCHAR(200) NULL,
                 first_image VARCHAR(200) NULL
             )
             """);
+        jdbcTemplate.execute("ALTER TABLE flipbook_artifact ADD COLUMN IF NOT EXISTS room_code VARCHAR(32)");
+        jdbcTemplate.execute("ALTER TABLE flipbook_artifact ADD COLUMN IF NOT EXISTS frame_count INT");
+        jdbcTemplate.execute("ALTER TABLE flipbook_artifact ADD COLUMN IF NOT EXISTS first_image VARCHAR(1000)");
     }
 
     public void ensureInfiniteCanvasArtifactTable() {
