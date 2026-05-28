@@ -10,6 +10,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.nemonicworld.common.header.AnonymousUserHeaders;
 import com.nemonicworld.support.AbstractIntegrationTest;
+import com.nemonicworld.support.AppUserTestFixture;
+import com.nemonicworld.support.ArtifactGalleryTestFixture;
+import com.nemonicworld.support.ArtifactSubtypeTestFixture;
+import com.nemonicworld.support.CommunityMemoTestFixture;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
 import java.sql.Timestamp;
@@ -40,83 +44,23 @@ class GalleryControllerIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
+    private ArtifactGalleryTestFixture artifactGalleryFixture;
+    private ArtifactSubtypeTestFixture artifactSubtypeFixture;
+    private CommunityMemoTestFixture communityMemoFixture;
+
     @BeforeEach
     void prepareGalleryTables() {
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS artifact (
-                id UUID PRIMARY KEY,
-                kind VARCHAR(32) NOT NULL,
-                source_room_id VARCHAR(64) NULL,
-                thumbnail_url VARCHAR(200) NOT NULL,
-                meta VARCHAR(1000) NOT NULL DEFAULT '{}',
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS gallery (
-                id UUID PRIMARY KEY,
-                user_id UUID NOT NULL,
-                artifact_id UUID NOT NULL,
-                deleted_at TIMESTAMP NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS fortune_artifact (
-                artifact_id UUID PRIMARY KEY,
-                description VARCHAR(1000) NOT NULL,
-                fortune_image_url VARCHAR(200) NULL,
-                user_id UUID NOT NULL,
-                fortune_date DATE NOT NULL
-            )
-            """);
-        jdbcTemplate.execute(
-            "ALTER TABLE fortune_artifact ADD COLUMN IF NOT EXISTS description VARCHAR(1000) NOT NULL DEFAULT '{}'");
-        jdbcTemplate.execute("ALTER TABLE fortune_artifact ADD COLUMN IF NOT EXISTS user_id UUID");
-        jdbcTemplate.execute("ALTER TABLE fortune_artifact ADD COLUMN IF NOT EXISTS fortune_date DATE");
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS relay_drawing_artifact (
-                artifact_id UUID PRIMARY KEY,
-                combined_preview_url VARCHAR(200) NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS flipbook_artifact (
-                artifact_id UUID PRIMARY KEY,
-                gif_url VARCHAR(200) NULL,
-                first_image VARCHAR(200) NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS infinite_canvas_artifact (
-                artifact_id UUID PRIMARY KEY,
-                canvas_image_url VARCHAR(200) NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS phone_artifact (
-                artifact_id UUID PRIMARY KEY,
-                phone_image_url VARCHAR(200) NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS community_memo (
-                id UUID PRIMARY KEY,
-                user_id UUID NOT NULL,
-                artifact_id UUID NULL,
-                deleted_at TIMESTAMP NULL
-            )
-            """);
+        artifactGalleryFixture = new ArtifactGalleryTestFixture(jdbcTemplate);
+        artifactGalleryFixture.ensureRelayArtifactTables();
+        artifactSubtypeFixture = new ArtifactSubtypeTestFixture(jdbcTemplate);
+        artifactSubtypeFixture.ensureSubtypeTables();
+        communityMemoFixture = new CommunityMemoTestFixture(jdbcTemplate);
+        communityMemoFixture.ensureMemoTable();
 
-        jdbcTemplate.update("DELETE FROM community_memo");
-        jdbcTemplate.update("DELETE FROM fortune_artifact");
-        jdbcTemplate.update("DELETE FROM relay_drawing_artifact");
-        jdbcTemplate.update("DELETE FROM flipbook_artifact");
-        jdbcTemplate.update("DELETE FROM infinite_canvas_artifact");
-        jdbcTemplate.update("DELETE FROM phone_artifact");
-        jdbcTemplate.update("DELETE FROM gallery");
-        jdbcTemplate.update("DELETE FROM artifact");
-        jdbcTemplate.update("DELETE FROM app_user");
+        communityMemoFixture.deleteMemoRows();
+        artifactSubtypeFixture.deleteSubtypeRows();
+        artifactGalleryFixture.deleteRelayArtifactRows();
+        new AppUserTestFixture(jdbcTemplate).deleteAll();
     }
 
     /**
@@ -623,45 +567,26 @@ class GalleryControllerIntegrationTest extends AbstractIntegrationTest {
 
     private void insertArtifact(UUID artifactId, String kind, String thumbnailUrl, String sourceRoomId,
         LocalDateTime createdAt, String meta) {
-        String sql = """
-            INSERT INTO artifact (id, kind, source_room_id, thumbnail_url, meta, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """;
-
-        jdbcTemplate.update(sql, artifactId, kind, sourceRoomId, thumbnailUrl, meta, createdAt, createdAt);
+        artifactGalleryFixture.insertArtifact(artifactId, kind, sourceRoomId, thumbnailUrl, meta, createdAt, createdAt);
     }
 
     private void insertSubtypeArtifact(String kind, UUID artifactId, String contentUrl, UUID userUuid,
         LocalDate fortuneDate) {
         if ("fortune".equals(kind)) {
-            jdbcTemplate.update("""
-                INSERT INTO fortune_artifact (
-                    artifact_id,
-                    description,
-                    fortune_image_url,
-                    user_id,
-                    fortune_date
-                )
-                VALUES (?, '{}', ?, ?, ?)
-                """, artifactId, contentUrl, userUuid, fortuneDate);
+            artifactSubtypeFixture.insertFortuneArtifact(artifactId, "{}", contentUrl, userUuid, fortuneDate);
         } else if ("relay_drawing".equals(kind)) {
-            jdbcTemplate.update("INSERT INTO relay_drawing_artifact (artifact_id, combined_preview_url) VALUES (?, ?)",
-                artifactId, contentUrl);
+            artifactGalleryFixture.insertRelayDrawingArtifact(artifactId, contentUrl);
         } else if ("flipbook".equals(kind)) {
-            jdbcTemplate.update("INSERT INTO flipbook_artifact (artifact_id, gif_url, first_image) VALUES (?, ?, ?)",
-                artifactId, contentUrl, "first-image");
+            artifactSubtypeFixture.insertFlipbookArtifact(artifactId, contentUrl, "first-image");
         } else if ("infinite_canvas".equals(kind)) {
-            jdbcTemplate.update("INSERT INTO infinite_canvas_artifact (artifact_id, canvas_image_url) VALUES (?, ?)",
-                artifactId, contentUrl);
+            artifactSubtypeFixture.insertInfiniteCanvasArtifact(artifactId, contentUrl);
         } else if ("phone".equals(kind)) {
-            jdbcTemplate.update("INSERT INTO phone_artifact (artifact_id, phone_image_url) VALUES (?, ?)", artifactId,
-                contentUrl);
+            artifactSubtypeFixture.insertPhoneArtifact(artifactId, contentUrl);
         }
     }
 
     private void insertGalleryOnly(UUID galleryId, UUID userUuid, UUID artifactId, LocalDateTime deletedAt) {
-        jdbcTemplate.update("INSERT INTO gallery (id, user_id, artifact_id, deleted_at) VALUES (?, ?, ?, ?)", galleryId,
-            userUuid, artifactId, deletedAt);
+        artifactGalleryFixture.insertGallery(galleryId, userUuid, artifactId, deletedAt);
     }
 
     private UUID insertCommunityMemo(UUID userUuid, UUID artifactId) {

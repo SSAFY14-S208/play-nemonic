@@ -21,14 +21,17 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomMutationLockRepository;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.repository.FlipbookSubmissionLockRepository;
-import com.nemonicworld.flipbook.service.game.FlipbookRoomRoundAdvanceService;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookDisconnectGraceProcessResult;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookDisconnectGraceRoomResult;
+import com.nemonicworld.flipbook.service.disconnect.FlipbookDisconnectGraceParticipantUseCase;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookHostChangeResult;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookRoomDisconnectGraceService;
 import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationTriggerService;
+import com.nemonicworld.flipbook.service.game.FlipbookRoomRoundAdvanceService;
+import com.nemonicworld.flipbook.service.game.FlipbookRoundTransitionUseCase;
 import com.nemonicworld.flipbook.service.support.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.support.FlipbookRuntimeSettingsProvider;
+import com.nemonicworld.flipbook.service.timeout.FlipbookFrameAutoSubmitUseCase;
 import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -79,9 +82,11 @@ class FlipbookRoomDisconnectGraceServiceTest {
     @BeforeEach
     void setUp() {
         flipbookRoomDisconnectGraceService = new FlipbookRoomDisconnectGraceService(flipbookRoomRepository,
-            flipbookSubmissionLockRepository, flipbookRoomMutationLockRepository, new FlipbookRoomRoundAdvanceService(),
-            flipbookRoomEventPublisher, flipbookInviteMetadataSyncService, flipbookRuntimeSettingsProvider,
-            flipbookRoomFinalizationTriggerService, 100, 5000L);
+            flipbookRoomMutationLockRepository, new FlipbookRoomRoundAdvanceService(),
+            new FlipbookFrameAutoSubmitUseCase(flipbookSubmissionLockRepository),
+            new FlipbookRoundTransitionUseCase(flipbookRoomEventPublisher, flipbookRoomFinalizationTriggerService),
+            new FlipbookDisconnectGraceParticipantUseCase(), flipbookRoomEventPublisher,
+            flipbookInviteMetadataSyncService, flipbookRuntimeSettingsProvider, 100, 5000L);
         lenient().when(flipbookRuntimeSettingsProvider.currentReconnectGracePeriod())
             .thenReturn(Duration.ofSeconds(RECONNECT_GRACE_SECONDS));
         lenient().when(flipbookRoomMutationLockRepository.acquireRoomMutationLock(any(), any(), any(Duration.class)))

@@ -2,8 +2,9 @@ package com.nemonicworld.infinitecanvas.service.support;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nemonicworld.backoffice.setting.entity.SystemParameter;
 import com.nemonicworld.backoffice.setting.repository.SystemParameterRepository;
+import com.nemonicworld.backoffice.setting.service.SystemParameterJsonReader;
+import com.nemonicworld.backoffice.setting.service.SystemParameterValueResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -26,7 +27,7 @@ public class InfiniteCanvasRuntimeSettingsProvider {
     }
 
     public InfiniteCanvasParticipantLimit currentParticipantLimit() {
-        return systemParameterRepository.findByKey(PARTICIPANT_LIMIT_SETTING_KEY).map(SystemParameter::value)
+        return SystemParameterValueResolver.findValue(systemParameterRepository, PARTICIPANT_LIMIT_SETTING_KEY)
             .filter(StringUtils::hasText).map(this::parseParticipantLimit).orElseGet(() -> {
                 InfiniteCanvasParticipantLimit fallback = InfiniteCanvasParticipantLimit.defaultLimit();
                 log.warn(
@@ -40,7 +41,8 @@ public class InfiniteCanvasRuntimeSettingsProvider {
 
     private InfiniteCanvasParticipantLimit parseParticipantLimit(String settingValue) {
         try {
-            return InfiniteCanvasParticipantLimit.fromJson(objectMapper.readTree(settingValue));
+            return InfiniteCanvasParticipantLimit
+                .fromJson(SystemParameterJsonReader.readTree(objectMapper, settingValue));
         } catch (JsonProcessingException | InvalidInfiniteCanvasParticipantLimitException e) {
             InfiniteCanvasParticipantLimit fallback = InfiniteCanvasParticipantLimit.defaultLimit();
             log.warn("infinite canvas participant limit setting is invalid. key={} fallbackMin={} fallbackMax={}",
