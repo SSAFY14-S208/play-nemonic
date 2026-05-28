@@ -64,7 +64,7 @@ export function getBlockedReasonForRoom(room: RelayRoomStateResponse) {
 
 export function shouldRedirectBlockedViewer(room: RelayRoomStateResponse) {
   const blockedReason = getBlockedReasonForRoom(room)
-  return blockedReason !== null || !room.viewer.canJoin
+  return blockedReason !== null || (!room.viewer.participant && !room.viewer.canJoin)
 }
 
 export async function joinWaitingRoom(roomCode: string) {
