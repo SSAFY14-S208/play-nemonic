@@ -73,9 +73,11 @@ class FlipbookRoomFinalizationServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new FlipbookRoomFinalizationService(flipbookRoomRepository, flipbookArtifactRepository,
+        FlipbookFinalizationArtifactCreator artifactCreator = new FlipbookFinalizationArtifactCreator(
             flipbookResultStorage, new FlipbookGifComposer(200), new FlipbookThumbnailComposer(512),
-            flipbookRoomEventPublisher, new ObjectMapper().findAndRegisterModules(), flipbookInviteMetadataSyncService,
+            new ObjectMapper().findAndRegisterModules());
+        service = new FlipbookRoomFinalizationService(flipbookRoomRepository, flipbookArtifactRepository,
+            artifactCreator, flipbookRoomEventPublisher, flipbookInviteMetadataSyncService,
             flipbookFinalizationRetryRepository,
             new FlipbookRoomCloseCommand(flipbookRoomRepository, flipbookInviteMetadataSyncService), 50, 60, 0, 60);
     }
