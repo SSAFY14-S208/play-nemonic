@@ -26,9 +26,12 @@ import com.nemonicworld.relay.repository.RelayFinalizationAttemptRepository;
 import com.nemonicworld.relay.repository.RelayFinalizationRetryRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.close.RelayRoomCloseCommand;
+import com.nemonicworld.relay.service.finalization.RelayFinalizationAttemptSupport;
 import com.nemonicworld.relay.service.finalization.RelayFinalizationArtifactCreator;
 import com.nemonicworld.relay.service.finalization.RelayFinalizationAttempt;
 import com.nemonicworld.relay.service.finalization.RelayFinalizationArtifactResult;
+import com.nemonicworld.relay.service.finalization.RelayFinalizationCleanupSupport;
+import com.nemonicworld.relay.service.finalization.RelayFinalizationFailureSupport;
 import com.nemonicworld.relay.service.finalization.RelayResultComposer;
 import com.nemonicworld.relay.service.finalization.RelayResultStorage;
 import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationResult;
@@ -82,10 +85,7 @@ class RelayRoomFinalizationServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new RelayRoomFinalizationService(relayRoomRepository, relayArtifactRepository, relayResultStorage,
-            artifactCreator(), relayRoomEventPublisher, relayInviteMetadataSyncService,
-            relayFinalizationRetryRepository, relayFinalizationAttemptRepository,
-            new RelayRoomCloseCommand(relayRoomRepository, relayInviteMetadataSyncService), 50, 60, 24, 1000, 60);
+        service = finalizationService(1000);
     }
 
     @Test
@@ -222,10 +222,7 @@ class RelayRoomFinalizationServiceTest {
 
     @Test
     void processFinalizingRoomsSkipsRecentlyFinalizingRooms() {
-        RelayRoomFinalizationService delayedService = new RelayRoomFinalizationService(relayRoomRepository,
-            relayArtifactRepository, relayResultStorage, artifactCreator(), relayRoomEventPublisher,
-            relayInviteMetadataSyncService, relayFinalizationRetryRepository, relayFinalizationAttemptRepository,
-            new RelayRoomCloseCommand(relayRoomRepository, relayInviteMetadataSyncService), 50, 60, 24, 60_000, 60);
+        RelayRoomFinalizationService delayedService = finalizationService(60_000);
         RelayRoomState baseRoom = finalizingRoom(UUID.randomUUID());
         RelayRoomState recentRoom = baseRoom.withAssignments(baseRoom.assignments(),
             LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
@@ -493,6 +490,19 @@ class RelayRoomFinalizationServiceTest {
     private RelayFinalizationArtifactCreator artifactCreator() {
         return new RelayFinalizationArtifactCreator(relayResultStorage, new RelayResultComposer(4, 3, 4),
             new ObjectMapper().findAndRegisterModules());
+    }
+
+    private RelayRoomFinalizationService finalizationService(long readyDelayMs) {
+        RelayFinalizationAttemptSupport attemptSupport = new RelayFinalizationAttemptSupport(
+            relayFinalizationAttemptRepository, 24);
+        RelayFinalizationFailureSupport failureSupport = new RelayFinalizationFailureSupport(
+            relayFinalizationRetryRepository, attemptSupport);
+        RelayFinalizationCleanupSupport cleanupSupport = new RelayFinalizationCleanupSupport(relayResultStorage,
+            attemptSupport);
+
+        return new RelayRoomFinalizationService(relayRoomRepository, relayArtifactRepository, artifactCreator(),
+            attemptSupport, failureSupport, cleanupSupport, relayRoomEventPublisher, relayInviteMetadataSyncService,
+            new RelayRoomCloseCommand(relayRoomRepository, relayInviteMetadataSyncService), 50, 60, readyDelayMs, 60);
     }
 
     private RelayRoomParticipant participant(UUID userUuid, boolean host, int joinOrder) {
