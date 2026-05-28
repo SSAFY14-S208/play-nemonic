@@ -27,8 +27,13 @@ import com.nemonicworld.flipbook.repository.FlipbookRoomMutationLockRepository;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.repository.FlipbookSubmissionLockRepository;
 import com.nemonicworld.flipbook.service.game.FlipbookRoomRoundAdvanceService;
+import com.nemonicworld.flipbook.service.submission.FlipbookFrameAssignmentSupport;
+import com.nemonicworld.flipbook.service.submission.FlipbookFrameFileSupport;
 import com.nemonicworld.flipbook.service.submission.FlipbookFrameImageUrlResolver;
+import com.nemonicworld.flipbook.service.submission.FlipbookFrameSubmissionEventSupport;
+import com.nemonicworld.flipbook.service.submission.FlipbookFrameSubmissionResponseSupport;
 import com.nemonicworld.flipbook.service.submission.FlipbookFrameSubmitUseCase;
+import com.nemonicworld.flipbook.service.submission.FlipbookSubmissionLockSupport;
 import com.nemonicworld.flipbook.service.support.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomPolicy;
 import com.nemonicworld.global.storage.minio.MinioStorageProperties;
@@ -86,10 +91,15 @@ class FlipbookFrameSubmitUseCaseTest {
         FlipbookFrameImageUrlResolver flipbookFrameImageUrlResolver = new FlipbookFrameImageUrlResolver(
             new MinioStorageProperties("http://minio:9000", "https://example.com/minio", "access", "secret", "nemonic",
                 10, 10_485_760));
+        FlipbookRoomRoundAdvanceService flipbookRoomRoundAdvanceService = new FlipbookRoomRoundAdvanceService();
         flipbookFrameSubmitUseCase = new FlipbookFrameSubmitUseCase(anonymousUserResolver, flipbookRoomRepository,
-            flipbookRoomPolicy, flipbookFrameImageUrlResolver, flipbookInviteMetadataSyncService,
-            new FlipbookRoomRoundAdvanceService(), fileUploadRepository, flipbookSubmissionLockRepository,
-            flipbookRoomMutationLockRepository, 5000L, 10000L, 5000L);
+            flipbookRoomPolicy, flipbookInviteMetadataSyncService, flipbookRoomRoundAdvanceService,
+            new FlipbookFrameFileSupport(fileUploadRepository),
+            new FlipbookSubmissionLockSupport(flipbookSubmissionLockRepository, flipbookRoomMutationLockRepository,
+                10000L, 5000L),
+            new FlipbookFrameAssignmentSupport(5000L),
+            new FlipbookFrameSubmissionResponseSupport(flipbookFrameImageUrlResolver, flipbookRoomRoundAdvanceService),
+            new FlipbookFrameSubmissionEventSupport());
         lenient().when(flipbookSubmissionLockRepository.acquireSubmissionLock(any(), anyInt(), anyInt(), anyInt(),
             any(), any(), any(Duration.class))).thenReturn(true);
         lenient().when(flipbookRoomMutationLockRepository.acquireRoomMutationLock(any(), any(), any(Duration.class)))
