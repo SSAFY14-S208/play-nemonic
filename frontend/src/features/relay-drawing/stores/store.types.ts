@@ -4,9 +4,9 @@
 // 상태도 같이 비움). 강제 격리는 안 하지만, "어느 슬라이스가 어떤 액션의 주인"
 // 이라는 가시성을 가지려고 분리한다.
 
-import type { RelayPart, RelayRoomMyAssignmentResponse, RelayRoomParticipantResponse, RelayRoomResultItemResponse, RelayRoomStateResponse, RelayRoomStatus, } from '@/shared/types'
+import type { DrawingToolKey, RelayPart, RelayRoomMyAssignmentResponse, RelayRoomParticipantResponse, RelayRoomResultItemResponse, RelayRoomStateResponse, RelayRoomStatus, } from '@/shared/types'
 
-import type { RelayRoundKey, RelayToolKey } from '../constants'
+import type { RelayRoundKey } from '../constants'
 import type { RelayDrawLine, RelayDrawPoint, RelayRoundLines } from '..'
 
 // WS 종료성 이벤트 수신 시 모달에 표시할 사유.
@@ -66,7 +66,7 @@ export interface RoomSlice {
 
 export interface CanvasSlice {
   activeRoundKey: RelayRoundKey
-  selectedToolKey: RelayToolKey
+  selectedToolKey: DrawingToolKey
   selectedColor: string
   selectedOpacity: number
   strokeWidth: number
@@ -120,7 +120,7 @@ export interface CanvasSlice {
   // completeRound: 로컬 미리보기 용도(서버 연결 없이 라운드 전환).
   // 실제 게임 흐름에서는 submitDrawing → PART_STARTED → setAssignment 순서.
   completeRound: () => void
-  setSelectedToolKey: (toolKey: RelayToolKey) => void
+  setSelectedToolKey: (toolKey: DrawingToolKey) => void
   setSelectedColor: (color: string) => void
   setSelectedOpacity: (opacity: number) => void
   setStrokeWidth: (strokeWidth: number) => void

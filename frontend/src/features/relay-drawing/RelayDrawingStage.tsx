@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Group, Layer, Line, Rect, Stage, Text } from 'react-konva'
+import { Layer, Rect, Stage, Text } from 'react-konva'
 import { OVERLAP_HEIGHT, RELAY_ROUND_RULES, RELAY_STAGE_SIZE } from './constants'
-import { OutgoingHint, PreviousRoundHint, RasterFillImage } from './components/drawing-stage'
+import { DrawingLinesLayer, OutgoingHint, PreviousRoundHint } from './views/RelayDrawingView/sections/DrawingStage'
 import { useRelayDrawingStore } from './stores'
 import { useRelayCanvas } from './hooks'
 import { isPointInsideArea } from './utils/canvas-rendering'
@@ -164,57 +164,7 @@ export default function RelayDrawingStage() {
           </Layer>
 
           {/* 드로잉 레이어 — destination-out 지우개가 이 레이어 내에서만 동작. */}
-          <Layer>
-            <Group
-              clipX={0}
-              clipY={activeRoundRule.drawArea.y}
-              clipWidth={RELAY_STAGE_SIZE.width}
-              clipHeight={activeRoundRule.drawArea.height}
-            >
-              {lines.map((line) => {
-                if (line.kind === 'fill') {
-                  if (line.imageDataUrl) {
-                    return (
-                      <RasterFillImage
-                        key={line.id}
-                        imageDataUrl={line.imageDataUrl}
-                        compositeOperation={line.compositeOperation}
-                      />
-                    )
-                  }
-
-                  return (
-                    <Line
-                      key={line.id}
-                      points={line.points.flatMap((point) => [point.x, point.y])}
-                      fill={line.color}
-                      opacity={line.opacity ?? 1}
-                      closed
-                      listening={false}
-                      globalCompositeOperation={line.compositeOperation ?? 'source-over'}
-                    />
-                  )
-                }
-
-                return (
-                  <Line
-                    key={line.id}
-                    points={line.points.flatMap((point) => [point.x, point.y])}
-                    stroke={line.color}
-                    strokeWidth={line.strokeWidth}
-                    opacity={line.opacity ?? 1}
-                    tension={0.45}
-                    lineCap="round"
-                    lineJoin="round"
-                    globalCompositeOperation={
-                      line.compositeOperation ??
-                      (line.color === '#fffdf7' ? 'destination-out' : 'source-over')
-                    }
-                  />
-                )
-              })}
-            </Group>
-          </Layer>
+          <DrawingLinesLayer lines={lines} drawArea={activeRoundRule.drawArea} />
         </Stage>
       )}
     </div>

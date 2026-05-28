@@ -115,7 +115,3 @@ export const RELAY_ROUND_SEGMENTS = Object.fromEntries(
   }
 >
 
-export const RELAY_PREVIEW_LINES = {
-  faceCenterX: RELAY_STAGE_SIZE.width / 2,
-  bodyTopY: 210,
-}

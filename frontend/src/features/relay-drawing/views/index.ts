@@ -1,0 +1,6 @@
+export { default as RelayBoothView } from './RelayBoothView'
+export { default as RelayDrawingView } from './RelayDrawingView'
+export { default as RelayFinalizingView } from './RelayFinalizingView'
+export { default as RelayLobbyView } from './RelayLobbyView'
+export { default as RelayResultView } from './RelayResultView'
+export { default as RelayRoomView } from './RelayRoomView'

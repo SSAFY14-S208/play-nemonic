@@ -10,7 +10,8 @@ export {
   RELAY_LEAVE_CONFIRM_BUTTON_CLASS,
 } from './constants'
 export { useRelayDrawingStore, useRelayBgmStore } from './stores'
-export { useRelayBgm, useRelayCanvas, useRelayResult } from './hooks'
+export { useRelayBgm, useRelayCanvas } from './hooks'
+export { useRelayResult } from './views/RelayResultView/hooks'
 export type {
   RelayDrawPoint,
   RelayDrawLine,

@@ -11,9 +11,17 @@
 | Shared  | Project-wide utilities, components, hooks, stores                 | `shared/`                                           |
 
 Feature placement rule:
-- Used in only 1 view → keep inside that view's folder (hooks/, sections/, etc.)
-- Used in 2+ views → move to `features/`
-- Pure utility function → `shared/utils/` from the start (never "lift when needed")
+- Used in only 1 view -> keep inside that view's folder (hooks/, sections/, etc.)
+- Used in 2+ views -> move to `features/`
+- Pure utility function -> `shared/utils/` from the start (never "lift when needed")
+
+Feature-based structure rule:
+- `features/{feature-name}/` is the owner of one business domain or user capability.
+- `views/` belongs inside the owning feature. Do not create a root-level `src/views/` layer.
+- A View is a feature-owned screen state, not an independent domain.
+- Pages compose feature Views, but feature Views should not be extracted only because a Page uses them.
+- If two Pages need the same feature View, export it from the feature barrel and keep the View inside that feature.
+- If two features need the same logic or UI, move the shared part to `shared/`; do not import directly between features.
 
 ## Layer Hierarchy
 
@@ -28,6 +36,8 @@ Page      → 1:1 with a URL route. Owns routing only.
 
 **View** — A full-screen content unit rendered inside a Page. Multiple Views can exist under one Page
 and are swapped based on runtime conditions (login state, onboarding step, feature mode, etc.).
+Views are colocated under the feature that owns the state, hooks, store, and business rules they render.
+Use `features/{feature-name}/views/{ViewName}/index.tsx` for View roots.
 
 ```
 Example:
@@ -38,6 +48,8 @@ CanvasPage
 
 **Section** — An independent, visually distinct UI block that composes a View.
 Sections own their own markup and may have view-scoped hooks co-located inside them.
+Use `features/{feature-name}/views/{ViewName}/sections/{SectionName}/index.tsx`.
+Section folders use PascalCase because they represent named UI units.
 
 ```
 Example:
@@ -68,6 +80,12 @@ useCanvasScroll   → this is a view-scoped hook, keep it in the view folder
 
 A feature folder contains: API calls, business logic hooks, Zustand store,
 and feature-coupled components (components that directly import feature hooks).
+Feature root files:
+- `{FeatureName}Page.tsx` is allowed at feature root when it is the URL-facing route entry wrapper.
+- `{FeatureName}Stage.tsx` is allowed at feature root when it owns a Konva `<Stage>` and top-level `<Layer>` composition.
+- `{FeatureName}Visual.tsx` is allowed at feature root when it owns an independent 3D `<Canvas>`.
+- Child shapes, hints, panels, overlays, and view-only UI should live under the relevant View/Section, not at feature root.
+
 It does NOT contain: pure UI components (→ `shared/components/`), view layout (→ view folder).
 
 ## View-Scoped Hook Placement

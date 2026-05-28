@@ -120,51 +120,68 @@ funnel 흐름 추적에는 `flow_id`(funnel 단위 UUID)를, 단일 fetch 추적
 
 **의존 방향:** `app → worlds · features → shared` (단방향)
 
+**Feature 기반 배치:** `views/`는 소유 feature 내부에 둔다. View는 루트 도메인이 아니라 feature가 소유한 화면 상태 단위다. Page는 라우트 오케스트레이션을 담당할 때, Stage는 Konva Stage를 소유할 때 feature 루트에 둘 수 있다.
+
 ```
 src/
-├── app/
-│   ├── layout.tsx
-│   ├── (service)/             # URL에 미노출 — 일반 서비스 라우트 그룹
-│   │   ├── page.tsx           # /
-│   │   ├── hub/page.tsx       # /hub
-│   │   ├── relay-drawing/page.tsx
-│   │   ├── infinite-canvas/page.tsx
-│   │   ├── flipbook/page.tsx
-│   │   └── share/[id]/page.tsx
-│   └── admin/                 # /admin/* — 백오피스 (URL 노출)
-│       ├── layout.tsx         # AdminAuthGuard + 사이드바
-│       └── {section}/page.tsx
-│
-├── worlds/                    # 3D 씬 코드 — 씬당 한 폴더
-│   ├── landing/
-│   │   ├── LandingLoader.tsx  # 'use client' + dynamic(ssr:false)
-│   │   ├── LandingCanvas.tsx  # <Canvas> + <Physics>
-│   │   ├── LandingScene.tsx   # 씬 루트
-│   │   └── objects/
-│   ├── hub/
-│   │   └── ...
-│   ├── _infra/                # 씬당 1개인 단일 주체 (Lighting, Character)
-│   └── _shared/mesh/          # 씬 안 다중 배치 가능한 재사용 메시
-│
-├── features/                  # 도메인 기능 단위
-│   ├── relay-drawing/
-│   ├── fortune/
-│   ├── share/
-│   └── admin/
-│
-└── shared/
-    ├── apis/                  # 도메인별 API 함수 (개별 export)
-    ├── assets/                # 번들러 관리 정적 자산 (svg, glb, mp3)
-    ├── components/            # 공용 UI 컴포넌트 (컴포넌트마다 폴더)
-    ├── config/                # 환경 설정 — process.env는 여기서만
-    ├── constants/             # 환경 무관 전역 상수
-    ├── hooks/                 # 재사용 React 훅
-    ├── layouts/               # 공유 레이아웃 컴포넌트
-    ├── libs/                  # 외부 라이브러리 래퍼 (apiClient, cn)
-    ├── stores/                # 전역 Zustand store
-    ├── styles/                # CSS 토큰 시스템 진입점
-    ├── types/                 # 공유 TypeScript 타입
-    └── utils/                 # 순수 유틸리티 함수
+|-- app/                                # 라우팅 진입점과 메타데이터만 담당
+|   |-- layout.tsx                      # 전역 HTML 쉘과 공통 provider
+|   |-- (service)/                      # URL에 미노출 - 일반 서비스 라우트 그룹
+|   |   |-- page.tsx                    # /
+|   |   |-- {service}/page.tsx          # /{service}
+|   |   `-- {service}/[id]/page.tsx     # /{service}/{id}
+|   `-- admin/                          # /admin/* - 백오피스 URL 라우트
+|       |-- layout.tsx                  # AdminAuthGuard + 사이드바
+|       `-- {section}/page.tsx          # 백오피스 섹션별 페이지
+|
+|-- worlds/                             # 3D 씬 코드 - 씬당 한 폴더
+|   |-- landing/                        # 랜딩 3D 씬
+|   |   |-- LandingLoader.tsx           # client + dynamic(ssr:false) 래퍼
+|   |   |-- LandingCanvas.tsx           # <Canvas> + <Physics> 소유자
+|   |   |-- LandingScene.tsx            # 씬 루트 조립 컴포넌트
+|   |   `-- objects/                    # 씬 전용 3D 오브젝트
+|   |-- hub/                            # 허브 3D 씬
+|   |   `-- ...                         # 허브 씬 구성 파일
+|   |-- _infra/                         # 씬당 1개인 단일 주체 (Lighting, Character)
+|   `-- _shared/mesh/                   # 씬 안 다중 배치 가능한 재사용 메시
+|
+|-- features/                           # 도메인 기능 단위
+|   |-- {feature-name}/                 # feature 단위 도메인 폴더
+|   |   |-- index.ts                    # feature 외부 공개 배럴
+|   |   |-- {FeatureName}Page.tsx       # URL 라우트 진입용 Page
+|   |   |-- {FeatureName}Stage.tsx      # Konva Stage 소유자 (필요 시)
+|   |   |-- {FeatureName}Visual.tsx     # 독립 3D Canvas 소유자 (필요 시)
+|   |   |-- assets/                     # feature 전용 이미지/정적 자산
+|   |   |-- components/                 # 여러 View에서 재사용되는 feature 결합 UI
+|   |   |-- hooks/                      # 여러 View에서 쓰이는 feature-level 훅
+|   |   |-- stores/                     # feature-level Zustand store
+|   |   |-- utils/                      # feature 전용 유틸리티
+|   |   `-- views/                      # 런타임 상태별 전체 화면 View
+|   |       |-- index.ts                # View 공개 배럴
+|   |       |-- {FeatureName}MainView/  # View 단위 화면 폴더
+|   |       |   |-- index.tsx           # View 루트
+|   |       |   |-- hooks/              # View 전용 훅
+|   |       |   `-- sections/           # View를 구성하는 독립 UI 블록
+|   |       |       `-- {SectionName}/  # Section 단위 폴더
+|   |       |           |-- index.tsx   # Section 루트
+|   |       |           `-- hooks/      # Section 전용 훅 (필요 시)
+|   |       `-- {FeatureName}SubView/   # 조건에 따라 교체되는 다른 View
+|   |           `-- index.tsx           # View 루트
+|   `-- {another-feature}/              # 다른 도메인 기능 폴더
+|
+`-- shared/                            # 프로젝트 전역 공유 자원
+    |-- apis/                          # 도메인별 API 함수
+    |-- assets/                        # 번들러 관리 정적 자산 (svg, glb, mp3)
+    |-- components/                    # 공용 UI 컴포넌트
+    |-- config/                        # 환경 설정 - process.env는 여기서만
+    |-- constants/                     # 환경 무관 전역 상수
+    |-- hooks/                         # 재사용 React 훅
+    |-- layouts/                       # 공유 레이아웃 컴포넌트
+    |-- libs/                          # 외부 라이브러리 래퍼 (apiClient, cn)
+    |-- stores/                        # 전역 Zustand store
+    |-- styles/                        # CSS 토큰 시스템 진입점
+    |-- types/                         # 공유 TypeScript 타입
+    `-- utils/                         # 순수 유틸리티 함수
 ```
 
 ### 3D 씬 4단계 진입점 패턴

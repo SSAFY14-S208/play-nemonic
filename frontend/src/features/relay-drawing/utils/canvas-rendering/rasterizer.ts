@@ -2,8 +2,8 @@
 // bucket fill이 시드 픽셀을 읽기 위해 캔버스 raster 표현이 필요해서 분리.
 // 또한 round transition 애니메이션이 같은 raster를 재사용한다.
 
-import { RELAY_STAGE_SIZE } from '../../constants'
-import type { RelayDrawLine } from '../..'
+import { RELAY_STAGE_SIZE } from '@/features/relay-drawing/constants'
+import type { RelayDrawLine } from '@/features/relay-drawing/types'
 
 function loadImageElement(imageDataUrl: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {

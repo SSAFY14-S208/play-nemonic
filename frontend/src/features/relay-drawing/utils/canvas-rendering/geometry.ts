@@ -1,5 +1,5 @@
-import { RELAY_STAGE_SIZE } from '../../constants'
-import type { RelayDrawPoint } from '../..'
+import { RELAY_STAGE_SIZE } from '@/features/relay-drawing/constants'
+import type { RelayDrawPoint } from '@/features/relay-drawing/types'
 
 // 한 점이 라운드 영역(주로 drawArea / hint 영역) 안에 들어오는지 검사.
 export function isPointInsideArea(

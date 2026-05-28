@@ -10,6 +10,8 @@
 | Scene / domain sub     | `lowercase`  | `landing/`, `hub/`                                   |
 | Resource sub (plural)  | `lowercase`  | `apis/`, `components/`, `hooks/`, `stores/`, `utils/`|
 | Feature unit           | `kebab-case` | `relay-drawing/`, `label-printer/`                   |
+| View folder            | `PascalCase` | `RelayDrawingView/`, `RelayResultView/`              |
+| Section folder         | `PascalCase` | `DrawingStage/`, `RoundTransition/`                  |
 | Infra / shared prefix  | `_prefix`    | `_infra/`, `_shared/`                                |
 
 ## File Naming
@@ -106,6 +108,7 @@ Internal implementation imports:
 - Do not import the barrel from a file exported by that same barrel (avoids circular graphs)
 - When a resource folder barrel exists (`hooks/index.ts`) → import from it (`../hooks`)
 - When resource is still flat (`constants.ts`) → import the explicit file (`../constants`)
+- Deep View/Section files must import feature-level shared resources through the alias (`@/features/{feature}/constants`, `@/features/{feature}/components/Foo`) so the source domain is explicit
 - Do not use broad parent barrels (`..`) for internal constants/hooks/types/utils/stores
 - Do not bypass an existing resource folder barrel with deep paths (`../hooks/useFoo`)
 - Merge imports from the same source into one `import` declaration
