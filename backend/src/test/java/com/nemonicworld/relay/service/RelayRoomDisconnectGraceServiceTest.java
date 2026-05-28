@@ -29,9 +29,11 @@ import com.nemonicworld.relay.service.disconnect.RelayDisconnectGraceRoomResult;
 import com.nemonicworld.relay.service.disconnect.RelayHostChangeResult;
 import com.nemonicworld.relay.service.disconnect.RelayRoomDisconnectGraceService;
 import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationAsyncTrigger;
+import com.nemonicworld.relay.service.game.RelayPartTransitionUseCase;
 import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
+import com.nemonicworld.relay.service.timeout.RelayRoomAutoSubmitUseCase;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -91,9 +93,10 @@ class RelayRoomDisconnectGraceServiceTest {
         lenient().when(relayRuntimeSettingsProvider.currentReconnectGracePeriod())
             .thenReturn(Duration.ofSeconds(RECONNECT_GRACE_SECONDS));
         relayRoomDisconnectGraceService = new RelayRoomDisconnectGraceService(relayRoomRepository,
-            relaySubmissionLockRepository, relayRoomMutationLockRepository, new RelayRoomPartAdvanceService(),
-            relayRoomEventPublisher, relayInviteMetadataSyncService, relayRoomFinalizationAsyncTrigger,
-            relayRuntimeSettingsProvider, 5000, 100);
+            relayRoomMutationLockRepository, new RelayRoomPartAdvanceService(),
+            new RelayRoomAutoSubmitUseCase(relaySubmissionLockRepository),
+            new RelayPartTransitionUseCase(relayRoomEventPublisher, relayRoomFinalizationAsyncTrigger),
+            relayRoomEventPublisher, relayInviteMetadataSyncService, relayRuntimeSettingsProvider, 5000, 100);
     }
 
     @Test

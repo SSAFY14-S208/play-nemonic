@@ -4,25 +4,23 @@ import com.nemonicworld.common.exception.ConflictException;
 import com.nemonicworld.relay.dto.websocket.RelayRoomPartTimeUpEventResponse.PendingSubmission;
 import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
+import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.redis.RelayRoomAssignment;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
-import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.logging.RelayRoomEventLogger;
 import com.nemonicworld.relay.repository.RelayRoomMutationLockRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.repository.RelayRoomTimeUpNotificationRepository;
-import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
 import com.nemonicworld.relay.service.game.RelayPartAdvanceResult;
+import com.nemonicworld.relay.service.game.RelayPartTransitionUseCase;
 import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
-import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationAsyncTrigger;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -41,35 +39,34 @@ public class RelayRoomTimeoutService {
     private static final Logger log = LoggerFactory.getLogger(RelayRoomTimeoutService.class);
 
     private final RelayRoomRepository relayRoomRepository;
-    private final RelaySubmissionLockRepository relaySubmissionLockRepository;
     private final RelayRoomTimeUpNotificationRepository relayRoomTimeUpNotificationRepository;
     private final RelayRoomMutationLockRepository relayRoomMutationLockRepository;
     private final RelayRoomPartAdvanceService relayRoomPartAdvanceService;
+    private final RelayRoomAutoSubmitUseCase relayRoomAutoSubmitUseCase;
+    private final RelayPartTransitionUseCase relayPartTransitionUseCase;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
     private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
-    private final RelayRoomFinalizationAsyncTrigger relayRoomFinalizationAsyncTrigger;
     private final int scanLimit;
     private final Duration autoSubmitGrace;
     private final Duration roomMutationLockTtl;
 
     public RelayRoomTimeoutService(RelayRoomRepository relayRoomRepository,
-        RelaySubmissionLockRepository relaySubmissionLockRepository,
         RelayRoomTimeUpNotificationRepository relayRoomTimeUpNotificationRepository,
         RelayRoomMutationLockRepository relayRoomMutationLockRepository,
-        RelayRoomPartAdvanceService relayRoomPartAdvanceService, RelayRoomEventPublisher relayRoomEventPublisher,
+        RelayRoomPartAdvanceService relayRoomPartAdvanceService, RelayRoomAutoSubmitUseCase relayRoomAutoSubmitUseCase,
+        RelayPartTransitionUseCase relayPartTransitionUseCase, RelayRoomEventPublisher relayRoomEventPublisher,
         RelayInviteMetadataSyncService relayInviteMetadataSyncService,
-        RelayRoomFinalizationAsyncTrigger relayRoomFinalizationAsyncTrigger,
         @Value("${nemonic.relay.timeout.scan-limit:100}") int scanLimit,
         @Value("${nemonic.relay.timeout.auto-submit-grace-ms:2000}") long autoSubmitGraceMs,
         @Value("${nemonic.relay.room-mutation-lock-ttl-ms:5000}") long roomMutationLockTtlMs) {
         this.relayRoomRepository = relayRoomRepository;
-        this.relaySubmissionLockRepository = relaySubmissionLockRepository;
         this.relayRoomTimeUpNotificationRepository = relayRoomTimeUpNotificationRepository;
         this.relayRoomMutationLockRepository = relayRoomMutationLockRepository;
         this.relayRoomPartAdvanceService = relayRoomPartAdvanceService;
+        this.relayRoomAutoSubmitUseCase = relayRoomAutoSubmitUseCase;
+        this.relayPartTransitionUseCase = relayPartTransitionUseCase;
         this.relayRoomEventPublisher = relayRoomEventPublisher;
         this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
-        this.relayRoomFinalizationAsyncTrigger = relayRoomFinalizationAsyncTrigger;
         this.scanLimit = scanLimit;
         this.autoSubmitGrace = Duration.ofMillis(Math.max(0L, autoSubmitGraceMs));
         this.roomMutationLockTtl = Duration.ofMillis(Math.max(1L, roomMutationLockTtlMs));
@@ -175,10 +172,11 @@ public class RelayRoomTimeoutService {
             }
 
             RelayDrawingPart currentPart = roomState.currentPart();
-            AutoSubmitUpdate autoSubmitUpdate = autoSubmitPendingAssignments(roomState, currentPart, processedAt);
+            RelayRoomAutoSubmitUpdate autoSubmitUpdate = relayRoomAutoSubmitUseCase
+                .autoSubmitPendingAssignments(roomState, currentPart, processedAt);
             RelayRoomState submittedRoomState = autoSubmitUpdate.autoSubmissions().isEmpty()
                 ? roomState
-                : roomState.withAssignments(autoSubmitUpdate.updatedAssignments(), processedAt);
+                : roomState.withAssignments(autoSubmitUpdate.assignments(), processedAt);
             RelayPartAdvanceResult advanceResult = relayRoomPartAdvanceService
                 .advancePartIfCompleted(submittedRoomState, currentPart, processedAt);
 
@@ -238,41 +236,6 @@ public class RelayRoomTimeoutService {
             .findFirst().orElse(null);
     }
 
-    private AutoSubmitUpdate autoSubmitPendingAssignments(RelayRoomState roomState, RelayDrawingPart currentPart,
-        LocalDateTime submittedAt) {
-        List<RelayRoomAssignment> updatedAssignments = new ArrayList<>(roomState.assignments().size());
-        List<RelayRoomAutoSubmissionResult> autoSubmissions = new ArrayList<>();
-
-        for (RelayRoomAssignment assignment : roomState.assignments()) {
-            if (assignment.part() == currentPart && assignment.status() == RelayAssignmentStatus.PENDING
-                && !isSubmissionLocked(roomState, assignment)) {
-                RelayRoomAssignment autoSubmittedAssignment = autoSubmitAssignment(assignment, submittedAt);
-                updatedAssignments.add(autoSubmittedAssignment);
-                autoSubmissions.add(new RelayRoomAutoSubmissionResult(roomState.roomCode(),
-                    findNickname(roomState, assignment.assignedUserUuid()), autoSubmittedAssignment));
-            } else {
-                updatedAssignments.add(assignment);
-            }
-        }
-
-        return new AutoSubmitUpdate(updatedAssignments, autoSubmissions);
-    }
-
-    private RelayRoomAssignment autoSubmitAssignment(RelayRoomAssignment assignment, LocalDateTime submittedAt) {
-        return new RelayRoomAssignment(assignment.canvasIndex(), assignment.part(), assignment.assignedUserUuid(),
-            RelayAssignmentStatus.AUTO_SUBMITTED, assignment.fileId(), null, null, true, true, submittedAt);
-    }
-
-    private boolean isSubmissionLocked(RelayRoomState roomState, RelayRoomAssignment assignment) {
-        return relaySubmissionLockRepository.isSubmissionLocked(roomState.roomCode(), assignment.canvasIndex(),
-            assignment.part(), assignment.assignedUserUuid());
-    }
-
-    private String findNickname(RelayRoomState roomState, String userUuid) {
-        return roomState.participants().stream().filter(participant -> participant.userUuid().equals(userUuid))
-            .map(RelayRoomParticipant::nickname).findFirst().orElse(null);
-    }
-
     private void publishTimeoutEvents(RelayRoomTimeoutResult result) {
         for (RelayRoomAutoSubmissionResult autoSubmission : result.autoSubmissions()) {
             relayRoomEventPublisher.publishPartAutoSubmitted(autoSubmission.roomCode(), autoSubmission.nickname(),
@@ -284,29 +247,7 @@ public class RelayRoomTimeoutService {
                     autoSubmission.assignment().empty()));
         }
 
-        RelayPartAdvanceResult advanceResult = result.advanceResult();
-        if (advanceResult == null || !advanceResult.advanced()) {
-            return;
-        }
-
-        if (advanceResult.allPartsCompleted()) {
-            relayRoomEventPublisher.publishAllPartsCompleted(result.roomCode(), advanceResult.roomState().status(),
-                advanceResult.roomState().updatedAt());
-            RelayRoomEventLogger.websocketBusiness("relay_all_parts_completed", metadata("room_id", result.roomCode(),
-                "participant_count", advanceResult.roomState().participantCount(), "assignment_count",
-                advanceResult.roomState().assignments().size(), "completed_at", advanceResult.roomState().updatedAt()));
-            relayRoomFinalizationAsyncTrigger.trigger(result.roomCode());
-        } else {
-            relayRoomEventPublisher.publishPartStarted(result.roomCode(), result.previousPart(),
-                advanceResult.nextPart(), advanceResult.nextPartStartedAt(), advanceResult.nextPartDeadlineAt());
-            RelayRoomEventLogger.websocketBusiness("relay_part_started",
-                metadata("room_id", result.roomCode(), "part", advanceResult.nextPart(), "previous_part",
-                    result.previousPart(), "participant_count", advanceResult.roomState().participantCount(),
-                    "part_deadline_at", advanceResult.nextPartDeadlineAt()));
-        }
-    }
-
-    private record AutoSubmitUpdate(List<RelayRoomAssignment> updatedAssignments,
-        List<RelayRoomAutoSubmissionResult> autoSubmissions) {
+        relayPartTransitionUseCase.publishTransitionEvents(result.roomCode(), result.previousPart(),
+            result.advanceResult());
     }
 }

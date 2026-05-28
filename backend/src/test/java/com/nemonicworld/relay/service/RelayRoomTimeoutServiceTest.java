@@ -27,8 +27,10 @@ import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.repository.RelayRoomTimeUpNotificationRepository;
 import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
 import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationAsyncTrigger;
+import com.nemonicworld.relay.service.game.RelayPartTransitionUseCase;
 import com.nemonicworld.relay.service.game.RelayRoomPartAdvanceService;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
+import com.nemonicworld.relay.service.timeout.RelayRoomAutoSubmitUseCase;
 import com.nemonicworld.relay.service.timeout.RelayRoomTimeoutResult;
 import com.nemonicworld.relay.service.timeout.RelayRoomTimeoutService;
 import com.nemonicworld.relay.service.timeout.RelayTimeoutProcessResult;
@@ -88,10 +90,11 @@ class RelayRoomTimeoutServiceTest {
             anyString())).willReturn(false);
         given(relayRoomMutationLockRepository.acquireRoomMutationLock(anyString(), anyString(), any(Duration.class)))
             .willReturn(true);
-        relayRoomTimeoutService = new RelayRoomTimeoutService(relayRoomRepository, relaySubmissionLockRepository,
+        relayRoomTimeoutService = new RelayRoomTimeoutService(relayRoomRepository,
             relayRoomTimeUpNotificationRepository, relayRoomMutationLockRepository, new RelayRoomPartAdvanceService(),
-            relayRoomEventPublisher, relayInviteMetadataSyncService, relayRoomFinalizationAsyncTrigger, 100,
-            AUTO_SUBMIT_GRACE_MS, 5000L);
+            new RelayRoomAutoSubmitUseCase(relaySubmissionLockRepository),
+            new RelayPartTransitionUseCase(relayRoomEventPublisher, relayRoomFinalizationAsyncTrigger),
+            relayRoomEventPublisher, relayInviteMetadataSyncService, 100, AUTO_SUBMIT_GRACE_MS, 5000L);
     }
 
     @Test
@@ -405,9 +408,10 @@ class RelayRoomTimeoutServiceTest {
         RelayRoomState roomState = playingRoom(RelayDrawingPart.FACE, NOW.minusSeconds(45), expiredDeadline(),
             List.of(pendingAssignment(0, RelayDrawingPart.FACE, hostUuid)), participant(hostUuid, "Mango", true, 0));
         RelayRoomTimeoutService limitedService = new RelayRoomTimeoutService(relayRoomRepository,
-            relaySubmissionLockRepository, relayRoomTimeUpNotificationRepository, relayRoomMutationLockRepository,
-            new RelayRoomPartAdvanceService(), relayRoomEventPublisher, relayInviteMetadataSyncService,
-            relayRoomFinalizationAsyncTrigger, 5, AUTO_SUBMIT_GRACE_MS, 5000L);
+            relayRoomTimeUpNotificationRepository, relayRoomMutationLockRepository, new RelayRoomPartAdvanceService(),
+            new RelayRoomAutoSubmitUseCase(relaySubmissionLockRepository),
+            new RelayPartTransitionUseCase(relayRoomEventPublisher, relayRoomFinalizationAsyncTrigger),
+            relayRoomEventPublisher, relayInviteMetadataSyncService, 5, AUTO_SUBMIT_GRACE_MS, 5000L);
         given(relayRoomRepository.findExpiredPlayingRooms(any(LocalDateTime.class), eq(5)))
             .willReturn(List.of(roomState));
         given(relayRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));
