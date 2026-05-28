@@ -12,9 +12,11 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
+import com.nemonicworld.flipbook.service.close.FlipbookAbandonedRoomCloseUseCase;
 import com.nemonicworld.flipbook.service.close.FlipbookRoomAbandonedCloseProcessResult;
 import com.nemonicworld.flipbook.service.close.FlipbookRoomAbandonedCloseService;
 import com.nemonicworld.flipbook.service.close.FlipbookRoomCloseCommand;
+import com.nemonicworld.flipbook.service.close.FlipbookRoomCloseEventSupport;
 import com.nemonicworld.flipbook.service.support.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
 import java.time.LocalDateTime;
@@ -48,9 +50,12 @@ class FlipbookRoomAbandonedCloseServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new FlipbookRoomAbandonedCloseService(flipbookRoomRepository,
-            new FlipbookRoomCloseCommand(flipbookRoomRepository, flipbookInviteMetadataSyncService),
-            flipbookRoomEventPublisher, 300, 300, 10);
+        FlipbookRoomCloseCommand closeCommand = new FlipbookRoomCloseCommand(flipbookRoomRepository,
+            flipbookInviteMetadataSyncService);
+        FlipbookRoomCloseEventSupport closeEventSupport = new FlipbookRoomCloseEventSupport(flipbookRoomEventPublisher);
+        FlipbookAbandonedRoomCloseUseCase abandonedRoomCloseUseCase = new FlipbookAbandonedRoomCloseUseCase(
+            flipbookRoomRepository, closeCommand, closeEventSupport, 300, 300, 10);
+        service = new FlipbookRoomAbandonedCloseService(abandonedRoomCloseUseCase);
     }
 
     @Test

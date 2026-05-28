@@ -13,9 +13,11 @@ import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.service.close.RelayAbandonedRoomCloseUseCase;
 import com.nemonicworld.relay.service.close.RelayRoomAbandonedCloseProcessResult;
 import com.nemonicworld.relay.service.close.RelayRoomAbandonedCloseService;
 import com.nemonicworld.relay.service.close.RelayRoomCloseCommand;
+import com.nemonicworld.relay.service.close.RelayRoomCloseEventSupport;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import java.time.LocalDateTime;
@@ -49,9 +51,12 @@ class RelayRoomAbandonedCloseServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new RelayRoomAbandonedCloseService(relayRoomRepository,
-            new RelayRoomCloseCommand(relayRoomRepository, relayInviteMetadataSyncService), relayRoomEventPublisher,
-            300, 300, 10);
+        RelayRoomCloseCommand closeCommand = new RelayRoomCloseCommand(relayRoomRepository,
+            relayInviteMetadataSyncService);
+        RelayRoomCloseEventSupport closeEventSupport = new RelayRoomCloseEventSupport(relayRoomEventPublisher);
+        RelayAbandonedRoomCloseUseCase abandonedRoomCloseUseCase = new RelayAbandonedRoomCloseUseCase(
+            relayRoomRepository, closeCommand, closeEventSupport, 300, 300, 10);
+        service = new RelayRoomAbandonedCloseService(abandonedRoomCloseUseCase);
     }
 
     @Test
