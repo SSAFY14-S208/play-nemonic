@@ -1,11 +1,9 @@
 package com.nemonicworld.relay.service.disconnect;
 
 import com.nemonicworld.common.exception.ConflictException;
-import com.nemonicworld.relay.entity.RelayAssignmentStatus;
 import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.logging.RelayRoomEventLogger;
-import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomMutationLockRepository;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
@@ -22,12 +20,7 @@ import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +41,7 @@ public class RelayRoomDisconnectGraceService {
     private final RelayRoomPartAdvanceService relayRoomPartAdvanceService;
     private final RelayRoomAutoSubmitUseCase relayRoomAutoSubmitUseCase;
     private final RelayPartTransitionUseCase relayPartTransitionUseCase;
+    private final RelayDisconnectGraceParticipantUseCase relayDisconnectGraceParticipantUseCase;
     private final RelayRoomEventPublisher relayRoomEventPublisher;
     private final RelayInviteMetadataSyncService relayInviteMetadataSyncService;
     private final RelayRuntimeSettingsProvider relayRuntimeSettingsProvider;
@@ -57,8 +51,9 @@ public class RelayRoomDisconnectGraceService {
     public RelayRoomDisconnectGraceService(RelayRoomRepository relayRoomRepository,
         RelayRoomMutationLockRepository relayRoomMutationLockRepository,
         RelayRoomPartAdvanceService relayRoomPartAdvanceService, RelayRoomAutoSubmitUseCase relayRoomAutoSubmitUseCase,
-        RelayPartTransitionUseCase relayPartTransitionUseCase, RelayRoomEventPublisher relayRoomEventPublisher,
-        RelayInviteMetadataSyncService relayInviteMetadataSyncService,
+        RelayPartTransitionUseCase relayPartTransitionUseCase,
+        RelayDisconnectGraceParticipantUseCase relayDisconnectGraceParticipantUseCase,
+        RelayRoomEventPublisher relayRoomEventPublisher, RelayInviteMetadataSyncService relayInviteMetadataSyncService,
         RelayRuntimeSettingsProvider relayRuntimeSettingsProvider,
         @Value("${nemonic.relay.room-mutation-lock-ttl-ms:5000}") long roomMutationLockTtlMs,
         @Value("${nemonic.relay.disconnect.scan-limit:100}") int scanLimit) {
@@ -67,6 +62,7 @@ public class RelayRoomDisconnectGraceService {
         this.relayRoomPartAdvanceService = relayRoomPartAdvanceService;
         this.relayRoomAutoSubmitUseCase = relayRoomAutoSubmitUseCase;
         this.relayPartTransitionUseCase = relayPartTransitionUseCase;
+        this.relayDisconnectGraceParticipantUseCase = relayDisconnectGraceParticipantUseCase;
         this.relayRoomEventPublisher = relayRoomEventPublisher;
         this.relayInviteMetadataSyncService = relayInviteMetadataSyncService;
         this.relayRuntimeSettingsProvider = relayRuntimeSettingsProvider;
@@ -106,9 +102,10 @@ public class RelayRoomDisconnectGraceService {
             } catch (RuntimeException e) {
                 RelayRoomEventLogger.apiWarn("relay_disconnect_grace_scheduler_failed",
                     "failed to process relay disconnect grace room",
-                    metadata("room_id", candidateRoom.roomCode(), "uuid",
-                        findDisconnectGraceCandidateUuid(candidateRoom, processedAt, reconnectGrace), "operation",
-                        "disconnect_grace"),
+                    metadata(
+                        "room_id", candidateRoom.roomCode(), "uuid", relayDisconnectGraceParticipantUseCase
+                            .findDisconnectGraceCandidateUuid(candidateRoom, processedAt, reconnectGrace),
+                        "operation", "disconnect_grace"),
                     e);
                 log.warn("릴레이 방 이탈 확정 처리 중 오류가 발생했습니다. roomCode={}", candidateRoom.roomCode(), e);
             }
@@ -160,8 +157,8 @@ public class RelayRoomDisconnectGraceService {
                 return RelayDisconnectGraceRoomResult.noOp(roomCode);
             }
 
-            ParticipantDropUpdate participantDropUpdate = dropExpiredParticipants(roomState, processedAt,
-                reconnectGrace);
+            RelayParticipantDropUpdate participantDropUpdate = relayDisconnectGraceParticipantUseCase
+                .dropExpiredParticipants(roomState, processedAt, reconnectGrace);
             RelayRoomAutoSubmitUpdate autoSubmitUpdate = relayRoomAutoSubmitUseCase
                 .autoSubmitDroppedCurrentAssignments(roomState, participantDropUpdate.participants(), processedAt);
 
@@ -203,119 +200,12 @@ public class RelayRoomDisconnectGraceService {
             return false;
         }
 
-        return hasExpiredDisconnectedParticipant(roomState, now, reconnectGrace)
-            || hasDroppedParticipantPendingCurrentAssignment(roomState)
-            || hasDroppedHostWithConnectedCandidate(roomState);
-    }
-
-    private boolean hasExpiredDisconnectedParticipant(RelayRoomState roomState, LocalDateTime now,
-        Duration reconnectGrace) {
-        return roomState.participants().stream().anyMatch(participant -> shouldDrop(participant, now, reconnectGrace));
-    }
-
-    private boolean hasDroppedParticipantPendingCurrentAssignment(RelayRoomState roomState) {
-        Set<String> droppedUserUuids = droppedUserUuids(roomState.participants());
-        if (droppedUserUuids.isEmpty()) {
-            return false;
-        }
-
-        return roomState.assignments().stream()
-            .anyMatch(assignment -> assignment.part() == roomState.currentPart()
-                && assignment.status() == RelayAssignmentStatus.PENDING
-                && droppedUserUuids.contains(assignment.assignedUserUuid()));
-    }
-
-    private boolean hasDroppedHostWithConnectedCandidate(RelayRoomState roomState) {
-        boolean droppedHostExists = roomState.participants().stream().anyMatch(participant -> participant.dropped()
-            && (participant.host() || participant.userUuid().equals(roomState.hostUserUuid())));
-        if (!droppedHostExists) {
-            return false;
-        }
-
-        return roomState.participants().stream()
-            .anyMatch(participant -> !participant.dropped() && participant.connected());
+        return relayDisconnectGraceParticipantUseCase.needsDisconnectGraceProcessing(roomState, now, reconnectGrace);
     }
 
     private String createRoomMutationLockToken(String roomCode) {
         return "token=%s,requestedAt=%s,owner=disconnect-grace,roomCode=%s".formatted(UUID.randomUUID(),
             LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), roomCode);
-    }
-
-    private ParticipantDropUpdate dropExpiredParticipants(RelayRoomState roomState, LocalDateTime droppedAt,
-        Duration reconnectGrace) {
-        List<RelayRoomParticipant> participants = new ArrayList<>(roomState.participants().size());
-        List<RelayDroppedParticipantResult> droppedParticipants = new ArrayList<>();
-        boolean changed = false;
-
-        for (RelayRoomParticipant participant : roomState.participants()) {
-            if (shouldDrop(participant, droppedAt, reconnectGrace)) {
-                RelayRoomParticipant droppedParticipant = participant.drop(droppedAt);
-                participants.add(droppedParticipant);
-                droppedParticipants.add(new RelayDroppedParticipantResult(roomState.roomCode(), participant.userUuid(),
-                    participant.nickname(), participant.disconnectedAt(), droppedAt));
-                changed = true;
-            } else {
-                participants.add(participant);
-            }
-        }
-
-        HostTransferUpdate hostTransferUpdate = transferHostIfNeeded(roomState, participants, droppedAt);
-        changed = changed || hostTransferUpdate.changed();
-
-        return new ParticipantDropUpdate(hostTransferUpdate.participants(), changed, hostTransferUpdate.hostUserUuid(),
-            droppedParticipants, hostTransferUpdate.hostChange());
-    }
-
-    private boolean shouldDrop(RelayRoomParticipant participant, LocalDateTime now, Duration reconnectGrace) {
-        return !participant.dropped() && !participant.connected() && participant.disconnectedAt() != null
-            && !participant.disconnectedAt().plus(reconnectGrace).isAfter(now);
-    }
-
-    private String findDisconnectGraceCandidateUuid(RelayRoomState roomState, LocalDateTime now,
-        Duration reconnectGrace) {
-        return roomState.participants().stream()
-            .filter(participant -> shouldDrop(participant, now, reconnectGrace) || participant.dropped())
-            .min(Comparator.comparingInt(RelayRoomParticipant::joinOrder)).map(RelayRoomParticipant::userUuid)
-            .orElse(null);
-    }
-
-    private HostTransferUpdate transferHostIfNeeded(RelayRoomState roomState, List<RelayRoomParticipant> participants,
-        LocalDateTime changedAt) {
-        Optional<RelayRoomParticipant> currentHost = participants.stream()
-            .filter(participant -> participant.userUuid().equals(roomState.hostUserUuid()) || participant.host())
-            .min(Comparator.comparingInt(RelayRoomParticipant::joinOrder));
-
-        if (currentHost.isEmpty() || !currentHost.get().dropped()) {
-            return new HostTransferUpdate(participants, roomState.hostUserUuid(), false, null);
-        }
-
-        Optional<RelayRoomParticipant> newHost = participants.stream()
-            .filter(participant -> !participant.dropped() && participant.connected())
-            .min(Comparator.comparingInt(RelayRoomParticipant::joinOrder));
-
-        if (newHost.isEmpty()) {
-            return new HostTransferUpdate(participants, roomState.hostUserUuid(), false, null);
-        }
-
-        RelayRoomParticipant newHostParticipant = newHost.get();
-        List<RelayRoomParticipant> transferredParticipants = participants.stream()
-            .map(participant -> participant.withHost(participant.userUuid().equals(newHostParticipant.userUuid())))
-            .toList();
-        RelayHostChangeResult hostChange = new RelayHostChangeResult(roomState.roomCode(), currentHost.get().userUuid(),
-            newHostParticipant.userUuid(), newHostParticipant.nickname(), changedAt);
-
-        return new HostTransferUpdate(transferredParticipants, newHostParticipant.userUuid(), true, hostChange);
-    }
-
-    private Set<String> droppedUserUuids(List<RelayRoomParticipant> participants) {
-        Set<String> droppedUserUuids = new HashSet<>();
-        for (RelayRoomParticipant participant : participants) {
-            if (participant.dropped()) {
-                droppedUserUuids.add(participant.userUuid());
-            }
-        }
-
-        return droppedUserUuids;
     }
 
     private void publishDisconnectGraceEvents(RelayDisconnectGraceRoomResult result) {
@@ -358,11 +248,4 @@ public class RelayRoomDisconnectGraceService {
             .filter(autoSubmission -> autoSubmission.assignment().assignedUserUuid().equals(userUuid)).count();
     }
 
-    private record ParticipantDropUpdate(List<RelayRoomParticipant> participants, boolean changed, String hostUserUuid,
-        List<RelayDroppedParticipantResult> droppedParticipants, RelayHostChangeResult hostChange) {
-    }
-
-    private record HostTransferUpdate(List<RelayRoomParticipant> participants, String hostUserUuid, boolean changed,
-        RelayHostChangeResult hostChange) {
-    }
 }

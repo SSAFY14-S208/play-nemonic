@@ -23,6 +23,7 @@ import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.repository.FlipbookSubmissionLockRepository;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookDisconnectGraceProcessResult;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookDisconnectGraceRoomResult;
+import com.nemonicworld.flipbook.service.disconnect.FlipbookDisconnectGraceParticipantUseCase;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookHostChangeResult;
 import com.nemonicworld.flipbook.service.disconnect.FlipbookRoomDisconnectGraceService;
 import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationTriggerService;
@@ -84,7 +85,8 @@ class FlipbookRoomDisconnectGraceServiceTest {
             flipbookRoomMutationLockRepository, new FlipbookRoomRoundAdvanceService(),
             new FlipbookFrameAutoSubmitUseCase(flipbookSubmissionLockRepository),
             new FlipbookRoundTransitionUseCase(flipbookRoomEventPublisher, flipbookRoomFinalizationTriggerService),
-            flipbookRoomEventPublisher, flipbookInviteMetadataSyncService, flipbookRuntimeSettingsProvider, 100, 5000L);
+            new FlipbookDisconnectGraceParticipantUseCase(), flipbookRoomEventPublisher,
+            flipbookInviteMetadataSyncService, flipbookRuntimeSettingsProvider, 100, 5000L);
         lenient().when(flipbookRuntimeSettingsProvider.currentReconnectGracePeriod())
             .thenReturn(Duration.ofSeconds(RECONNECT_GRACE_SECONDS));
         lenient().when(flipbookRoomMutationLockRepository.acquireRoomMutationLock(any(), any(), any(Duration.class)))

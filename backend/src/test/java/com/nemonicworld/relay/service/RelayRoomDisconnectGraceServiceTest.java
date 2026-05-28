@@ -26,6 +26,7 @@ import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.repository.RelaySubmissionLockRepository;
 import com.nemonicworld.relay.service.disconnect.RelayDisconnectGraceProcessResult;
 import com.nemonicworld.relay.service.disconnect.RelayDisconnectGraceRoomResult;
+import com.nemonicworld.relay.service.disconnect.RelayDisconnectGraceParticipantUseCase;
 import com.nemonicworld.relay.service.disconnect.RelayHostChangeResult;
 import com.nemonicworld.relay.service.disconnect.RelayRoomDisconnectGraceService;
 import com.nemonicworld.relay.service.finalization.RelayRoomFinalizationAsyncTrigger;
@@ -96,7 +97,8 @@ class RelayRoomDisconnectGraceServiceTest {
             relayRoomMutationLockRepository, new RelayRoomPartAdvanceService(),
             new RelayRoomAutoSubmitUseCase(relaySubmissionLockRepository),
             new RelayPartTransitionUseCase(relayRoomEventPublisher, relayRoomFinalizationAsyncTrigger),
-            relayRoomEventPublisher, relayInviteMetadataSyncService, relayRuntimeSettingsProvider, 5000, 100);
+            new RelayDisconnectGraceParticipantUseCase(), relayRoomEventPublisher, relayInviteMetadataSyncService,
+            relayRuntimeSettingsProvider, 5000, 100);
     }
 
     @Test
