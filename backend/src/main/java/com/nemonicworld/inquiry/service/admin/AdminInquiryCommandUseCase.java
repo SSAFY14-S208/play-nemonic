@@ -45,7 +45,6 @@ public class AdminInquiryCommandUseCase {
         this.adminAuditLogger = adminAuditLogger;
     }
 
-    @Transactional
     public CsInquiryReplyResponse replyInquiry(AdminPrincipal adminPrincipal, String inquiryIdValue,
         CsInquiryReplyRequest request, AdminClientInfo clientInfo) {
         AdminAuthorization.requireOperator(adminPrincipal);

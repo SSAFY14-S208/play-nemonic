@@ -6,7 +6,6 @@ import com.nemonicworld.fortune.dto.request.FortuneCreateRequest;
 import com.nemonicworld.fortune.dto.response.FortuneResponse;
 import com.nemonicworld.fortune.logging.FortuneEventLogger;
 import com.nemonicworld.fortune.repository.FortuneCreateCommand;
-import com.nemonicworld.fortune.repository.FortuneRepository;
 import com.nemonicworld.fortune.repository.FortuneTodayRow;
 import com.nemonicworld.fortune.service.FortuneGenerationService;
 import com.nemonicworld.fortune.service.FortunePromptTemplateProvider;
@@ -25,7 +24,6 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class FortuneCreateUseCase {
@@ -34,7 +32,7 @@ public class FortuneCreateUseCase {
     private static final String PNG_CONTENT_TYPE = "image/png";
     private static final String FORTUNE_ALREADY_CREATED_MESSAGE = "오늘의 운세는 이미 생성했습니다. 내일 다시 이용해주세요.";
 
-    private final FortuneRepository fortuneRepository;
+    private final FortuneTransactionSupport transactionSupport;
     private final AnonymousUserResolver anonymousUserResolver;
     private final FortunePromptTemplateProvider fortunePromptTemplateProvider;
     private final FortuneGenerationService fortuneGenerationService;
@@ -42,11 +40,11 @@ public class FortuneCreateUseCase {
     private final FortuneCardStorage fortuneCardStorage;
     private final FortuneDescriptionSupport fortuneDescriptionSupport;
 
-    public FortuneCreateUseCase(FortuneRepository fortuneRepository, AnonymousUserResolver anonymousUserResolver,
-        FortunePromptTemplateProvider fortunePromptTemplateProvider, FortuneGenerationService fortuneGenerationService,
-        FortuneCardRenderer fortuneCardRenderer, FortuneCardStorage fortuneCardStorage,
-        FortuneDescriptionSupport fortuneDescriptionSupport) {
-        this.fortuneRepository = fortuneRepository;
+    public FortuneCreateUseCase(FortuneTransactionSupport transactionSupport,
+        AnonymousUserResolver anonymousUserResolver, FortunePromptTemplateProvider fortunePromptTemplateProvider,
+        FortuneGenerationService fortuneGenerationService, FortuneCardRenderer fortuneCardRenderer,
+        FortuneCardStorage fortuneCardStorage, FortuneDescriptionSupport fortuneDescriptionSupport) {
+        this.transactionSupport = transactionSupport;
         this.anonymousUserResolver = anonymousUserResolver;
         this.fortunePromptTemplateProvider = fortunePromptTemplateProvider;
         this.fortuneGenerationService = fortuneGenerationService;
@@ -55,7 +53,6 @@ public class FortuneCreateUseCase {
         this.fortuneDescriptionSupport = fortuneDescriptionSupport;
     }
 
-    @Transactional
     public FortuneResponse createFortune(String userUuidValue, FortuneCreateRequest request) {
         AppUser user = anonymousUserResolver.resolve(userUuidValue);
         LocalDate today = LocalDate.now(KST_ZONE);
@@ -63,7 +60,7 @@ public class FortuneCreateUseCase {
         FortuneEventLogger.apiBusiness("fortune_create_requested", user.getId(),
             FortuneEventLogger.metadata("fortune_date", today, "result", "requested"));
 
-        Optional<FortuneTodayRow> todayFortune = fortuneRepository.findTodayFortune(user.getId(), today);
+        Optional<FortuneTodayRow> todayFortune = transactionSupport.findTodayFortune(user.getId(), today);
         if (todayFortune.isPresent()) {
             logDailyLimitBlocked(user.getId(), todayFortune.get());
             throw new ConflictException(FORTUNE_ALREADY_CREATED_MESSAGE);
@@ -103,7 +100,7 @@ public class FortuneCreateUseCase {
         FortuneCreateCommand command = new FortuneCreateCommand(fortuneId, galleryId, user.getId(), today, description,
             imageObjectKey, artifactMeta, now);
         try {
-            fortuneRepository.saveFortune(command);
+            transactionSupport.saveFortune(command);
         } catch (DataIntegrityViolationException e) {
             throw new ConflictException(FORTUNE_ALREADY_CREATED_MESSAGE);
         }
