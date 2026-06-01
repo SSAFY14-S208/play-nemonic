@@ -1,6 +1,6 @@
 # Codex Current State
 
-Last updated: 2026-06-01
+Last updated: 2026-06-02
 
 ## Current Focus
 
@@ -10,9 +10,14 @@ Last updated: 2026-06-01
   `backend/docs/performance/k6-실행-가이드.md`, and each troubleshooting doc embeds
   its own k6 result summary instead of relying on a separate aggregate k6 file.
 - Performance docs are now organized from `트러블 슈팅 1` through
-  `트러블 슈팅 6` in `backend/docs/performance/README.md`.
+  `트러블 슈팅 7` in `backend/docs/performance/README.md`.
   Each optimization doc embeds Korean and English SVG graphs directly instead
   of listing graph paths only.
+- Community memo query indexes from Flyway V12 are now documented as
+  `트러블 슈팅 7`. The docs cover public wall ordering, admin memo filters,
+  memo report history filters, synthetic before/after benchmark graphs, and
+  k6 scripts for public/admin list endpoints in
+  `backend/docs/performance/07-커뮤니티-메모-조회-인덱스-최적화/README.md`.
 - Relay and flipbook backoffice active-room listing now uses Redis Sorted Set
   status indexes instead of scanning every `relay:room:*` or `flipbook:room:*`
   key for each request. The first lookup lazily backfills indexes for existing

@@ -50,13 +50,22 @@ backend/docs/performance/
 │   ├── graphs/
 │   └── k6/
 │       └── README.md
-└── 06-릴레이-플립북-활성-방-인덱스-최적화/
+├── 06-릴레이-플립북-활성-방-인덱스-최적화/
+│   ├── README.md
+│   ├── captures/
+│   ├── graphs/
+│   └── k6/
+│       ├── 06-1-릴레이-활성-방-목록-k6.js
+│       ├── 06-2-플립북-활성-방-목록-k6.js
+│       └── results/
+└── 07-커뮤니티-메모-조회-인덱스-최적화/
     ├── README.md
+    ├── benchmark/
     ├── captures/
     ├── graphs/
     └── k6/
-        ├── 06-1-릴레이-활성-방-목록-k6.js
-        ├── 06-2-플립북-활성-방-목록-k6.js
+        ├── 07-1-커뮤니티-메모-공개-목록-k6.js
+        ├── 07-2-관리자-커뮤니티-메모-목록-k6.js
         └── results/
 ```
 
@@ -71,6 +80,7 @@ backend/docs/performance/
 | 트러블 슈팅 4 | Redis Sorted Set 인덱스와 참여자 delta payload로 SCAN, 큰 JSON 전송 제거 | `04-무한캔버스-조회-payload-최적화/README.md` | `04-무한캔버스-조회-payload-최적화/graphs/` | `04-무한캔버스-조회-payload-최적화/k6/` |
 | 트러블 슈팅 5 | 리스트 반복 탐색을 Map 기반 batch 적용으로 변경 | `05-무한캔버스-요소-적용-최적화/README.md` | `05-무한캔버스-요소-적용-최적화/graphs/` | 직접 k6 없음, `05-무한캔버스-요소-적용-최적화/k6/README.md` 참고 |
 | 트러블 슈팅 6 | 릴레이/플립북 활성 방 목록과 Prometheus gauge를 Redis Sorted Set 인덱스 기반으로 변경 | `06-릴레이-플립북-활성-방-인덱스-최적화/README.md` | `06-릴레이-플립북-활성-방-인덱스-최적화/graphs/` | `06-릴레이-플립북-활성-방-인덱스-최적화/k6/` |
+| 트러블 슈팅 7 | 커뮤니티 메모 관리자 목록과 신고 내역 조회를 PostgreSQL partial/composite index 기준으로 시각화 | `07-커뮤니티-메모-조회-인덱스-최적화/README.md` | `07-커뮤니티-메모-조회-인덱스-최적화/graphs/` | `07-커뮤니티-메모-조회-인덱스-최적화/k6/` |
 
 ## k6 결과 파일
 
@@ -82,12 +92,14 @@ backend/docs/performance/
 | 트러블 슈팅 4 무한캔버스 활성 방 목록 | `04-무한캔버스-조회-payload-최적화/k6/04-무한캔버스-활성-방-목록-k6.js` | `04-무한캔버스-조회-payload-최적화/k6/results/04-무한캔버스-활성-방-목록-k6-결과.md` | `04-무한캔버스-조회-payload-최적화/k6/results/04-infinite-canvas-dashboard.html` | `04-무한캔버스-조회-payload-최적화/captures/` |
 | 트러블 슈팅 6 릴레이 활성 방 목록 | `06-릴레이-플립북-활성-방-인덱스-최적화/k6/06-1-릴레이-활성-방-목록-k6.js` | `06-릴레이-플립북-활성-방-인덱스-최적화/k6/results/06-1-릴레이-활성-방-목록-k6-결과.md` | `06-릴레이-플립북-활성-방-인덱스-최적화/k6/results/06-1-relay-active-room-dashboard.html` | `06-릴레이-플립북-활성-방-인덱스-최적화/captures/` |
 | 트러블 슈팅 6 플립북 활성 방 목록 | `06-릴레이-플립북-활성-방-인덱스-최적화/k6/06-2-플립북-활성-방-목록-k6.js` | `06-릴레이-플립북-활성-방-인덱스-최적화/k6/results/06-2-플립북-활성-방-목록-k6-결과.md` | `06-릴레이-플립북-활성-방-인덱스-최적화/k6/results/06-2-flipbook-active-room-dashboard.html` | `06-릴레이-플립북-활성-방-인덱스-최적화/captures/` |
+| 트러블 슈팅 7 커뮤니티 메모 공개 목록 | `07-커뮤니티-메모-조회-인덱스-최적화/k6/07-1-커뮤니티-메모-공개-목록-k6.js` | `07-커뮤니티-메모-조회-인덱스-최적화/k6/results/07-1-커뮤니티-메모-공개-목록-k6-결과.md` | `07-커뮤니티-메모-조회-인덱스-최적화/k6/results/07-1-community-memo-public-dashboard.html` | `07-커뮤니티-메모-조회-인덱스-최적화/captures/` |
+| 트러블 슈팅 7 관리자 커뮤니티 메모 목록 | `07-커뮤니티-메모-조회-인덱스-최적화/k6/07-2-관리자-커뮤니티-메모-목록-k6.js` | `07-커뮤니티-메모-조회-인덱스-최적화/k6/results/07-2-관리자-커뮤니티-메모-목록-k6-결과.md` | `07-커뮤니티-메모-조회-인덱스-최적화/k6/results/07-2-admin-community-memo-dashboard.html` | `07-커뮤니티-메모-조회-인덱스-최적화/captures/` |
 
 ## 캡처 파일
 
 | 구분 | 캡처 구성 |
 | --- | --- |
-| 트러블 슈팅 1~4 | `k6-dashboard-overview.png`, `k6-dashboard-duration.png`, `k6-terminal-summary.png` |
+| 트러블 슈팅 1~4, 6~7 | `k6-dashboard-overview.png`, `k6-dashboard-duration.png`, `k6-terminal-summary.png` |
 | 트러블 슈팅 5 | `benchmark-terminal-summary.png` |
 
 ## 그래프 경로
@@ -108,6 +120,9 @@ backend/docs/performance/
 | 트러블 슈팅 6 활성 방 p95 | `06-릴레이-플립북-활성-방-인덱스-최적화/graphs/relay-flipbook-active-room-p95-ko.svg` | `06-릴레이-플립북-활성-방-인덱스-최적화/graphs/relay-flipbook-active-room-p95.svg` |
 | 트러블 슈팅 6 JSON 역직렬화 | `06-릴레이-플립북-활성-방-인덱스-최적화/graphs/relay-flipbook-deserialize-count-ko.svg` | `06-릴레이-플립북-활성-방-인덱스-최적화/graphs/relay-flipbook-deserialize-count.svg` |
 | 트러블 슈팅 6 gauge 수집 비용 | `06-릴레이-플립북-활성-방-인덱스-최적화/graphs/relay-flipbook-metrics-count-cost-ko.svg` | `06-릴레이-플립북-활성-방-인덱스-최적화/graphs/relay-flipbook-metrics-count-cost.svg` |
+| 트러블 슈팅 7 관리자 목록 p95 | `07-커뮤니티-메모-조회-인덱스-최적화/graphs/community-memo-admin-list-p95-ko.svg` | `07-커뮤니티-메모-조회-인덱스-최적화/graphs/community-memo-admin-list-p95.svg` |
+| 트러블 슈팅 7 신고 내역 p95 | `07-커뮤니티-메모-조회-인덱스-최적화/graphs/community-memo-report-list-p95-ko.svg` | `07-커뮤니티-메모-조회-인덱스-최적화/graphs/community-memo-report-list-p95.svg` |
+| 트러블 슈팅 7 후보 row 수 | `07-커뮤니티-메모-조회-인덱스-최적화/graphs/community-memo-admin-rows-touched-ko.svg` | `07-커뮤니티-메모-조회-인덱스-최적화/graphs/community-memo-admin-rows-touched.svg` |
 
 ## 실행 가이드
 
