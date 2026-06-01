@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react'
 import Image from 'next/image'
-import { Loader2 } from 'lucide-react'
 
 import { HowToPlayModal, PhoneLauncherButton } from '@/shared/components'
 import type { FlipbookResultItemResponse } from '@/shared/types'
@@ -15,6 +14,7 @@ import { useFlipbookResultActions, useFlipbookResultAutoCycle } from './hooks'
 import { MobileResultSelector } from './sections/MobileResultSelector'
 import { PrintedArtwork } from './sections/PrintedArtwork'
 import { ResultActionButtons, type ResultActionButton } from './sections/ResultActionButtons'
+import { ResultActionMessage, ResultLoadingOverlay } from './sections/ResultStatusOverlay'
 
 const FLIPBOOK_RESULT_CONTROL_IMAGES = {
   howToPlay: '/images/flipbook-entrance-scene/how-to-play-button.png',
@@ -140,25 +140,11 @@ export default function FlipbookResultView({
         )}
       />
 
-      {isResultLoading && (
-        <div className="absolute left-1/2 top-1/2 z-[120] grid -translate-x-1/2 -translate-y-1/2 justify-items-center gap-3 rounded-[8px] border border-white/70 bg-white/82 px-8 py-6 text-center shadow-[0_18px_40px_rgb(120_80_80_/_16%)] backdrop-blur-md">
-          <Loader2 className="size-7 animate-spin text-[#e56883]" aria-hidden />
-          <div>
-            <p className="body-b text-[#332222]">결과를 불러오는 중이에요</p>
-            <p className="caption-m mt-1 text-[#c07182]">
-              완성된 작품 {resultCount}개를 정리하고 있어요
-            </p>
-          </div>
-        </div>
-      )}
+      {isResultLoading && <ResultLoadingOverlay resultCount={resultCount} />}
 
       <ResultActionButtons actionButtons={resultActionButtons} />
 
-      {(errorMessage || resultActions.actionMessage) && (
-        <p className="caption-b absolute bottom-[calc(7.75rem+env(safe-area-inset-bottom))] left-4 right-4 z-[120] rounded-full bg-white/86 px-5 py-3 text-center text-[#b84e66] shadow-[0_8px_18px_rgb(120_80_80_/_14%)] backdrop-blur-md sm:bottom-6 sm:left-1/2 sm:right-auto sm:-translate-x-1/2">
-          {errorMessage ?? resultActions.actionMessage}
-        </p>
-      )}
+      <ResultActionMessage message={errorMessage ?? resultActions.actionMessage} />
 
       <MobileResultSelector
         participants={printParticipants}
