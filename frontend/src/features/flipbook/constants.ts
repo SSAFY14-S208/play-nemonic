@@ -3,13 +3,6 @@ import type { DrawingBoardSize } from '@/shared/types'
 
 import type { FlipbookStep } from './types'
 
-export const FLIPBOOK_STEPS: { key: FlipbookStep; label: string }[] = [
-  { key: 'booth', label: '부스' },
-  { key: 'lobby', label: '대기실' },
-  { key: 'drawing', label: '드로잉' },
-  { key: 'result', label: '결과' },
-]
-
 export const FLIPBOOK_STEP_PATHS = {
   booth: '/flipbook',
   lobby: '/flipbook/lobby',
@@ -38,8 +31,6 @@ export function getFlipbookStepFromPathname(pathname: string): FlipbookStep {
   return 'booth'
 }
 
-export const FLIPBOOK_ROOM_CODE = 'ABC123'
-export const FLIPBOOK_TOPIC = '동물원에 간 우주비행사'
 export const FLIPBOOK_BACKGROUND_COLOR = '#ffffff'
 
 export const FLIPBOOK_SOUND_PATHS = {

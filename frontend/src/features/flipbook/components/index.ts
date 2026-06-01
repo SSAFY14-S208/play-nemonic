@@ -1,6 +1,3 @@
-﻿export { default as FlipbookPaperBackground } from './FlipbookPaperBackground'
-export { default as FlipbookStepTabs } from './FlipbookStepTabs'
-export { default as FlipbookBoothView } from './FlipbookBoothView'
 export { default as FlipbookNicknameModal } from './FlipbookNicknameModal'
 export { default as FlipbookDrawingView } from './FlipbookDrawingView'
 export { default as FlipbookEntranceView } from './FlipbookEntranceView'

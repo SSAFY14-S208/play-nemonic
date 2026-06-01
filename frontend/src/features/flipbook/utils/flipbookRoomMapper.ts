@@ -8,6 +8,14 @@ import type {
 import { getDisplayImageUrl } from '@/shared/utils'
 import type { FlipbookParticipant, FlipbookTimeLimitSeconds } from '../types'
 
+const LOCAL_PARTICIPANT_FALLBACK: FlipbookParticipant = {
+  id: 'local-flipbook-user',
+  userUuid: 'local-flipbook-user',
+  name: '나',
+  avatar: '🙂',
+  isHost: true,
+}
+
 export function isFlipbookTimeLimitSeconds(
   seconds: number,
 ): seconds is FlipbookTimeLimitSeconds {
@@ -68,6 +76,21 @@ export function toFlipbookParticipant(
     avatar: participant.host ? '👑' : '🙂',
     isHost: participant.host,
     isConnected: participant.connected,
+  }
+}
+
+export function createLocalFlipbookParticipant({
+  nickname,
+  userUuid,
+}: {
+  nickname: string | null
+  userUuid: string | null
+}): FlipbookParticipant {
+  return {
+    ...LOCAL_PARTICIPANT_FALLBACK,
+    userUuid: userUuid ?? LOCAL_PARTICIPANT_FALLBACK.userUuid,
+    name: nickname ? `${nickname} (나)` : LOCAL_PARTICIPANT_FALLBACK.name,
+    isHost: true,
   }
 }
 
