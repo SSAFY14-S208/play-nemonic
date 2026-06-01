@@ -28,7 +28,7 @@ import type {
 } from '@/shared/types'
 import { FLIPBOOK_BOARD_SIZE, FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '../../constants'
 import type { FlipbookDrawingSubmissionState, FlipbookParticipant } from '../../types'
-import { useFlipbookEntranceBgm } from '../../hooks'
+import { useFlipbookBgm } from '../../hooks'
 import { useResponsiveElementScale } from './hooks'
 
 const FlipbookStage = dynamic(() => import('../../FlipbookStage'), {
@@ -116,7 +116,7 @@ export default function FlipbookDrawingView({
   onCompleteRound,
 }: FlipbookDrawingViewProps) {
   const [isHowToPlayModalOpen, setIsHowToPlayModalOpen] = useState(false)
-  const { audioRef, isBgmMuted, toggleFlipbookEntranceBgmMuted } = useFlipbookEntranceBgm({
+  const { audioRef, isBgmMuted, toggleFlipbookBgmMuted } = useFlipbookBgm({
     shouldStart: true,
   })
   const [submittedRoundIndex, setSubmittedRoundIndex] = useState<number | null>(null)
@@ -254,7 +254,7 @@ export default function FlipbookDrawingView({
             imageSrc={isBgmMuted ? FLIPBOOK_DRAWING_IMAGES.soundMuted : FLIPBOOK_DRAWING_IMAGES.soundOn}
             label={isBgmMuted ? '배경음악 켜기' : '배경음악 음소거'}
             pressed={isBgmMuted}
-            onClick={toggleFlipbookEntranceBgmMuted}
+            onClick={toggleFlipbookBgmMuted}
           />
           <PhoneLauncherButton className="size-14" />
         </div>
@@ -481,7 +481,7 @@ export default function FlipbookDrawingView({
           imageSrc={isBgmMuted ? FLIPBOOK_DRAWING_IMAGES.soundMuted : FLIPBOOK_DRAWING_IMAGES.soundOn}
           label={isBgmMuted ? '배경음악 켜기' : '배경음악 음소거'}
           pressed={isBgmMuted}
-          onClick={toggleFlipbookEntranceBgmMuted}
+          onClick={toggleFlipbookBgmMuted}
         />
         <PhoneLauncherButton />
       </div>

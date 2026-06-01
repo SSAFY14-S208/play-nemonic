@@ -9,7 +9,7 @@ import type { FlipbookResultItemResponse } from '@/shared/types'
 import { getDisplayImageUrl } from '@/shared/utils'
 
 import { FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '../../constants'
-import { useFlipbookEntranceBgm } from '../../hooks'
+import { useFlipbookBgm } from '../../hooks'
 import { toFlipbookPrintParticipants } from '../../utils'
 import { FlipbookPrintResultStage, type FlipbookPrintFrame, type FlipbookPrintParticipant } from '../../components/result-print'
 import { useFlipbookResultActions, useFlipbookResultAutoCycle } from './hooks'
@@ -50,7 +50,7 @@ export default function FlipbookResultView({
 }: FlipbookResultViewProps) {
   const [isHowToPlayModalOpen, setIsHowToPlayModalOpen] = useState(false)
   const [revealedResultIndex, setRevealedResultIndex] = useState<number | null>(null)
-  const { audioRef, isBgmMuted, toggleFlipbookEntranceBgmMuted } = useFlipbookEntranceBgm({
+  const { audioRef, isBgmMuted, toggleFlipbookBgmMuted } = useFlipbookBgm({
     shouldStart: true,
   })
   const printParticipants = useMemo(
@@ -125,7 +125,7 @@ export default function FlipbookResultView({
           imageSrc={isBgmMuted ? FLIPBOOK_RESULT_CONTROL_IMAGES.soundMuted : FLIPBOOK_RESULT_CONTROL_IMAGES.soundOn}
           label={isBgmMuted ? '배경음악 켜기' : '배경음악 음소거'}
           pressed={isBgmMuted}
-          onClick={toggleFlipbookEntranceBgmMuted}
+          onClick={toggleFlipbookBgmMuted}
         />
         <PhoneLauncherButton className="size-14 sm:size-[clamp(54px,4.6vw,70px)]" />
       </div>

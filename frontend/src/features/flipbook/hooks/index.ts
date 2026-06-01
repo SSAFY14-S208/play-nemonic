@@ -1,5 +1,5 @@
 export { useFlipbook } from './useFlipbook'
-export { useFlipbookEntranceBgm } from './useFlipbookEntranceBgm'
+export { useFlipbookBgm } from './useFlipbookBgm'
 export { useFlipbookNickname } from './useFlipbookNickname'
 export { useFlipbookPrintReveal } from './useFlipbookPrintReveal'
 export { useFlipbookRealtimeConnection } from './useFlipbookRealtimeConnection'

@@ -7,7 +7,7 @@ import { GameLobbyLayout, HowToPlayModal, PhoneLauncherButton, type GameLobbyThe
 import type { FlipbookConnectionStatus } from '@/shared/types'
 
 import { FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '../../constants'
-import { useFlipbookEntranceBgm } from '../../hooks'
+import { useFlipbookBgm } from '../../hooks'
 import type { FlipbookParticipant, FlipbookTimeLimitSeconds } from '../../types'
 
 const FLIPBOOK_TITLE_IMAGE = '/images/flipbook-entrance-scene/title-logo-sprite.png'
@@ -73,7 +73,7 @@ export default function FlipbookLobbyView({
   onKickParticipant,
 }: FlipbookLobbyViewProps) {
   const [isHowToPlayModalOpen, setIsHowToPlayModalOpen] = useState(true)
-  const { audioRef, isBgmMuted, toggleFlipbookEntranceBgmMuted } = useFlipbookEntranceBgm({
+  const { audioRef, isBgmMuted, toggleFlipbookBgmMuted } = useFlipbookBgm({
     shouldStart: true,
   })
   const lobbyParticipants: LobbyParticipant[] = useMemo(
@@ -113,7 +113,7 @@ export default function FlipbookLobbyView({
         imageHeight={70}
         label={isBgmMuted ? '배경음악 켜기' : '배경음악 음소거'}
         pressed={isBgmMuted}
-        onClick={toggleFlipbookEntranceBgmMuted}
+        onClick={toggleFlipbookBgmMuted}
       />
       <PhoneLauncherButton className="size-9 sm:size-10" />
     </>

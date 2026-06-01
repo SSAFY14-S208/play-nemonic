@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-const FLIPBOOK_ENTRANCE_BGM_VOLUME = 0.18
+const FLIPBOOK_BGM_VOLUME = 0.18
 const LEGACY_FLIPBOOK_ENTRANCE_BGM_WINDOW_KEY = '__flipbookEntranceBgmAudio'
 
 type LegacyFlipbookEntranceAudioWindow = Window & {
   [LEGACY_FLIPBOOK_ENTRANCE_BGM_WINDOW_KEY]?: HTMLAudioElement | null
 }
 
-function resetEntranceAudio(audio: HTMLAudioElement) {
+function resetFlipbookBgmAudio(audio: HTMLAudioElement) {
   audio.pause()
   audio.currentTime = 0
   audio.load()
@@ -29,7 +29,7 @@ function stopLegacyEntranceAudio() {
   audioWindow[LEGACY_FLIPBOOK_ENTRANCE_BGM_WINDOW_KEY] = null
 }
 
-export function useFlipbookEntranceBgm({
+export function useFlipbookBgm({
   shouldStart,
 }: {
   shouldStart: boolean
@@ -39,7 +39,7 @@ export function useFlipbookEntranceBgm({
   const hasAttemptedInitialPlaybackRef = useRef(false)
   const isBgmMutedRef = useRef(false)
 
-  const tryPlayEntranceBgm = useCallback(
+  const tryPlayFlipbookBgm = useCallback(
     ({
       restart,
     }: {
@@ -52,7 +52,7 @@ export function useFlipbookEntranceBgm({
       }
 
       currentAudio.muted = false
-      currentAudio.volume = FLIPBOOK_ENTRANCE_BGM_VOLUME
+      currentAudio.volume = FLIPBOOK_BGM_VOLUME
 
       if (restart) {
         currentAudio.currentTime = 0
@@ -63,7 +63,7 @@ export function useFlipbookEntranceBgm({
     [],
   )
 
-  const toggleFlipbookEntranceBgmMuted = useCallback(() => {
+  const toggleFlipbookBgmMuted = useCallback(() => {
     const nextIsBgmMuted = !isBgmMutedRef.current
     const currentAudio = audioRef.current
 
@@ -81,8 +81,8 @@ export function useFlipbookEntranceBgm({
       return
     }
 
-    tryPlayEntranceBgm({ restart: false })
-  }, [tryPlayEntranceBgm])
+    tryPlayFlipbookBgm({ restart: false })
+  }, [tryPlayFlipbookBgm])
 
   useEffect(() => {
     const currentAudio = audioRef.current
@@ -95,8 +95,8 @@ export function useFlipbookEntranceBgm({
     currentAudio.loop = true
     currentAudio.muted = isBgmMutedRef.current
     currentAudio.preload = 'auto'
-    currentAudio.volume = FLIPBOOK_ENTRANCE_BGM_VOLUME
-    resetEntranceAudio(currentAudio)
+    currentAudio.volume = FLIPBOOK_BGM_VOLUME
+    resetFlipbookBgmAudio(currentAudio)
 
     const handleVisibilityChange = () => {
       const visibleAudio = audioRef.current
@@ -114,7 +114,7 @@ export function useFlipbookEntranceBgm({
     }
 
     const handlePageExit = () => {
-      resetEntranceAudio(currentAudio)
+      resetFlipbookBgmAudio(currentAudio)
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -125,7 +125,7 @@ export function useFlipbookEntranceBgm({
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('pagehide', handlePageExit)
       window.removeEventListener('beforeunload', handlePageExit)
-      resetEntranceAudio(currentAudio)
+      resetFlipbookBgmAudio(currentAudio)
       hasAttemptedInitialPlaybackRef.current = false
     }
   }, [])
@@ -136,10 +136,10 @@ export function useFlipbookEntranceBgm({
     }
 
     hasAttemptedInitialPlaybackRef.current = true
-    tryPlayEntranceBgm({ restart: true })
+    tryPlayFlipbookBgm({ restart: true })
 
     const retryInitialPlayback = () => {
-      tryPlayEntranceBgm({ restart: false })
+      tryPlayFlipbookBgm({ restart: false })
     }
 
     window.addEventListener('pointerdown', retryInitialPlayback)
@@ -151,11 +151,11 @@ export function useFlipbookEntranceBgm({
       window.removeEventListener('keydown', retryInitialPlayback)
       window.removeEventListener('touchstart', retryInitialPlayback)
     }
-  }, [shouldStart, tryPlayEntranceBgm])
+  }, [shouldStart, tryPlayFlipbookBgm])
 
   return {
     audioRef,
     isBgmMuted,
-    toggleFlipbookEntranceBgmMuted,
+    toggleFlipbookBgmMuted,
   }
 }

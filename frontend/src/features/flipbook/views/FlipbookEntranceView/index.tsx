@@ -8,7 +8,7 @@ import Lottie from 'lottie-react'
 import { downArrowAnimation } from '@/shared/assets'
 import { HowToPlayModal, PhoneLauncherButton } from '@/shared/components'
 import { FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '../../constants'
-import { useFlipbookEntranceBgm } from '../../hooks'
+import { useFlipbookBgm } from '../../hooks'
 import {
   useFlipbookEntranceIntro,
   useFlipbookEntrancePreload,
@@ -118,7 +118,7 @@ export default function FlipbookEntranceView({
   const [isRoomCodeModalOpen, setIsRoomCodeModalOpen] = useState(false)
   const [isHowToPlayModalOpen, setIsHowToPlayModalOpen] = useState(false)
   const { isActionVisible, isIntroComplete, wasIntroSkipped } = useFlipbookEntranceIntro()
-  const { audioRef, isBgmMuted, toggleFlipbookEntranceBgmMuted } = useFlipbookEntranceBgm({
+  const { audioRef, isBgmMuted, toggleFlipbookBgmMuted } = useFlipbookBgm({
     shouldStart: isEntranceMounted && isIntroComplete,
   })
   const shouldInstantCompleteIntro = isIntroComplete && wasIntroSkipped
@@ -199,7 +199,7 @@ export default function FlipbookEntranceView({
           onCreateRoom={onCreateRoom}
           onOpenRoomCodeModal={() => setIsRoomCodeModalOpen(true)}
           onOpenHowToPlay={() => setIsHowToPlayModalOpen(true)}
-          onToggleBgmMuted={toggleFlipbookEntranceBgmMuted}
+          onToggleBgmMuted={toggleFlipbookBgmMuted}
         />
       )}
 
@@ -230,7 +230,7 @@ export default function FlipbookEntranceView({
           <FlipbookEntranceTopControls
             isBgmMuted={isBgmMuted}
             onOpenHowToPlay={() => setIsHowToPlayModalOpen(true)}
-            onToggleBgmMuted={toggleFlipbookEntranceBgmMuted}
+            onToggleBgmMuted={toggleFlipbookBgmMuted}
           />
         </div>
       )}
