@@ -7,22 +7,22 @@ Last updated: 2026-06-01
 - k6 load-test scripts now cover the recent gallery query, infinite canvas
   active-room lookup, fortune external I/O transaction-boundary, and admin
   inquiry SMTP transaction-boundary optimizations. The execution guide is in
-  `backend/docs/performance/k6-load-testing-ko.md`, and the 2026-06-01 local
+  `backend/docs/performance/06-k6-부하-테스트-실행-가이드.md`, and the 2026-06-01 local
   controlled run results are summarized in
-  `backend/docs/performance/k6-load-test-results-ko.md`.
+  `backend/docs/performance/05-k6-부하-테스트-결과.md`.
 - Performance docs are now organized from `트러블 슈팅 1` through
-  `트러블 슈팅 5` in `backend/docs/performance/performance-optimization-index-ko.md`.
+  `트러블 슈팅 5` in `backend/docs/performance/README.md`.
   Each optimization doc embeds Korean and English SVG graphs directly instead
   of listing graph paths only.
 - Gallery list query now reduces unnecessary subtype joins. Count uses only
   `gallery + artifact`, and list lookup first selects page items before joining
   subtype artifact tables. Performance evidence is documented in
-  `backend/docs/performance/gallery-query-optimization-ko.md`.
+  `backend/docs/performance/02-갤러리-목록-조회-쿼리-최적화.md`.
 - Fortune create/today requery and admin inquiry reply no longer keep external
   I/O inside a method-wide transaction. `FortuneTransactionSupport` now wraps
   short DB read/write sections, while GMS, card upload, and SMTP send execute
   outside the transaction boundary. Performance evidence is documented in
-  `backend/docs/performance/transaction-external-io-optimization-ko.md`.
+  `backend/docs/performance/01-외부-io-트랜잭션-분리.md`.
 - Infinite canvas performance visualizations were revalidated against the
   current code shape on 2026-06-01. The docs now reference
   `InfiniteCanvasEditingUseCase` and `InfiniteCanvasOperationApplier` for

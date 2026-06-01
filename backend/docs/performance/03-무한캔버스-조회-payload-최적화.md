@@ -22,6 +22,40 @@
 
 <br>
 
+## 자료 위치
+
+| 구분 | 경로 |
+| --- | --- |
+| 최적화 문서 | `backend/docs/performance/03-무한캔버스-조회-payload-최적화.md` |
+| Redis 활성 방 조회 코드 | `backend/src/main/java/com/nemonicworld/infinitecanvas/repository/RedisInfiniteCanvasRepository.java` |
+| WebSocket 이벤트 발행 코드 | `backend/src/main/java/com/nemonicworld/infinitecanvas/websocket/InfiniteCanvasEventPublisher.java` |
+| synthetic benchmark | `backend/scripts/benchmark-infinite-canvas-performance.py` |
+| k6 스크립트 | `backend/scripts/k6/infinite-canvas-active-room-load.js` |
+| k6 결과 파일 | `backend/docs/performance/k6-results/infinite-canvas-active-room-load.md` |
+| k6 결과 요약 | `backend/docs/performance/05-k6-부하-테스트-결과.md` |
+| 그래프 assets | `backend/docs/performance/assets/infinite-canvas-active-room-p95-ko.svg`, `backend/docs/performance/assets/infinite-canvas-websocket-payload-ko.svg` |
+
+## 사용한 k6
+
+k6는 이 트러블 슈팅 중 `백오피스 활성 방 목록 조회` HTTP 경로를 측정하는 데 사용했습니다. WebSocket 참여자 이벤트 payload 크기와 JSON parse 비용은 k6가 아니라 synthetic benchmark로 분리 측정했습니다.
+
+| 측정 대상 | k6 스크립트 | endpoint tag | 결과 파일 |
+| --- | --- | --- | --- |
+| 무한캔버스 활성 방 목록 | `backend/scripts/k6/infinite-canvas-active-room-load.js` | `infinite_canvas_active_rooms` | `backend/docs/performance/k6-results/infinite-canvas-active-room-load.md` |
+
+실행 예시:
+
+```bash
+k6 run \
+  -e BASE_URL=http://localhost:8080/api/v1 \
+  -e ADMIN_TOKEN=<관리자-access-token> \
+  -e VUS=20 \
+  -e DURATION=1m \
+  backend/scripts/k6/infinite-canvas-active-room-load.js
+```
+
+<br>
+
 ## 측정 조건
 
 측정은 `backend/scripts/benchmark-infinite-canvas-performance.py`로 수행했습니다.

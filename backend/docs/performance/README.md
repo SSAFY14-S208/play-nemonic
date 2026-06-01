@@ -4,26 +4,51 @@
 
 문서는 모두 `backend/docs/performance` 아래에 있고, 그래프는 `backend/docs/performance/assets` 아래에 있습니다. 각 상세 문서에는 그래프가 이미지로 바로 렌더링되도록 한글 버전과 영문 버전을 함께 첨부했습니다.
 
+## 폴더 구조
+
+```text
+backend/docs/performance/
+├── README.md
+├── 01-외부-io-트랜잭션-분리.md
+├── 02-갤러리-목록-조회-쿼리-최적화.md
+├── 03-무한캔버스-조회-payload-최적화.md
+├── 04-무한캔버스-요소-적용-최적화.md
+├── 05-k6-부하-테스트-결과.md
+├── 06-k6-부하-테스트-실행-가이드.md
+├── assets/
+└── k6-results/
+```
+
 ## 한눈에 보기
 
 | 구분 | 최적화 요약 | 상세 문서 | 대표 코드 / 스크립트 |
 | --- | --- | --- | --- |
-| 트러블 슈팅 1 | GMS, MinIO, SMTP를 긴 트랜잭션 밖으로 이동해 HikariCP 커넥션 점유 시간 축소 | `backend/docs/performance/transaction-external-io-optimization-ko.md` | `FortuneTransactionSupport`, `AdminInquiryCommandUseCase`, `backend/scripts/benchmark-transaction-io-performance.py` |
-| 트러블 슈팅 2 | count 쿼리의 subtype JOIN 제거, page row만 subtype JOIN | `backend/docs/performance/gallery-query-optimization-ko.md` | `GalleryRepository`, `backend/scripts/benchmark-gallery-query-performance.py` |
-| 트러블 슈팅 3 | Redis Sorted Set 인덱스와 참여자 delta payload로 SCAN, 큰 JSON 전송 제거 | `backend/docs/performance/infinite-canvas-performance-optimization.md` | `RedisInfiniteCanvasRepository`, `InfiniteCanvasEventPublisher`, `backend/scripts/benchmark-infinite-canvas-performance.py` |
-| 트러블 슈팅 4 | 리스트 반복 탐색을 Map 기반 batch 적용으로 변경 | `backend/docs/performance/infinite-canvas-operation-batch-apply-ko.md` | `InfiniteCanvasOperationApplier`, `backend/scripts/benchmark-infinite-canvas-performance.py` |
-| 트러블 슈팅 5 | 실제 HTTP 경로에서 p95, p99, RPS, 실패율 측정 | `backend/docs/performance/k6-load-test-results-ko.md`, `backend/docs/performance/k6-load-testing-ko.md` | `backend/scripts/k6/*.js`, `backend/docs/performance/k6-results/*.json` |
+| 트러블 슈팅 1 | GMS, MinIO, SMTP를 긴 트랜잭션 밖으로 이동해 HikariCP 커넥션 점유 시간 축소 | `backend/docs/performance/01-외부-io-트랜잭션-분리.md` | `FortuneTransactionSupport`, `AdminInquiryCommandUseCase`, `backend/scripts/benchmark-transaction-io-performance.py` |
+| 트러블 슈팅 2 | count 쿼리의 subtype JOIN 제거, page row만 subtype JOIN | `backend/docs/performance/02-갤러리-목록-조회-쿼리-최적화.md` | `GalleryRepository`, `backend/scripts/benchmark-gallery-query-performance.py` |
+| 트러블 슈팅 3 | Redis Sorted Set 인덱스와 참여자 delta payload로 SCAN, 큰 JSON 전송 제거 | `backend/docs/performance/03-무한캔버스-조회-payload-최적화.md` | `RedisInfiniteCanvasRepository`, `InfiniteCanvasEventPublisher`, `backend/scripts/benchmark-infinite-canvas-performance.py` |
+| 트러블 슈팅 4 | 리스트 반복 탐색을 Map 기반 batch 적용으로 변경 | `backend/docs/performance/04-무한캔버스-요소-적용-최적화.md` | `InfiniteCanvasOperationApplier`, `backend/scripts/benchmark-infinite-canvas-performance.py` |
+| 트러블 슈팅 5 | 실제 HTTP 경로에서 p95, p99, RPS, 실패율 측정 | `backend/docs/performance/05-k6-부하-테스트-결과.md`, `backend/docs/performance/06-k6-부하-테스트-실행-가이드.md` | `backend/scripts/k6/*.js`, `backend/docs/performance/k6-results/*.json` |
 
 ## 문서 경로
 
 | 문서 제목 | 파일 경로 |
 | --- | --- |
-| 트러블 슈팅 1. 외부 I/O 트랜잭션 분리 성능 최적화 Before / After | `backend/docs/performance/transaction-external-io-optimization-ko.md` |
-| 트러블 슈팅 2. 갤러리 목록 조회 쿼리 최적화 Before / After | `backend/docs/performance/gallery-query-optimization-ko.md` |
-| 트러블 슈팅 3. 무한 캔버스 조회 / Payload 성능 최적화 Before / After | `backend/docs/performance/infinite-canvas-performance-optimization.md` |
-| 트러블 슈팅 4. 무한 캔버스 요소 적용 로직 최적화 Before / After | `backend/docs/performance/infinite-canvas-operation-batch-apply-ko.md` |
-| 트러블 슈팅 5. k6 부하 테스트 실행 결과 | `backend/docs/performance/k6-load-test-results-ko.md` |
-| k6 부하 테스트 가이드 | `backend/docs/performance/k6-load-testing-ko.md` |
+| 트러블 슈팅 1. 외부 I/O 트랜잭션 분리 성능 최적화 Before / After | `backend/docs/performance/01-외부-io-트랜잭션-분리.md` |
+| 트러블 슈팅 2. 갤러리 목록 조회 쿼리 최적화 Before / After | `backend/docs/performance/02-갤러리-목록-조회-쿼리-최적화.md` |
+| 트러블 슈팅 3. 무한 캔버스 조회 / Payload 성능 최적화 Before / After | `backend/docs/performance/03-무한캔버스-조회-payload-최적화.md` |
+| 트러블 슈팅 4. 무한 캔버스 요소 적용 로직 최적화 Before / After | `backend/docs/performance/04-무한캔버스-요소-적용-최적화.md` |
+| 트러블 슈팅 5. k6 부하 테스트 실행 결과 | `backend/docs/performance/05-k6-부하-테스트-결과.md` |
+| k6 부하 테스트 가이드 | `backend/docs/performance/06-k6-부하-테스트-실행-가이드.md` |
+
+## 트러블 슈팅별 k6
+
+| 트러블 슈팅 | 사용한 k6 | 결과 |
+| --- | --- | --- |
+| 트러블 슈팅 1 | `backend/scripts/k6/fortune-create-load.js`, `backend/scripts/k6/admin-inquiry-reply-load.js` | 운세 생성, 문의 답변의 실제 HTTP p95/RPS 확인 |
+| 트러블 슈팅 2 | `backend/scripts/k6/gallery-list-load.js` | 갤러리 목록 조회 API p95/RPS 확인 |
+| 트러블 슈팅 3 | `backend/scripts/k6/infinite-canvas-active-room-load.js` | 백오피스 활성 방 목록 API p95/RPS 확인 |
+| 트러블 슈팅 4 | 직접 k6 없음 | WebSocket 내부 `applyOperations()` 로직이라 synthetic benchmark로 분리 측정 |
+| 트러블 슈팅 5 | 전체 k6 결과 취합 | `backend/docs/performance/05-k6-부하-테스트-결과.md`에 요약 |
 
 ## 그래프 경로
 
