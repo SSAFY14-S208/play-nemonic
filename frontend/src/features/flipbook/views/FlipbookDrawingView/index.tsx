@@ -26,11 +26,11 @@ import type {
   DrawingToolKey,
   FlipbookConnectionStatus,
 } from '@/shared/types'
-import { FLIPBOOK_BOARD_SIZE, FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '..'
-import type { FlipbookDrawingSubmissionState, FlipbookParticipant } from '../types'
-import { useFlipbookEntranceBgm, useResponsiveElementScale } from '../hooks'
+import { FLIPBOOK_BOARD_SIZE, FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '../../constants'
+import type { FlipbookDrawingSubmissionState, FlipbookParticipant } from '../../types'
+import { useFlipbookEntranceBgm, useResponsiveElementScale } from '../../hooks'
 
-const FlipbookStage = dynamic(() => import('../FlipbookStage'), {
+const FlipbookStage = dynamic(() => import('../../FlipbookStage'), {
   ssr: false,
 })
 

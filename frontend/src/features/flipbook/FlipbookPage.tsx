@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 
 import { usePhoneLauncherStore } from '@/shared/stores'
-import { FlipbookDrawingView, FlipbookEntranceView, FlipbookLobbyView, FlipbookNicknameModal, FlipbookResultView } from './components'
+import { FlipbookNicknameModal } from './components'
+import { FlipbookDrawingView, FlipbookEntranceView, FlipbookLobbyView, FlipbookResultView } from './views'
 import { useFlipbook, useFlipbookResultAutoCycle } from './hooks'
 import {
   getFlipbookStepFromPathname,
