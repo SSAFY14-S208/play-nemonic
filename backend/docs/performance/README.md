@@ -18,30 +18,35 @@ backend/docs/performance/
 │   └── graphs/
 ├── 01-운세-생성-외부-io-트랜잭션-분리/
 │   ├── README.md
+│   ├── captures/
 │   ├── graphs/
 │   └── k6/
 │       ├── 01-운세-생성-k6.js
 │       └── results/
 ├── 02-문의-답변-메일-io-트랜잭션-분리/
 │   ├── README.md
+│   ├── captures/
 │   ├── graphs/
 │   └── k6/
 │       ├── 02-문의-답변-k6.js
 │       └── results/
 ├── 03-갤러리-목록-조회-쿼리-최적화/
 │   ├── README.md
+│   ├── captures/
 │   ├── graphs/
 │   └── k6/
 │       ├── 03-갤러리-목록-조회-k6.js
 │       └── results/
 ├── 04-무한캔버스-조회-payload-최적화/
 │   ├── README.md
+│   ├── captures/
 │   ├── graphs/
 │   └── k6/
 │       ├── 04-무한캔버스-활성-방-목록-k6.js
 │       └── results/
 └── 05-무한캔버스-요소-적용-최적화/
     ├── README.md
+    ├── captures/
     ├── graphs/
     └── k6/
         └── README.md
@@ -60,12 +65,19 @@ backend/docs/performance/
 
 ## k6 결과 파일
 
-| 구분 | 실행 파일 | 결과 파일 |
-| --- | --- | --- |
-| 트러블 슈팅 1 운세 생성 | `01-운세-생성-외부-io-트랜잭션-분리/k6/01-운세-생성-k6.js` | `01-운세-생성-외부-io-트랜잭션-분리/k6/results/01-운세-생성-k6-결과.md` |
-| 트러블 슈팅 2 문의 답변 | `02-문의-답변-메일-io-트랜잭션-분리/k6/02-문의-답변-k6.js` | `02-문의-답변-메일-io-트랜잭션-분리/k6/results/02-문의-답변-k6-결과.md` |
-| 트러블 슈팅 3 갤러리 목록 조회 | `03-갤러리-목록-조회-쿼리-최적화/k6/03-갤러리-목록-조회-k6.js` | `03-갤러리-목록-조회-쿼리-최적화/k6/results/03-갤러리-목록-조회-k6-결과.md` |
-| 트러블 슈팅 4 무한캔버스 활성 방 목록 | `04-무한캔버스-조회-payload-최적화/k6/04-무한캔버스-활성-방-목록-k6.js` | `04-무한캔버스-조회-payload-최적화/k6/results/04-무한캔버스-활성-방-목록-k6-결과.md` |
+| 구분 | 실행 파일 | 결과 Markdown | Web Dashboard HTML | 캡처 |
+| --- | --- | --- | --- | --- |
+| 트러블 슈팅 1 운세 생성 | `01-운세-생성-외부-io-트랜잭션-분리/k6/01-운세-생성-k6.js` | `01-운세-생성-외부-io-트랜잭션-분리/k6/results/01-운세-생성-k6-결과.md` | `01-운세-생성-외부-io-트랜잭션-분리/k6/results/01-fortune-create-dashboard.html` | `01-운세-생성-외부-io-트랜잭션-분리/captures/` |
+| 트러블 슈팅 2 문의 답변 | `02-문의-답변-메일-io-트랜잭션-분리/k6/02-문의-답변-k6.js` | `02-문의-답변-메일-io-트랜잭션-분리/k6/results/02-문의-답변-k6-결과.md` | `02-문의-답변-메일-io-트랜잭션-분리/k6/results/02-admin-inquiry-reply-dashboard.html` | `02-문의-답변-메일-io-트랜잭션-분리/captures/` |
+| 트러블 슈팅 3 갤러리 목록 조회 | `03-갤러리-목록-조회-쿼리-최적화/k6/03-갤러리-목록-조회-k6.js` | `03-갤러리-목록-조회-쿼리-최적화/k6/results/03-갤러리-목록-조회-k6-결과.md` | `03-갤러리-목록-조회-쿼리-최적화/k6/results/03-gallery-list-dashboard.html` | `03-갤러리-목록-조회-쿼리-최적화/captures/` |
+| 트러블 슈팅 4 무한캔버스 활성 방 목록 | `04-무한캔버스-조회-payload-최적화/k6/04-무한캔버스-활성-방-목록-k6.js` | `04-무한캔버스-조회-payload-최적화/k6/results/04-무한캔버스-활성-방-목록-k6-결과.md` | `04-무한캔버스-조회-payload-최적화/k6/results/04-infinite-canvas-dashboard.html` | `04-무한캔버스-조회-payload-최적화/captures/` |
+
+## 캡처 파일
+
+| 구분 | 캡처 구성 |
+| --- | --- |
+| 트러블 슈팅 1~4 | `k6-dashboard-overview.png`, `k6-dashboard-duration.png`, `k6-terminal-summary.png` |
+| 트러블 슈팅 5 | `benchmark-terminal-summary.png` |
 
 ## 그래프 경로
 

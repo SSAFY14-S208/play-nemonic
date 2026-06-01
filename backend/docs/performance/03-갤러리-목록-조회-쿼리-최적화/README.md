@@ -28,7 +28,21 @@
 | synthetic benchmark | `backend/scripts/benchmark-gallery-query-performance.py` |
 | k6 스크립트 | `backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/k6/03-갤러리-목록-조회-k6.js` |
 | k6 결과 파일 | `backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/k6/results/03-갤러리-목록-조회-k6-결과.md` |
+| k6 Web Dashboard HTML | `backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/k6/results/03-gallery-list-dashboard.html` |
+| k6 캡처 | `backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/captures/` |
 | 그래프 assets | `backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/graphs/gallery-query-count-p95-ko.svg`, `backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/graphs/gallery-query-list-p95-ko.svg`, `backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/graphs/gallery-query-subtype-lookup-ko.svg` |
+
+## 산출물 검증
+
+| 산출물 | 파일 | 확인 내용 |
+| --- | --- | --- |
+| k6 실행 파일 | `./k6/03-갤러리-목록-조회-k6.js` | `gallery_list` endpoint tag, `USER_UUID` 기반 갤러리 목록 조회 |
+| k6 결과 Markdown | `./k6/results/03-갤러리-목록-조회-k6-결과.md` | 요청 수, RPS, p50/p95/p99, 실패율, 상세 터미널 지표 |
+| k6 결과 JSON | `./k6/results/03-갤러리-목록-조회-k6-결과.json` | 같은 실행의 원본 summary data |
+| Web Dashboard HTML | `./k6/results/03-gallery-list-dashboard.html` | k6 내장 dashboard export 결과 |
+| Dashboard 캡처 | `./captures/k6-dashboard-overview.png` | 상단 지표 카드와 HTTP Performance overview |
+| Duration 캡처 | `./captures/k6-dashboard-duration.png` | avg/p90/p95/p99 latency 흐름 |
+| 터미널 캡처 | `./captures/k6-terminal-summary.png` | `failed=0.00%`, `checks=100.00%`, 상세 k6 지표 |
 
 ## 사용한 k6
 
@@ -44,17 +58,25 @@
 | --- | --- |
 | 대상 API | `GET /api/v1/gallery?page=0&size=20` |
 | Seed | 단일 사용자 active gallery row 10,000개 |
-| VU | 20 |
-| Duration | 30s |
+| VU | 5 |
+| Duration | 20s |
 | Ramp up / down | 5s / 5s |
 
 ### k6 결과
 
 | 요청 수 | RPS | p50 | p95 | p99 | 실패율 |
 | ---: | ---: | ---: | ---: | ---: | ---: |
-| 701 | 17.20 | 11.22ms | 16.10ms | 22.94ms | 0.00% |
+| 128 | 4.21 | 10.47ms | 15.85ms | 29.71ms | 0.00% |
 
-이 k6 결과는 쿼리 shape 최적화 이후 실제 HTTP 목록 조회 경로가 VU 20 조건에서 p95 20ms 전후로 안정적으로 처리된다는 것을 확인한 값입니다. SQL 구조 자체의 before/after 비교는 아래 synthetic benchmark 표와 그래프를 기준으로 봅니다.
+이 k6 결과는 쿼리 shape 최적화 이후 실제 HTTP 목록 조회 경로가 VU 5 조건에서 p95 20ms 전후로 안정적으로 처리된다는 것을 확인한 값입니다. SQL 구조 자체의 before/after 비교는 아래 synthetic benchmark 표와 그래프를 기준으로 봅니다.
+
+### k6 실측 캡처
+
+<img src="./captures/k6-dashboard-overview.png" width="720" alt="갤러리 목록 조회 k6 Web Dashboard overview">
+
+<img src="./captures/k6-dashboard-duration.png" width="720" alt="갤러리 목록 조회 HTTP Request Duration">
+
+<img src="./captures/k6-terminal-summary.png" width="720" alt="갤러리 목록 조회 k6 터미널 상세 결과">
 
 실행 예시:
 
@@ -63,9 +85,9 @@ k6 run \
   -e BASE_URL=http://localhost:8080/api/v1 \
   -e USER_UUID=<익명-사용자-UUID> \
   -e RAMP_UP=5s \
-  -e DURATION=30s \
+  -e DURATION=20s \
   -e RAMP_DOWN=5s \
-  -e VUS=20 \
+  -e VUS=5 \
   backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/k6/03-갤러리-목록-조회-k6.js
 ```
 

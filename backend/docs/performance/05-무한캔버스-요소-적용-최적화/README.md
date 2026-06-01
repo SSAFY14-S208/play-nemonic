@@ -20,7 +20,18 @@
 | operation 적용 코드 | `backend/src/main/java/com/nemonicworld/infinitecanvas/service/canvas/InfiniteCanvasOperationApplier.java` |
 | synthetic benchmark | `backend/scripts/benchmark-infinite-canvas-performance.py` |
 | 관련 k6 가이드 | `backend/docs/performance/k6-실행-가이드.md` |
+| benchmark 캡처 | `backend/docs/performance/05-무한캔버스-요소-적용-최적화/captures/benchmark-terminal-summary.png` |
 | 그래프 assets | `backend/docs/performance/05-무한캔버스-요소-적용-최적화/graphs/infinite-canvas-operation-apply-p95-ko.svg`, `backend/docs/performance/05-무한캔버스-요소-적용-최적화/graphs/infinite-canvas-operation-lookup-steps-ko.svg` |
+
+## 산출물 검증
+
+| 산출물 | 파일 | 확인 내용 |
+| --- | --- | --- |
+| benchmark 스크립트 | `backend/scripts/benchmark-infinite-canvas-performance.py` | `operation-apply` 시나리오로 순수 요소 적용 로직 측정 |
+| benchmark 캡처 | `./captures/benchmark-terminal-summary.png` | `operation-apply` 결과의 before/after p95와 improvement ratio |
+| 한국어 그래프 | `./graphs/infinite-canvas-operation-apply-p95-ko.svg`, `./graphs/infinite-canvas-operation-lookup-steps-ko.svg` | README 표와 같은 operation apply 결과 시각화 |
+| English Graphs | `./graphs/infinite-canvas-operation-apply-p95.svg`, `./graphs/infinite-canvas-operation-lookup-steps.svg` | 같은 결과의 영문 그래프 |
+| k6 README | `./k6/README.md` | 직접 k6를 제외한 이유와 향후 WebSocket k6 방향 |
 
 ## 사용한 k6
 
@@ -47,9 +58,9 @@
 
 | 요소 수 | operation 수 | Before p95 | After p95 | 개선 |
 | ---: | ---: | ---: | ---: | ---: |
-| 1,000 | 10 | 0.37ms | 0.39ms | 0.94x |
-| 3,000 | 50 | 5.28ms | 1.22ms | 4.33x |
-| 5,000 | 100 | 17.27ms | 2.00ms | 8.65x |
+| 1,000 | 10 | 0.40ms | 0.34ms | 1.16x |
+| 3,000 | 50 | 7.90ms | 1.38ms | 5.73x |
+| 5,000 | 100 | 17.86ms | 2.15ms | 8.32x |
 
 이 트러블 슈팅까지 억지로 HTTP k6 수치로 묶으면 병목 원인을 잘못 설명할 수 있습니다. 그래서 개별 파일 안에 k6 제외 사유와 대체 측정 방식을 명확히 남겼습니다.
 
@@ -153,9 +164,13 @@ python3 backend/scripts/benchmark-infinite-canvas-performance.py --iterations 20
 
 | 요소 수 | operation 수 | Before avg ms | Before p95 ms | After avg ms | After p95 ms | p95 개선 배율 | Before 예상 탐색 | After 예상 탐색 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1,000 | 10 | 0.34 | 0.37 | 0.33 | 0.39 | 0.94x | 10,000 | 1,010 |
-| 3,000 | 50 | 4.54 | 5.28 | 1.14 | 1.22 | 4.33x | 150,000 | 3,050 |
-| 5,000 | 100 | 16.00 | 17.27 | 1.90 | 2.00 | 8.65x | 500,000 | 5,100 |
+| 1,000 | 10 | 0.35 | 0.40 | 0.33 | 0.34 | 1.16x | 10,000 | 1,010 |
+| 3,000 | 50 | 5.52 | 7.90 | 1.21 | 1.38 | 5.73x | 150,000 | 3,050 |
+| 5,000 | 100 | 16.35 | 17.86 | 1.94 | 2.15 | 8.32x | 500,000 | 5,100 |
+
+### benchmark 실측 캡처
+
+<img src="./captures/benchmark-terminal-summary.png" width="720" alt="무한캔버스 요소 적용 benchmark 터미널 결과">
 
 ### 한국어 그래프
 
@@ -173,12 +188,12 @@ python3 backend/scripts/benchmark-infinite-canvas-performance.py --iterations 20
 
 ## 결과 해석
 
-작은 캔버스에서는 Map index를 구성하는 고정 비용이 있어 개선폭이 거의 없거나 p95 기준으로 약간 불리할 수 있습니다. `1000 elements + 10 operations` 케이스에서는 p95가 `0.37ms -> 0.39ms`로 측정되어, 사용자가 체감할 정도의 이점은 없습니다.
+작은 캔버스에서는 Map index를 구성하는 고정 비용이 있어 개선폭이 작습니다. `1000 elements + 10 operations` 케이스에서는 p95가 `0.40ms -> 0.34ms`로 측정되어, 사용자가 체감할 정도의 차이는 아닙니다.
 
 하지만 요소 수와 operation 수가 커질수록 결과가 뚜렷해집니다.
 
-- `3000 elements + 50 operations`: p95 `5.28ms -> 1.22ms`, 약 `4.33x` 개선
-- `5000 elements + 100 operations`: p95 `17.27ms -> 2.00ms`, 약 `8.65x` 개선
+- `3000 elements + 50 operations`: p95 `7.90ms -> 1.38ms`, 약 `5.73x` 개선
+- `5000 elements + 100 operations`: p95 `17.86ms -> 2.15ms`, 약 `8.32x` 개선
 
 즉 이번 최적화는 작은 캔버스를 빠르게 만드는 목적보다는, 큰 캔버스에서 여러 변경이 한 번에 들어올 때 서버 처리 지연이 커지는 것을 막는 목적에 가깝습니다.
 

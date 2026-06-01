@@ -29,7 +29,21 @@
 | synthetic benchmark | `backend/scripts/benchmark-transaction-io-performance.py` |
 | k6 스크립트 | `backend/docs/performance/01-운세-생성-외부-io-트랜잭션-분리/k6/01-운세-생성-k6.js` |
 | k6 결과 파일 | `backend/docs/performance/01-운세-생성-외부-io-트랜잭션-분리/k6/results/01-운세-생성-k6-결과.md` |
+| k6 Web Dashboard HTML | `backend/docs/performance/01-운세-생성-외부-io-트랜잭션-분리/k6/results/01-fortune-create-dashboard.html` |
+| k6 캡처 | `backend/docs/performance/01-운세-생성-외부-io-트랜잭션-분리/captures/` |
 | 그래프 assets | `backend/docs/performance/01-운세-생성-외부-io-트랜잭션-분리/graphs/` |
+
+## 산출물 검증
+
+| 산출물 | 파일 | 확인 내용 |
+| --- | --- | --- |
+| k6 실행 파일 | `./k6/01-운세-생성-k6.js` | `fortune_create` endpoint tag, p95 threshold `10,000ms`, 상세 summary 출력 설정 |
+| k6 결과 Markdown | `./k6/results/01-운세-생성-k6-결과.md` | 요청 수, RPS, p50/p95/p99, 실패율, 상세 터미널 지표 |
+| k6 결과 JSON | `./k6/results/01-운세-생성-k6-결과.json` | 같은 실행의 원본 summary data |
+| Web Dashboard HTML | `./k6/results/01-fortune-create-dashboard.html` | k6 내장 dashboard export 결과 |
+| Dashboard 캡처 | `./captures/k6-dashboard-overview.png` | 상단 지표 카드와 HTTP Performance overview |
+| Duration 캡처 | `./captures/k6-dashboard-duration.png` | avg/p90/p95/p99 latency 흐름 |
+| 터미널 캡처 | `./captures/k6-terminal-summary.png` | `failed=0.00%`, `checks=100.00%`, 상세 k6 지표 |
 
 ## 사용한 k6
 
@@ -51,9 +65,17 @@ k6는 트랜잭션 커넥션 점유 before/after를 직접 측정하는 도구�
 
 | 측정 대상 | 요청 수 | RPS | p50 | p95 | p99 | 실패율 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 운세 생성 | 14 | 0.40 | 4,560.41ms | 7,784.40ms | 9,695.70ms | 0.00% |
+| 운세 생성 | 14 | 0.43 | 4,535.45ms | 5,740.94ms | 5,986.76ms | 0.00% |
 
 현재 로컬 운세 생성 k6는 GMS와 카드 생성 경로까지 타기 때문에 HTTP latency 자체는 큽니다. 이 문서의 before/after 핵심 수치는 아래 HikariCP 커넥션 점유 모델입니다.
+
+### k6 실측 캡처
+
+<img src="./captures/k6-dashboard-overview.png" width="720" alt="운세 생성 k6 Web Dashboard overview">
+
+<img src="./captures/k6-dashboard-duration.png" width="720" alt="운세 생성 HTTP Request Duration">
+
+<img src="./captures/k6-terminal-summary.png" width="720" alt="운세 생성 k6 터미널 상세 결과">
 
 ```bash
 k6 run \

@@ -32,7 +32,21 @@
 | synthetic benchmark | `backend/scripts/benchmark-infinite-canvas-performance.py` |
 | k6 스크립트 | `backend/docs/performance/04-무한캔버스-조회-payload-최적화/k6/04-무한캔버스-활성-방-목록-k6.js` |
 | k6 결과 파일 | `backend/docs/performance/04-무한캔버스-조회-payload-최적화/k6/results/04-무한캔버스-활성-방-목록-k6-결과.md` |
+| k6 Web Dashboard HTML | `backend/docs/performance/04-무한캔버스-조회-payload-최적화/k6/results/04-infinite-canvas-dashboard.html` |
+| k6 캡처 | `backend/docs/performance/04-무한캔버스-조회-payload-최적화/captures/` |
 | 그래프 assets | `backend/docs/performance/04-무한캔버스-조회-payload-최적화/graphs/infinite-canvas-active-room-p95-ko.svg`, `backend/docs/performance/04-무한캔버스-조회-payload-최적화/graphs/infinite-canvas-websocket-payload-ko.svg` |
+
+## 산출물 검증
+
+| 산출물 | 파일 | 확인 내용 |
+| --- | --- | --- |
+| k6 실행 파일 | `./k6/04-무한캔버스-활성-방-목록-k6.js` | `infinite_canvas_active_rooms` endpoint tag, `ADMIN_TOKEN` 기반 백오피스 목록 조회 |
+| k6 결과 Markdown | `./k6/results/04-무한캔버스-활성-방-목록-k6-결과.md` | 요청 수, RPS, p50/p95/p99, 실패율, 상세 터미널 지표 |
+| k6 결과 JSON | `./k6/results/04-무한캔버스-활성-방-목록-k6-결과.json` | 같은 실행의 원본 summary data |
+| Web Dashboard HTML | `./k6/results/04-infinite-canvas-dashboard.html` | k6 내장 dashboard export 결과 |
+| Dashboard 캡처 | `./captures/k6-dashboard-overview.png` | 상단 지표 카드와 HTTP Performance overview |
+| Duration 캡처 | `./captures/k6-dashboard-duration.png` | avg/p90/p95/p99 latency 흐름 |
+| 터미널 캡처 | `./captures/k6-terminal-summary.png` | `failed=0.00%`, `checks=100.00%`, 상세 k6 지표 |
 
 ## 사용한 k6
 
@@ -48,7 +62,7 @@ k6는 이 트러블 슈팅 중 `백오피스 활성 방 목록 조회` HTTP 경�
 | --- | --- |
 | 대상 API | `GET /api/v1/backoffice/infinite-canvas/canvases?status=ACTIVE&page=0&size=20` |
 | Seed | active canvas 200개 |
-| VU | 20 |
+| VU | 10 |
 | Duration | 30s |
 | Ramp up / down | 5s / 5s |
 | 인증 | `ADMIN_TOKEN` 필요 |
@@ -57,9 +71,17 @@ k6는 이 트러블 슈팅 중 `백오피스 활성 방 목록 조회` HTTP 경�
 
 | 요청 수 | RPS | p50 | p95 | p99 | 실패율 |
 | ---: | ---: | ---: | ---: | ---: | ---: |
-| 355 | 8.75 | 10.70ms | 16.93ms | 27.49ms | 0.00% |
+| 355 | 8.76 | 11.71ms | 17.04ms | 28.24ms | 0.00% |
 
 이 k6 결과는 Redis Sorted Set 기반 활성 방 조회가 실제 HTTP 경로에서도 안정적으로 처리되는지 확인한 값입니다. WebSocket 참여자 payload 크기와 JSON parse before/after는 HTTP 요청이 아니라 메시지 body 비용이므로 아래 synthetic benchmark 결과로 분리해 설명합니다.
+
+### k6 실측 캡처
+
+<img src="./captures/k6-dashboard-overview.png" width="720" alt="무한캔버스 활성 방 목록 k6 Web Dashboard overview">
+
+<img src="./captures/k6-dashboard-duration.png" width="720" alt="무한캔버스 활성 방 목록 HTTP Request Duration">
+
+<img src="./captures/k6-terminal-summary.png" width="720" alt="무한캔버스 활성 방 목록 k6 터미널 상세 결과">
 
 실행 예시:
 
@@ -70,7 +92,7 @@ k6 run \
   -e RAMP_UP=5s \
   -e DURATION=30s \
   -e RAMP_DOWN=5s \
-  -e VUS=20 \
+  -e VUS=10 \
   backend/docs/performance/04-무한캔버스-조회-payload-최적화/k6/04-무한캔버스-활성-방-목록-k6.js
 ```
 
