@@ -146,7 +146,8 @@ class GalleryControllerIntegrationTest extends AbstractIntegrationTest {
 
         mockMvc.perform(get("/api/v1/gallery").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(1)))
-            .andExpect(jsonPath("$.data.items[0].contentUrl").value(publicUrl("fallback-thumb")));
+            .andExpect(jsonPath("$.data.items[0].contentUrl").value(publicUrl("fallback-thumb")))
+            .andExpect(jsonPath("$.data.totalElements").value(1)).andExpect(jsonPath("$.data.hasNext").value(false));
     }
 
     /**
