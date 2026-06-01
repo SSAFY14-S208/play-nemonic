@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { HTTPError } from 'ky'
 import {
-  deleteFlipbookRoomParticipantMe, getFlipbookRoom, getFlipbookRoomAssignmentMe, getFlipbookRoomResult, postFileConfirm, postFilePresign, postFlipbookRoom, postFlipbookRoomClose, postFlipbookRoomKick, postFlipbookRoomRoundFrame, postFlipbookRoomStart, postInvite, patchFlipbookRoomSettings, putFileToPresignedUrl, } from '@/shared/apis'
+  deleteFlipbookRoomParticipantMe, getFlipbookRoom, getFlipbookRoomAssignmentMe, getFlipbookRoomResult, postFlipbookRoom, postFlipbookRoomClose, postFlipbookRoomKick, postFlipbookRoomRoundFrame, postFlipbookRoomStart, postInvite, patchFlipbookRoomSettings, } from '@/shared/apis'
 import { DRAWING_COLORS, DEFAULT_DRAWING_STROKE_WIDTH } from '@/shared/constants'
 import { useDrawingBoard, useFunnelEntry } from '@/shared/hooks'
 import { completeFunnelStep, logEvent } from '@/shared/libs'
@@ -15,10 +15,12 @@ import type {
   FlipbookStep,
   FlipbookTimeLimitSeconds,
 } from '../types'
-import { BLOCKED_REASON_MESSAGE, clearSubmittedDrawingLinesStorage, createCanvasBlobFromLines, FLIPBOOK_FILE_CONTENT_TYPE, FLIPBOOK_FILE_PURPOSE, createFlipbookDummyResultItems, createLocalFlipbookParticipant, createPreviousFrameLinesFromAssignment, createRoomStateFromCreateResponse, getActiveFlipbookRoomCode, getAssignmentKey, getFlipbookTimeLimitOptions, getRoomParticipantCount, getServerRoundCount, getSubmittedDrawingLinesKey, hasFlipbookRoomDismissed, hasConfiguredNickname, hasRouteRoomCodeHandled, isDummyResultPreviewRoute, isFlipbookAssignmentSubmitted, isSubmittedFrameForAssignment, markFlipbookRoomDismissed, markRouteRoomCodesHandled, readSubmittedDrawingLines, resetFlipbookRoomDismissed, setActiveFlipbookRoomCode, shouldIgnoreInactiveFlipbookRoom, toFlipbookParticipant, toFlipbookTimeLimitSeconds, getFlipbookActionError, wait, writeSubmittedDrawingLines } from '../utils'
+import { BLOCKED_REASON_MESSAGE, clearSubmittedDrawingLinesStorage, createFlipbookDummyResultItems, createLocalFlipbookParticipant, createPreviousFrameLinesFromAssignment, createRoomStateFromCreateResponse, getActiveFlipbookRoomCode, getAssignmentKey, getFlipbookTimeLimitOptions, getRoomParticipantCount, getSubmittedDrawingLinesKey, hasFlipbookRoomDismissed, hasConfiguredNickname, hasRouteRoomCodeHandled, isDummyResultPreviewRoute, isFlipbookAssignmentSubmitted, isSubmittedFrameForAssignment, markFlipbookRoomDismissed, markRouteRoomCodesHandled, readSubmittedDrawingLines, resetFlipbookRoomDismissed, setActiveFlipbookRoomCode, shouldIgnoreInactiveFlipbookRoom, toFlipbookTimeLimitSeconds, getFlipbookActionError, wait, writeSubmittedDrawingLines } from '../utils'
+import { useFlipbookFrameUpload } from './useFlipbookFrameUpload'
 import { useFlipbookRealtimeConnection } from './useFlipbookRealtimeConnection'
 import { useFlipbookRealtimeEventHandler } from './useFlipbookRealtimeEventHandler'
 import { useFlipbookResultPresenter } from './useFlipbookResultPresenter'
+import { useFlipbookRoomDerivedState } from './useFlipbookRoomDerivedState'
 import { useFlipbookTimer } from './useFlipbookTimer'
 
 const RESULT_POLLING_INTERVAL_MS = 1500
@@ -109,6 +111,7 @@ export function useFlipbook({
     onStepChange: setCurrentStep,
     onLocalStepChange: setCurrentStepState,
   })
+  const uploadFrame = useFlipbookFrameUpload()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isBusy, setIsBusy] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -170,53 +173,33 @@ export function useFlipbook({
     return actionRequestSequenceRef.current === requestSequence
   }, [])
 
-  const activeRoomState = roomCode !== null && roomState?.roomCode === roomCode ? roomState : null
-  const participantCount = getRoomParticipantCount(activeRoomState)
-  const displayedSubmissionTotalCount = submissionTotalCount
-  const displayedSubmittedFrameCount = Math.min(
-    submittedFrameCount,
+  const {
+    activeRoomState,
+    activeRoundIndex,
+    canStartGame,
+    displayedParticipant,
+    displayedSubmittedFrameCount,
     displayedSubmissionTotalCount,
-  )
-  const participants = useMemo(
-    () =>
-      activeRoomState?.participants.map((participant) => toFlipbookParticipant(participant)) ?? [
-        currentParticipant,
-      ],
-    [activeRoomState?.participants, currentParticipant],
-  )
-  const resultOwnerNames = useMemo(
-    () =>
-      [...(activeRoomState?.participants ?? [])]
-        .sort(
-          (firstParticipant, secondParticipant) =>
-            firstParticipant.joinOrder - secondParticipant.joinOrder,
-        )
-        .map((participant) => participant.nickname),
-    [activeRoomState?.participants],
-  )
-  const displayedParticipant =
-    participants.find((participant) => participant.userUuid === userUuid) ?? currentParticipant
-  const perParticipantRoundCount = getServerRoundCount({
-    roomState: activeRoomState,
-    fallback: roundCount ?? assignment?.totalRounds ?? null,
+    drawingRoundCount,
+    isHost,
+    isRoomParticipant,
+    isRoundSubmitted,
+    isWaitingRoom,
+    participantCount,
+    participants,
+    perParticipantRoundCount,
+    resultOwnerNames,
+  } = useFlipbookRoomDerivedState({
+    assignment,
+    currentParticipant,
+    roomCode,
+    roomState,
+    roundCount,
+    submittedAssignmentKeys,
+    submittedFrameCount,
+    submissionTotalCount,
+    userUuid,
   })
-  const drawingRoundCount = perParticipantRoundCount
-  const activeRoundIndex = Math.max(
-    0,
-    (assignment?.currentRound ?? activeRoomState?.currentRound ?? 1) - 1,
-  )
-  const isWaitingRoom = activeRoomState?.status === 'WAITING'
-  const isRoomParticipant =
-    userUuid !== null &&
-    activeRoomState?.viewer.participant === true &&
-    activeRoomState.participants.some((participant) => participant.userUuid === userUuid)
-  const canStartGame = isWaitingRoom && activeRoomState?.viewer.canStart === true
-  const isHost = activeRoomState?.viewer.host === true
-  const activeAssignmentKey = assignment ? getAssignmentKey(assignment) : null
-  const isServerAssignmentSubmitted = isFlipbookAssignmentSubmitted(assignment)
-  const isRoundSubmitted =
-    activeAssignmentKey !== null &&
-    (submittedAssignmentKeys.has(activeAssignmentKey) || isServerAssignmentSubmitted)
   useEffect(() => {
     let cancelled = false
 
@@ -779,28 +762,6 @@ export function useFlipbook({
     selectedTimeLimitSeconds,
     onTimeExpired: handleLocalTimerExpired,
   })
-
-  const uploadFrame = useCallback(
-    async (lines: DrawingLine[], round: number) => {
-      const imageBlob = await createCanvasBlobFromLines(lines)
-      const presigned = await postFilePresign({
-        fileName: `flipbook-${roomCode ?? 'room'}-round-${round}.png`,
-        contentType: FLIPBOOK_FILE_CONTENT_TYPE,
-        purpose: FLIPBOOK_FILE_PURPOSE,
-        byteSize: imageBlob.size,
-      })
-
-      await putFileToPresignedUrl({
-        presignedUrl: presigned.presignedUrl,
-        file: imageBlob,
-        contentType: FLIPBOOK_FILE_CONTENT_TYPE,
-      })
-
-      await postFileConfirm(presigned.fileId)
-      return presigned.fileId
-    },
-    [roomCode],
-  )
 
   const openNicknameModal = useCallback(
     (pendingAction: FlipbookNicknamePendingAction) => {
