@@ -13,8 +13,7 @@ backend/docs/performance/
 ├── 02-갤러리-목록-조회-쿼리-최적화.md
 ├── 03-무한캔버스-조회-payload-최적화.md
 ├── 04-무한캔버스-요소-적용-최적화.md
-├── 05-k6-부하-테스트-결과.md
-├── 06-k6-부하-테스트-실행-가이드.md
+├── k6-실행-가이드.md
 ├── assets/
 └── k6-results/
 ```
@@ -27,7 +26,6 @@ backend/docs/performance/
 | 트러블 슈팅 2 | count 쿼리의 subtype JOIN 제거, page row만 subtype JOIN | `backend/docs/performance/02-갤러리-목록-조회-쿼리-최적화.md` | `GalleryRepository`, `backend/scripts/benchmark-gallery-query-performance.py` |
 | 트러블 슈팅 3 | Redis Sorted Set 인덱스와 참여자 delta payload로 SCAN, 큰 JSON 전송 제거 | `backend/docs/performance/03-무한캔버스-조회-payload-최적화.md` | `RedisInfiniteCanvasRepository`, `InfiniteCanvasEventPublisher`, `backend/scripts/benchmark-infinite-canvas-performance.py` |
 | 트러블 슈팅 4 | 리스트 반복 탐색을 Map 기반 batch 적용으로 변경 | `backend/docs/performance/04-무한캔버스-요소-적용-최적화.md` | `InfiniteCanvasOperationApplier`, `backend/scripts/benchmark-infinite-canvas-performance.py` |
-| 트러블 슈팅 5 | 실제 HTTP 경로에서 p95, p99, RPS, 실패율 측정 | `backend/docs/performance/05-k6-부하-테스트-결과.md`, `backend/docs/performance/06-k6-부하-테스트-실행-가이드.md` | `backend/scripts/k6/*.js`, `backend/docs/performance/k6-results/*.json` |
 
 ## 문서 경로
 
@@ -37,8 +35,7 @@ backend/docs/performance/
 | 트러블 슈팅 2. 갤러리 목록 조회 쿼리 최적화 Before / After | `backend/docs/performance/02-갤러리-목록-조회-쿼리-최적화.md` |
 | 트러블 슈팅 3. 무한 캔버스 조회 / Payload 성능 최적화 Before / After | `backend/docs/performance/03-무한캔버스-조회-payload-최적화.md` |
 | 트러블 슈팅 4. 무한 캔버스 요소 적용 로직 최적화 Before / After | `backend/docs/performance/04-무한캔버스-요소-적용-최적화.md` |
-| 트러블 슈팅 5. k6 부하 테스트 실행 결과 | `backend/docs/performance/05-k6-부하-테스트-결과.md` |
-| k6 부하 테스트 가이드 | `backend/docs/performance/06-k6-부하-테스트-실행-가이드.md` |
+| k6 부하 테스트 가이드 | `backend/docs/performance/k6-실행-가이드.md` |
 
 ## 트러블 슈팅별 k6
 
@@ -48,7 +45,8 @@ backend/docs/performance/
 | 트러블 슈팅 2 | `backend/scripts/k6/gallery-list-load.js` | 개별 문서에 갤러리 목록 조회 k6 p95/RPS 표 포함 |
 | 트러블 슈팅 3 | `backend/scripts/k6/infinite-canvas-active-room-load.js` | 개별 문서에 백오피스 활성 방 목록 k6 p95/RPS 표 포함 |
 | 트러블 슈팅 4 | 직접 k6 없음 | 개별 문서에 k6 제외 사유와 synthetic benchmark 결과 표 포함 |
-| 트러블 슈팅 5 | 전체 k6 결과 취합 | `backend/docs/performance/05-k6-부하-테스트-결과.md`에 요약 |
+
+k6 결과는 별도 “트러블 슈팅 5” 문서로 모으지 않습니다. 각 트러블 슈팅 파일 안의 `사용한 k6` 섹션에 실행 조건과 결과 요약을 직접 넣고, `backend/docs/performance/k6-results`에는 재실행 가능한 raw 결과만 보관합니다.
 
 ## 그래프 경로
 
@@ -127,7 +125,7 @@ backend/docs/performance/
 
 <img src="./assets/infinite-canvas-operation-lookup-steps.svg" width="720" alt="Element lookup work per message">
 
-### 트러블 슈팅 5. k6 부하 테스트 결과
+### 공통 k6 참고 그래프
 
 | 한국어 그래프 | English Graph |
 | --- | --- |
@@ -151,7 +149,6 @@ backend/docs/performance/
 | 트러블 슈팅 3-1 | active room 10,000개 p95 `124.06ms` | `0.15ms` | `834.95x` 개선 |
 | 트러블 슈팅 3-2 | 요소 5,000개 payload `1,130,211B` | `682B` | `99.94%` 감소 |
 | 트러블 슈팅 4 | 5,000 elements + 100 ops p95 `17.27ms` | `2.00ms` | `8.65x` 개선 |
-| 트러블 슈팅 5 | 로컬 통제 환경 VU 20 | p95 `19.96ms`, RPS `268.54` | 실패율 `0.00%` |
 
 ## 참고
 

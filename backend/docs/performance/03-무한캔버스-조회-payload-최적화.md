@@ -32,7 +32,6 @@
 | synthetic benchmark | `backend/scripts/benchmark-infinite-canvas-performance.py` |
 | k6 스크립트 | `backend/scripts/k6/infinite-canvas-active-room-load.js` |
 | k6 결과 파일 | `backend/docs/performance/k6-results/infinite-canvas-active-room-load.md` |
-| k6 결과 요약 | `backend/docs/performance/05-k6-부하-테스트-결과.md` |
 | 그래프 assets | `backend/docs/performance/assets/infinite-canvas-active-room-p95-ko.svg`, `backend/docs/performance/assets/infinite-canvas-websocket-payload-ko.svg` |
 
 ## 사용한 k6

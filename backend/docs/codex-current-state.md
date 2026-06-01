@@ -6,12 +6,11 @@ Last updated: 2026-06-01
 
 - k6 load-test scripts now cover the recent gallery query, infinite canvas
   active-room lookup, fortune external I/O transaction-boundary, and admin
-  inquiry SMTP transaction-boundary optimizations. The execution guide is in
-  `backend/docs/performance/06-k6-부하-테스트-실행-가이드.md`, and the 2026-06-01 local
-  controlled run results are summarized in
-  `backend/docs/performance/05-k6-부하-테스트-결과.md`.
+  inquiry SMTP transaction-boundary optimizations. The execution guide is
+  `backend/docs/performance/k6-실행-가이드.md`, and each troubleshooting doc embeds
+  its own k6 result summary instead of relying on a separate aggregate k6 file.
 - Performance docs are now organized from `트러블 슈팅 1` through
-  `트러블 슈팅 5` in `backend/docs/performance/README.md`.
+  `트러블 슈팅 4` in `backend/docs/performance/README.md`.
   Each optimization doc embeds Korean and English SVG graphs directly instead
   of listing graph paths only.
 - Gallery list query now reduces unnecessary subtype joins. Count uses only
