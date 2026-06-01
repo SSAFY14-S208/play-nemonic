@@ -12,6 +12,7 @@ import { FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '@/features/fl
 import { useFlipbookBgm } from '@/features/flipbook/hooks'
 import { toFlipbookPrintParticipants } from '@/features/flipbook/utils'
 import { useFlipbookResultActions, useFlipbookResultAutoCycle } from './hooks'
+import { MobileResultSelector } from './sections/MobileResultSelector'
 import { PrintedArtwork } from './sections/PrintedArtwork'
 import { ResultActionButtons, type ResultActionButton } from './sections/ResultActionButtons'
 
@@ -159,31 +160,11 @@ export default function FlipbookResultView({
         </p>
       )}
 
-      {printParticipants.length > 0 && (
-        <div className="absolute inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-[120] grid max-h-[28svh] gap-2 rounded-[18px] border border-white/80 bg-white/86 px-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_14px_30px_rgb(120_80_80_/_16%)] backdrop-blur-md md:hidden">
-          <p className="caption-b text-[#b84e66]">작품 선택</p>
-          <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1">
-            {printParticipants.map((participant, participantIndex) => {
-              const isActiveParticipant = participantIndex === activeResultIndex
-
-              return (
-                <button
-                  key={participant.id}
-                  type="button"
-                  onClick={() => onSelectResult(participantIndex)}
-                  className={`caption-b min-h-11 max-w-48 shrink-0 snap-start truncate rounded-full border px-4 ${
-                    isActiveParticipant
-                      ? 'border-[#ff8aa4] bg-[#fff0f4] text-[#b84e66]'
-                      : 'border-[#eadfd2] bg-white text-[#5d3b38]'
-                  }`}
-                >
-                  {participant.name}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
+      <MobileResultSelector
+        participants={printParticipants}
+        activeParticipantIndex={activeResultIndex}
+        onSelectParticipant={onSelectResult}
+      />
       <HowToPlayModal
         open={isHowToPlayModalOpen}
         onOpenChange={setIsHowToPlayModalOpen}
