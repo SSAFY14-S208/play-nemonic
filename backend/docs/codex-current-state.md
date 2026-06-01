@@ -7,7 +7,9 @@ Last updated: 2026-06-01
 - k6 load-test scripts now cover the recent gallery query, infinite canvas
   active-room lookup, fortune external I/O transaction-boundary, and admin
   inquiry SMTP transaction-boundary optimizations. The execution guide is in
-  `backend/docs/performance/k6-load-testing-ko.md`.
+  `backend/docs/performance/k6-load-testing-ko.md`, and the 2026-06-01 local
+  controlled run results are summarized in
+  `backend/docs/performance/k6-load-test-results-ko.md`.
 - Gallery list query now reduces unnecessary subtype joins. Count uses only
   `gallery + artifact`, and list lookup first selects page items before joining
   subtype artifact tables. Performance evidence is documented in

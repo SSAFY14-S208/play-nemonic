@@ -120,6 +120,8 @@ backend/docs/performance/k6-results/*.md
 
 터미널 캡처도 가능하지만, 포트폴리오에는 생성된 Markdown 요약의 p95/RPS 표와 기존 SVG 그래프를 함께 사용하는 편이 더 안정적입니다.
 
+2026-06-01 로컬 통제 환경에서 실행한 결과 요약은 `backend/docs/performance/k6-load-test-results-ko.md`에 정리했습니다.
+
 ## before/after 비교 방식
 
 1. 최적화 전 커밋으로 checkout합니다.
