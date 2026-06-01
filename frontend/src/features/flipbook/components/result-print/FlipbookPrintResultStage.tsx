@@ -10,55 +10,41 @@ import { cn } from '@/shared/libs'
 import { playBrowserAudio, preloadBrowserAudio } from '@/shared/utils'
 
 import { FLIPBOOK_SOUND_PATHS } from '@/features/flipbook/constants'
+import {
+  ARTIST_BADGE_IMAGE_SRC,
+  BOARD_IMAGE_HEIGHT,
+  BOARD_IMAGE_SRC,
+  BOARD_IMAGE_WIDTH,
+  DEFAULT_ACCENT_COLORS,
+  FURNITURE_IMAGE_HEIGHT,
+  FURNITURE_IMAGE_SRC,
+  FURNITURE_IMAGE_WIDTH,
+  NEMONIC_DEVICE_IMAGE_HEIGHT,
+  NEMONIC_DEVICE_IMAGE_SRC,
+  NEMONIC_DEVICE_IMAGE_WIDTH,
+  NEMONIC_OUTPUT_SLOT_IMAGE_SRC,
+  PARTICIPANT_PANEL_IMAGE_SRC,
+  PRINT_AFTER_RISE_PAUSE_RATIO,
+  PRINT_COMPLETE_SOUND_LEAD_MS,
+  PRINT_COMPLETE_SOUND_OFFSET_SECONDS,
+  PRINT_COMPLETE_SOUND_VOLUME,
+  PRINT_RISE_DURATION_RATIO,
+  PRINT_START_SOUND_OFFSET_SECONDS,
+  PRINT_START_SOUND_VOLUME,
+  PRINTED_PAPER_SHADOW_CLASS,
+  RESULT_STAGE_BACKGROUND_IMAGE_HEIGHT,
+  RESULT_STAGE_BACKGROUND_IMAGE_SRC,
+  RESULT_STAGE_BACKGROUND_IMAGE_WIDTH,
+  SKIP_BUTTON_IMAGE_SRC,
+  resultPrintStageStyles as styles,
+} from './constants'
 import { useFlipbookPrintReveal } from './hooks'
+import type {
+  FlipbookPrintFrame,
+  FlipbookPrintParticipant,
+  RenderFlipbookPrintPaper,
+} from './types'
 import './FlipbookPrintResultStage.css'
-
-const styles = {
-  stage: 'fprs-stage',
-  scene: 'fprs-scene',
-  background: 'fprs-background',
-  topFurniture: 'fprs-top-furniture',
-  leftFurniture: 'fprs-left-furniture',
-  boardLayer: 'fprs-board-layer',
-  boardImage: 'fprs-board-image',
-  attachedPaperFrame: 'fprs-attached-paper-frame',
-  printerLayer: 'fprs-printer-layer',
-  deviceImage: 'fprs-device-image',
-  slotPrintMask: 'fprs-slot-print-mask',
-  outputSlot: 'fprs-output-slot',
-  participantPanel: 'fprs-participant-panel',
-  participantPanelImage: 'fprs-participant-panel-image',
-  participantPanelHeader: 'fprs-participant-panel-header',
-  participantListViewport: 'fprs-participant-list-viewport',
-  participantListItem: 'fprs-participant-list-item',
-  participantSelectButton: 'fprs-participant-select-button',
-  skipPlaybackButton: 'fprs-skip-playback-button',
-  skipPlaybackButtonImage: 'fprs-skip-playback-button-image',
-  skipPlaybackButtonText: 'fprs-skip-playback-button-text',
-  frameArtistBadge: 'fprs-frame-artist-badge',
-  frameArtistBadgeImage: 'fprs-frame-artist-badge-image',
-  frameArtistBadgeLabel: 'fprs-frame-artist-badge-label',
-  frameArtistBadgeName: 'fprs-frame-artist-badge-name',
-}
-
-export interface FlipbookPrintFrame {
-  id: string
-  title: string
-  frameNumber: number
-  drawnByName?: string | null
-  imageUrl?: string | null
-  accentColor?: string
-  outputMode?: 'nemonic-print' | 'gif-playback'
-}
-
-export interface FlipbookPrintParticipant {
-  id: string
-  name: string
-  firstStartedWorkId: string
-  firstStartedWorkTitle: string
-  accentColor?: string
-  frames: FlipbookPrintFrame[]
-}
 
 interface FlipbookPrintResultStageProps {
   participants: FlipbookPrintParticipant[]
@@ -66,11 +52,7 @@ interface FlipbookPrintResultStageProps {
   className?: string
   printDurationMs?: number
   holdDurationMs?: number
-  renderPaper?: (
-    frame: FlipbookPrintFrame,
-    frameIndex: number,
-    participant: FlipbookPrintParticipant,
-  ) => ReactNode
+  renderPaper?: RenderFlipbookPrintPaper
   onSelectParticipant?: (participantIndex: number) => void
   // 참여자의 출력(print) 시퀀스가 끝나고 사용자가 결과(보통 GIF)를 보고 있는
   // 시점에 참여자당 1회 발사. 부모에서 자동 전환 타이머의 시작점으로 사용한다.
@@ -78,36 +60,6 @@ interface FlipbookPrintResultStageProps {
   // - 없는 경우: 모든 print 프레임 출력이 완전히 끝난 시점
   onParticipantRevealComplete?: (participantIndex: number) => void
 }
-
-const DEFAULT_ACCENT_COLORS = ['#f58c97', '#7ec6ad', '#f3c66f', '#96a8ee', '#c99be8', '#ef9a72']
-const RESULT_STAGE_BACKGROUND_IMAGE_SRC = '/images/flipbook-result/figma-node-2826-background-render.png'
-// const RESULT_STAGE_BACKGROUND_IMAGE_SRC = '/images/flipbook-lobby/background.png'
-
-
-const RESULT_STAGE_BACKGROUND_IMAGE_WIDTH = 1920
-const RESULT_STAGE_BACKGROUND_IMAGE_HEIGHT = 1080
-const FURNITURE_IMAGE_SRC = '/images/flipbook-result/figma-node-2826-furniture-left.png'
-const FURNITURE_IMAGE_WIDTH = 1536
-const FURNITURE_IMAGE_HEIGHT = 1024
-const BOARD_IMAGE_SRC = '/images/flipbook-result/figma-node-2826-board-v2.png'
-const BOARD_IMAGE_WIDTH = 1113
-const BOARD_IMAGE_HEIGHT = 744
-const NEMONIC_DEVICE_IMAGE_SRC = '/images/flipbook-result/attached-nemonic-device-v3-hq.png'
-const NEMONIC_DEVICE_IMAGE_WIDTH = 1551
-const NEMONIC_DEVICE_IMAGE_HEIGHT = 1035
-const NEMONIC_OUTPUT_SLOT_IMAGE_SRC = '/images/flipbook-result/figma-node-2826-output-slot.svg'
-const PARTICIPANT_PANEL_IMAGE_SRC = '/images/flipbook-result/participant-panel-v2.png'
-const SKIP_BUTTON_IMAGE_SRC = '/images/flipbook-result/skip-button.png'
-const ARTIST_BADGE_IMAGE_SRC = '/images/flipbook-result/artist-badge.png'
-const PRINT_RISE_DURATION_RATIO = 0.5
-const PRINT_AFTER_RISE_PAUSE_RATIO = 0.25
-const PRINT_START_SOUND_VOLUME = 0.36
-const PRINT_COMPLETE_SOUND_VOLUME = 0.42
-const PRINT_START_SOUND_OFFSET_SECONDS = 0.2
-const PRINT_COMPLETE_SOUND_OFFSET_SECONDS = 0.08
-const PRINT_COMPLETE_SOUND_LEAD_MS = 120
-const PRINTED_PAPER_SHADOW_CLASS =
-  'shadow-[0_2px_0_rgba(120,74,35,0.08),0_8px_18px_rgba(72,43,18,0.22),0_18px_36px_rgba(72,43,18,0.18)]'
 
 export default function FlipbookPrintResultStage({
   participants,
@@ -679,11 +631,7 @@ function SlotPrintedPaper({
   frameIndex: number
   participant: FlipbookPrintParticipant
   printDurationMs: number
-  renderPaper?: (
-    frame: FlipbookPrintFrame,
-    frameIndex: number,
-    participant: FlipbookPrintParticipant,
-  ) => ReactNode
+  renderPaper?: RenderFlipbookPrintPaper
   onPrintRiseComplete: () => void
 }) {
   const printCompleteSoundTimerRef = useRef<number | null>(null)
@@ -766,11 +714,7 @@ function AttachedPrintedPaper({
   frame: FlipbookPrintFrame
   frameIndex: number
   participant: FlipbookPrintParticipant
-  renderPaper?: (
-    frame: FlipbookPrintFrame,
-    frameIndex: number,
-    participant: FlipbookPrintParticipant,
-  ) => ReactNode
+  renderPaper?: RenderFlipbookPrintPaper
 }) {
   return (
     <motion.div
@@ -810,11 +754,7 @@ function DirectPlaybackPaper({
   frame: FlipbookPrintFrame
   frameIndex: number
   participant: FlipbookPrintParticipant
-  renderPaper?: (
-    frame: FlipbookPrintFrame,
-    frameIndex: number,
-    participant: FlipbookPrintParticipant,
-  ) => ReactNode
+  renderPaper?: RenderFlipbookPrintPaper
 }) {
   return (
     <motion.div
@@ -863,11 +803,7 @@ function ShadowedPrintedPaper({
   frame: FlipbookPrintFrame
   frameIndex: number
   participant: FlipbookPrintParticipant
-  renderPaper?: (
-    frame: FlipbookPrintFrame,
-    frameIndex: number,
-    participant: FlipbookPrintParticipant,
-  ) => ReactNode
+  renderPaper?: RenderFlipbookPrintPaper
 }) {
   return (
     <div className={cn(styles.attachedPaperFrame, 'z-30')}>
@@ -890,11 +826,7 @@ function PrintedPaper({
   frame: FlipbookPrintFrame
   frameIndex: number
   participant: FlipbookPrintParticipant
-  renderPaper?: (
-    frame: FlipbookPrintFrame,
-    frameIndex: number,
-    participant: FlipbookPrintParticipant,
-  ) => ReactNode
+  renderPaper?: RenderFlipbookPrintPaper
 }) {
   return (
     <article className="relative h-full w-full overflow-hidden border border-[#eadfd2]/90 bg-white ring-1 ring-white/70">
