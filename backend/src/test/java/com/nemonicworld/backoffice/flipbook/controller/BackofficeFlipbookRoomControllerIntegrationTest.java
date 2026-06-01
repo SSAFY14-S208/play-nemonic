@@ -2,6 +2,7 @@ package com.nemonicworld.backoffice.flipbook.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -19,6 +20,7 @@ import com.nemonicworld.common.jwt.JwtTokenProvider;
 import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
+import com.nemonicworld.flipbook.repository.FlipbookActiveRoomPage;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.service.support.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
@@ -26,8 +28,10 @@ import com.nemonicworld.support.AbstractReadOnlyIntegrationTest;
 import com.nemonicworld.support.AdminUserTestFixture;
 import com.nemonicworld.support.BackofficeAuthTestFixture;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -89,11 +93,10 @@ class BackofficeFlipbookRoomControllerIntegrationTest extends AbstractReadOnlyIn
     @Test
     void adminGetsActiveFlipbookRoomList() throws Exception {
         LocalDateTime base = LocalDateTime.of(2026, 5, 9, 12, 0, 0);
-        given(flipbookRoomRepository.findAllActiveRooms())
-            .willReturn(List.of(roomState("FB3K9Q", FlipbookRoomStatus.WAITING, 1, null, null, null, base),
-                roomState("FC4M8N", FlipbookRoomStatus.PLAYING, 4, 3, 8, base.plusMinutes(1), base.plusMinutes(1)),
-                roomState("FD5P7R", FlipbookRoomStatus.FINALIZING, 3, 8, 8, base.plusMinutes(2), base.plusMinutes(2)),
-                roomState("FE6S8T", FlipbookRoomStatus.FINISHED, 3, 8, 8, base.plusMinutes(3), base.plusMinutes(3))));
+        givenActiveRooms(List.of(roomState("FB3K9Q", FlipbookRoomStatus.WAITING, 1, null, null, null, base),
+            roomState("FC4M8N", FlipbookRoomStatus.PLAYING, 4, 3, 8, base.plusMinutes(1), base.plusMinutes(1)),
+            roomState("FD5P7R", FlipbookRoomStatus.FINALIZING, 3, 8, 8, base.plusMinutes(2), base.plusMinutes(2)),
+            roomState("FE6S8T", FlipbookRoomStatus.FINISHED, 3, 8, 8, base.plusMinutes(3), base.plusMinutes(3))));
 
         mockMvc.perform(get("/api/v1/backoffice/flipbook-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
@@ -116,9 +119,8 @@ class BackofficeFlipbookRoomControllerIntegrationTest extends AbstractReadOnlyIn
     @Test
     void closedRoomsAreExcluded() throws Exception {
         LocalDateTime base = LocalDateTime.of(2026, 5, 9, 12, 0, 0);
-        given(flipbookRoomRepository.findAllActiveRooms())
-            .willReturn(List.of(roomState("FA2B3C", FlipbookRoomStatus.WAITING, 1, null, null, null, base),
-                roomState("FZ9Y8X", FlipbookRoomStatus.CLOSED, 0, 8, 8, base.plusMinutes(5), base.plusMinutes(5))));
+        givenActiveRooms(List.of(roomState("FA2B3C", FlipbookRoomStatus.WAITING, 1, null, null, null, base),
+            roomState("FZ9Y8X", FlipbookRoomStatus.CLOSED, 0, 8, 8, base.plusMinutes(5), base.plusMinutes(5))));
 
         mockMvc.perform(get("/api/v1/backoffice/flipbook-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(1))
@@ -130,11 +132,10 @@ class BackofficeFlipbookRoomControllerIntegrationTest extends AbstractReadOnlyIn
     void filtersByStatus(FlipbookRoomStatus roomStatus) throws Exception {
         LocalDateTime base = LocalDateTime.of(2026, 5, 9, 12, 0, 0);
         String expectedRoomCode = roomCodeFor(roomStatus);
-        given(flipbookRoomRepository.findAllActiveRooms())
-            .willReturn(List.of(roomState("FA2B3C", FlipbookRoomStatus.WAITING, 1, null, null, null, base),
-                roomState("FB3K9Q", FlipbookRoomStatus.PLAYING, 4, 2, 8, base.plusMinutes(1), base.plusMinutes(1)),
-                roomState("FD5P7R", FlipbookRoomStatus.FINALIZING, 3, 8, 8, base.plusMinutes(2), base.plusMinutes(2)),
-                roomState("FC4M8N", FlipbookRoomStatus.FINISHED, 3, 8, 8, base.plusMinutes(3), base.plusMinutes(3))));
+        givenActiveRooms(List.of(roomState("FA2B3C", FlipbookRoomStatus.WAITING, 1, null, null, null, base),
+            roomState("FB3K9Q", FlipbookRoomStatus.PLAYING, 4, 2, 8, base.plusMinutes(1), base.plusMinutes(1)),
+            roomState("FD5P7R", FlipbookRoomStatus.FINALIZING, 3, 8, 8, base.plusMinutes(2), base.plusMinutes(2)),
+            roomState("FC4M8N", FlipbookRoomStatus.FINISHED, 3, 8, 8, base.plusMinutes(3), base.plusMinutes(3))));
 
         mockMvc
             .perform(get("/api/v1/backoffice/flipbook-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
@@ -148,11 +149,10 @@ class BackofficeFlipbookRoomControllerIntegrationTest extends AbstractReadOnlyIn
     @Test
     void filtersInProgressRoomsByPlayingAndFinalizing() throws Exception {
         LocalDateTime base = LocalDateTime.of(2026, 5, 9, 12, 0, 0);
-        given(flipbookRoomRepository.findAllActiveRooms())
-            .willReturn(List.of(roomState("FA2B3C", FlipbookRoomStatus.WAITING, 1, null, null, null, base),
-                roomState("FB3K9Q", FlipbookRoomStatus.PLAYING, 4, 2, 8, base.plusMinutes(1), base.plusMinutes(1)),
-                roomState("FD5P7R", FlipbookRoomStatus.FINALIZING, 3, 8, 8, base.plusMinutes(2), base.plusMinutes(2)),
-                roomState("FC4M8N", FlipbookRoomStatus.FINISHED, 3, 8, 8, base.plusMinutes(3), base.plusMinutes(3))));
+        givenActiveRooms(List.of(roomState("FA2B3C", FlipbookRoomStatus.WAITING, 1, null, null, null, base),
+            roomState("FB3K9Q", FlipbookRoomStatus.PLAYING, 4, 2, 8, base.plusMinutes(1), base.plusMinutes(1)),
+            roomState("FD5P7R", FlipbookRoomStatus.FINALIZING, 3, 8, 8, base.plusMinutes(2), base.plusMinutes(2)),
+            roomState("FC4M8N", FlipbookRoomStatus.FINISHED, 3, 8, 8, base.plusMinutes(3), base.plusMinutes(3))));
 
         mockMvc
             .perform(get("/api/v1/backoffice/flipbook-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
@@ -186,7 +186,7 @@ class BackofficeFlipbookRoomControllerIntegrationTest extends AbstractReadOnlyIn
     @Test
     void sortsByCreatedAtDescendingAndRoomCodeAscending() throws Exception {
         LocalDateTime base = LocalDateTime.of(2026, 5, 9, 12, 0, 0);
-        given(flipbookRoomRepository.findAllActiveRooms()).willReturn(
+        givenActiveRooms(
             List.of(roomState("FC4M8N", FlipbookRoomStatus.WAITING, 1, null, null, null, base.minusMinutes(10)),
                 roomState("FA2B3C", FlipbookRoomStatus.WAITING, 1, null, null, null, base),
                 roomState("FB3K9Q", FlipbookRoomStatus.WAITING, 1, null, null, null, base)));
@@ -200,12 +200,11 @@ class BackofficeFlipbookRoomControllerIntegrationTest extends AbstractReadOnlyIn
     @Test
     void paginatesResults() throws Exception {
         LocalDateTime base = LocalDateTime.of(2026, 5, 9, 12, 0, 0);
-        given(flipbookRoomRepository.findAllActiveRooms())
-            .willReturn(List.of(roomState("FA2B3C", FlipbookRoomStatus.WAITING, 1, null, null, null, base),
-                roomState("FB3K9Q", FlipbookRoomStatus.WAITING, 1, null, null, null, base.minusSeconds(1)),
-                roomState("FC4M8N", FlipbookRoomStatus.WAITING, 1, null, null, null, base.minusSeconds(2)),
-                roomState("FD5P7R", FlipbookRoomStatus.WAITING, 1, null, null, null, base.minusSeconds(3)),
-                roomState("FE6S8T", FlipbookRoomStatus.WAITING, 1, null, null, null, base.minusSeconds(4))));
+        givenActiveRooms(List.of(roomState("FA2B3C", FlipbookRoomStatus.WAITING, 1, null, null, null, base),
+            roomState("FB3K9Q", FlipbookRoomStatus.WAITING, 1, null, null, null, base.minusSeconds(1)),
+            roomState("FC4M8N", FlipbookRoomStatus.WAITING, 1, null, null, null, base.minusSeconds(2)),
+            roomState("FD5P7R", FlipbookRoomStatus.WAITING, 1, null, null, null, base.minusSeconds(3)),
+            roomState("FE6S8T", FlipbookRoomStatus.WAITING, 1, null, null, null, base.minusSeconds(4))));
 
         mockMvc
             .perform(get("/api/v1/backoffice/flipbook-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
@@ -218,7 +217,7 @@ class BackofficeFlipbookRoomControllerIntegrationTest extends AbstractReadOnlyIn
 
     @Test
     void clampsSizeToMaximum() throws Exception {
-        given(flipbookRoomRepository.findAllActiveRooms()).willReturn(List.of());
+        givenActiveRooms(List.of());
 
         mockMvc.perform(get("/api/v1/backoffice/flipbook-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
             .queryParam("size", "9999")).andExpect(status().isOk()).andExpect(jsonPath("$.data.size").value(100));
@@ -244,7 +243,7 @@ class BackofficeFlipbookRoomControllerIntegrationTest extends AbstractReadOnlyIn
 
     @Test
     void superAdminGetsActiveFlipbookRoomList() throws Exception {
-        given(flipbookRoomRepository.findAllActiveRooms()).willReturn(
+        givenActiveRooms(
             List.of(roomState("FA2B3C", FlipbookRoomStatus.WAITING, 1, null, null, null, LocalDateTime.now())));
 
         mockMvc
@@ -257,7 +256,7 @@ class BackofficeFlipbookRoomControllerIntegrationTest extends AbstractReadOnlyIn
 
     @Test
     void returnsEmptyListWhenNoActiveRooms() throws Exception {
-        given(flipbookRoomRepository.findAllActiveRooms()).willReturn(List.of());
+        givenActiveRooms(List.of());
 
         mockMvc.perform(get("/api/v1/backoffice/flipbook-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(0))
@@ -339,7 +338,7 @@ class BackofficeFlipbookRoomControllerIntegrationTest extends AbstractReadOnlyIn
             LocalDateTime.of(2026, 5, 9, 12, 0, 0));
         given(flipbookRoomRepository.findByRoomCode(roomCode)).willReturn(Optional.of(roomState));
         given(flipbookRoomRepository.saveIfUnchanged(eq(roomState), any(FlipbookRoomState.class))).willReturn(true);
-        given(flipbookRoomRepository.findAllActiveRooms()).willReturn(List.of());
+        givenActiveRooms(List.of());
 
         mockMvc.perform(delete("/api/v1/backoffice/flipbook-rooms/{roomCode}", roomCode)
             .header(HttpHeaders.AUTHORIZATION, bearerAccessToken())).andExpect(status().isOk());
@@ -431,6 +430,24 @@ class BackofficeFlipbookRoomControllerIntegrationTest extends AbstractReadOnlyIn
 
         return java.util.stream.IntStream.range(0, count).mapToObj(index -> new FlipbookRoomParticipant("user-" + index,
             "닉네임" + index, index == 0, index, true, null, joinedAt)).toList();
+    }
+
+    private void givenActiveRooms(List<FlipbookRoomState> rooms) {
+        given(flipbookRoomRepository.findActiveRoomsByStatuses(any(), anyInt(), anyInt())).willAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            Set<FlipbookRoomStatus> statuses = invocation.getArgument(0);
+            int page = invocation.getArgument(1);
+            int size = invocation.getArgument(2);
+            List<FlipbookRoomState> filtered = rooms.stream().filter(room -> statuses.contains(room.status()))
+                .sorted(
+                    Comparator.comparing(FlipbookRoomState::createdAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(FlipbookRoomState::roomCode, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+            int fromIndex = Math.min(page * size, filtered.size());
+            int toIndex = Math.min(fromIndex + size, filtered.size());
+
+            return new FlipbookActiveRoomPage(filtered.subList(fromIndex, toIndex), filtered.size());
+        });
     }
 
     private void insertAdminUser(long id, String loginId, String nickname, String email, AdminRole role) {

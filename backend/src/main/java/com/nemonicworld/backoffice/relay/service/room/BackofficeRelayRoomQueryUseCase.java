@@ -6,9 +6,8 @@ import com.nemonicworld.backoffice.relay.dto.response.BackofficeRelayRoomRespons
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
-import com.nemonicworld.relay.redis.RelayRoomState;
+import com.nemonicworld.relay.repository.RelayActiveRoomPage;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
-import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
@@ -44,19 +43,12 @@ public class BackofficeRelayRoomQueryUseCase {
         int pageNumber = parsePage(page);
         int pageSize = parseSize(size);
 
-        List<RelayRoomState> activeRooms = relayRoomRepository.findAllActiveRooms();
-        List<RelayRoomState> filtered = activeRooms.stream().filter(room -> statusFilter.contains(room.status()))
-            .sorted(Comparator.comparing(RelayRoomState::createdAt, Comparator.nullsLast(Comparator.reverseOrder()))
-                .thenComparing(RelayRoomState::roomCode, Comparator.nullsLast(Comparator.naturalOrder())))
-            .toList();
+        RelayActiveRoomPage activeRoomPage = relayRoomRepository.findActiveRoomsByStatuses(statusFilter, pageNumber,
+            pageSize);
+        List<BackofficeRelayRoomResponse> items = activeRoomPage.items().stream()
+            .filter(room -> statusFilter.contains(room.status())).map(BackofficeRelayRoomResponse::from).toList();
 
-        long totalElements = filtered.size();
-        int fromIndex = Math.min(pageNumber * pageSize, filtered.size());
-        int toIndex = Math.min(fromIndex + pageSize, filtered.size());
-        List<BackofficeRelayRoomResponse> items = filtered.subList(fromIndex, toIndex).stream()
-            .map(BackofficeRelayRoomResponse::from).toList();
-
-        return new BackofficeRelayRoomListResponse(items, totalElements, pageNumber, pageSize);
+        return new BackofficeRelayRoomListResponse(items, activeRoomPage.totalElements(), pageNumber, pageSize);
     }
 
     private Set<RelayRoomStatus> parseStatusFilter(String value) {

@@ -2,6 +2,7 @@ package com.nemonicworld.backoffice.relay.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -20,6 +21,7 @@ import com.nemonicworld.relay.entity.RelayDrawingPart;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
+import com.nemonicworld.relay.repository.RelayActiveRoomPage;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
@@ -27,8 +29,10 @@ import com.nemonicworld.support.AbstractReadOnlyIntegrationTest;
 import com.nemonicworld.support.AdminUserTestFixture;
 import com.nemonicworld.support.BackofficeAuthTestFixture;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
@@ -94,11 +98,10 @@ class BackofficeRelayRoomControllerIntegrationTest extends AbstractReadOnlyInteg
     @Test
     void adminGetsActiveRelayRoomList() throws Exception {
         LocalDateTime base = LocalDateTime.of(2026, 5, 9, 12, 0, 0);
-        given(relayRoomRepository.findAllActiveRooms())
-            .willReturn(List.of(roomState("ROOM01", RelayRoomStatus.WAITING, 1, null, base),
-                roomState("ROOM02", RelayRoomStatus.PLAYING, 4, base.plusMinutes(1), base.plusMinutes(1)),
-                roomState("ROOM03", RelayRoomStatus.FINALIZING, 5, base.plusMinutes(2), base.plusMinutes(2)),
-                roomState("ROOM04", RelayRoomStatus.FINISHED, 3, base.plusMinutes(3), base.plusMinutes(3))));
+        givenActiveRooms(List.of(roomState("ROOM01", RelayRoomStatus.WAITING, 1, null, base),
+            roomState("ROOM02", RelayRoomStatus.PLAYING, 4, base.plusMinutes(1), base.plusMinutes(1)),
+            roomState("ROOM03", RelayRoomStatus.FINALIZING, 5, base.plusMinutes(2), base.plusMinutes(2)),
+            roomState("ROOM04", RelayRoomStatus.FINISHED, 3, base.plusMinutes(3), base.plusMinutes(3))));
 
         mockMvc.perform(get("/api/v1/backoffice/relay-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
@@ -118,9 +121,8 @@ class BackofficeRelayRoomControllerIntegrationTest extends AbstractReadOnlyInteg
     void closedRoomsAreExcluded() throws Exception {
         LocalDateTime base = LocalDateTime.of(2026, 5, 9, 12, 0, 0);
         // 레포지토리는 이미 CLOSED를 거른 결과를 반환하지만, 서비스 계약상 들어와도 응답에 노출되지 않는지 확인합니다.
-        given(relayRoomRepository.findAllActiveRooms())
-            .willReturn(List.of(roomState("ALIVE1", RelayRoomStatus.WAITING, 1, null, base),
-                roomState("CLOSED1", RelayRoomStatus.CLOSED, 0, base.plusMinutes(5), base.plusMinutes(5))));
+        givenActiveRooms(List.of(roomState("ALIVE1", RelayRoomStatus.WAITING, 1, null, base),
+            roomState("CLOSED1", RelayRoomStatus.CLOSED, 0, base.plusMinutes(5), base.plusMinutes(5))));
 
         mockMvc
             .perform(get("/api/v1/backoffice/relay-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
@@ -132,9 +134,8 @@ class BackofficeRelayRoomControllerIntegrationTest extends AbstractReadOnlyInteg
     @Test
     void filtersByStatus() throws Exception {
         LocalDateTime base = LocalDateTime.of(2026, 5, 9, 12, 0, 0);
-        given(relayRoomRepository.findAllActiveRooms())
-            .willReturn(List.of(roomState("ROOM_W", RelayRoomStatus.WAITING, 1, null, base),
-                roomState("ROOM_P", RelayRoomStatus.PLAYING, 4, base.plusMinutes(1), base.plusMinutes(1))));
+        givenActiveRooms(List.of(roomState("ROOM_W", RelayRoomStatus.WAITING, 1, null, base),
+            roomState("ROOM_P", RelayRoomStatus.PLAYING, 4, base.plusMinutes(1), base.plusMinutes(1))));
 
         mockMvc
             .perform(get("/api/v1/backoffice/relay-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
@@ -148,9 +149,8 @@ class BackofficeRelayRoomControllerIntegrationTest extends AbstractReadOnlyInteg
     @Test
     void filtersFinishedRoomsByExplicitStatus() throws Exception {
         LocalDateTime base = LocalDateTime.of(2026, 5, 9, 12, 0, 0);
-        given(relayRoomRepository.findAllActiveRooms())
-            .willReturn(List.of(roomState("ROOM_W", RelayRoomStatus.WAITING, 1, null, base),
-                roomState("ROOM_F", RelayRoomStatus.FINISHED, 4, base.plusMinutes(1), base.plusMinutes(1))));
+        givenActiveRooms(List.of(roomState("ROOM_W", RelayRoomStatus.WAITING, 1, null, base),
+            roomState("ROOM_F", RelayRoomStatus.FINISHED, 4, base.plusMinutes(1), base.plusMinutes(1))));
 
         mockMvc
             .perform(get("/api/v1/backoffice/relay-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
@@ -164,11 +164,10 @@ class BackofficeRelayRoomControllerIntegrationTest extends AbstractReadOnlyInteg
     @Test
     void filtersInProgressRoomsByPlayingAndFinalizing() throws Exception {
         LocalDateTime base = LocalDateTime.of(2026, 5, 9, 12, 0, 0);
-        given(relayRoomRepository.findAllActiveRooms())
-            .willReturn(List.of(roomState("ROOM_W", RelayRoomStatus.WAITING, 1, null, base),
-                roomState("ROOM_P", RelayRoomStatus.PLAYING, 4, base.plusMinutes(1), base.plusMinutes(1)),
-                roomState("ROOM_Z", RelayRoomStatus.FINALIZING, 4, base.plusMinutes(2), base.plusMinutes(2)),
-                roomState("ROOM_F", RelayRoomStatus.FINISHED, 4, base.plusMinutes(3), base.plusMinutes(3))));
+        givenActiveRooms(List.of(roomState("ROOM_W", RelayRoomStatus.WAITING, 1, null, base),
+            roomState("ROOM_P", RelayRoomStatus.PLAYING, 4, base.plusMinutes(1), base.plusMinutes(1)),
+            roomState("ROOM_Z", RelayRoomStatus.FINALIZING, 4, base.plusMinutes(2), base.plusMinutes(2)),
+            roomState("ROOM_F", RelayRoomStatus.FINISHED, 4, base.plusMinutes(3), base.plusMinutes(3))));
 
         mockMvc
             .perform(get("/api/v1/backoffice/relay-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
@@ -201,10 +200,9 @@ class BackofficeRelayRoomControllerIntegrationTest extends AbstractReadOnlyInteg
     @Test
     void sortsByCreatedAtDescending() throws Exception {
         LocalDateTime base = LocalDateTime.of(2026, 5, 9, 12, 0, 0);
-        given(relayRoomRepository.findAllActiveRooms())
-            .willReturn(List.of(roomState("OLDEST", RelayRoomStatus.WAITING, 1, null, base.minusMinutes(10)),
-                roomState("NEWEST", RelayRoomStatus.WAITING, 1, null, base),
-                roomState("MIDDLE", RelayRoomStatus.WAITING, 1, null, base.minusMinutes(5))));
+        givenActiveRooms(List.of(roomState("OLDEST", RelayRoomStatus.WAITING, 1, null, base.minusMinutes(10)),
+            roomState("NEWEST", RelayRoomStatus.WAITING, 1, null, base),
+            roomState("MIDDLE", RelayRoomStatus.WAITING, 1, null, base.minusMinutes(5))));
 
         mockMvc.perform(get("/api/v1/backoffice/relay-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.items[0].roomCode").value("NEWEST"))
@@ -215,12 +213,11 @@ class BackofficeRelayRoomControllerIntegrationTest extends AbstractReadOnlyInteg
     @Test
     void paginatesResults() throws Exception {
         LocalDateTime base = LocalDateTime.of(2026, 5, 9, 12, 0, 0);
-        given(relayRoomRepository.findAllActiveRooms())
-            .willReturn(List.of(roomState("ROOM_A", RelayRoomStatus.WAITING, 1, null, base.minusSeconds(0)),
-                roomState("ROOM_B", RelayRoomStatus.WAITING, 1, null, base.minusSeconds(1)),
-                roomState("ROOM_C", RelayRoomStatus.WAITING, 1, null, base.minusSeconds(2)),
-                roomState("ROOM_D", RelayRoomStatus.WAITING, 1, null, base.minusSeconds(3)),
-                roomState("ROOM_E", RelayRoomStatus.WAITING, 1, null, base.minusSeconds(4))));
+        givenActiveRooms(List.of(roomState("ROOM_A", RelayRoomStatus.WAITING, 1, null, base.minusSeconds(0)),
+            roomState("ROOM_B", RelayRoomStatus.WAITING, 1, null, base.minusSeconds(1)),
+            roomState("ROOM_C", RelayRoomStatus.WAITING, 1, null, base.minusSeconds(2)),
+            roomState("ROOM_D", RelayRoomStatus.WAITING, 1, null, base.minusSeconds(3)),
+            roomState("ROOM_E", RelayRoomStatus.WAITING, 1, null, base.minusSeconds(4))));
 
         mockMvc
             .perform(get("/api/v1/backoffice/relay-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
@@ -233,7 +230,7 @@ class BackofficeRelayRoomControllerIntegrationTest extends AbstractReadOnlyInteg
 
     @Test
     void clampsSizeToMaximum() throws Exception {
-        given(relayRoomRepository.findAllActiveRooms()).willReturn(List.of());
+        givenActiveRooms(List.of());
 
         mockMvc.perform(get("/api/v1/backoffice/relay-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken())
             .queryParam("size", "9999")).andExpect(status().isOk()).andExpect(jsonPath("$.data.size").value(100));
@@ -259,8 +256,7 @@ class BackofficeRelayRoomControllerIntegrationTest extends AbstractReadOnlyInteg
 
     @Test
     void superAdminGetsActiveRelayRoomList() throws Exception {
-        given(relayRoomRepository.findAllActiveRooms())
-            .willReturn(List.of(roomState("ROOM_S", RelayRoomStatus.WAITING, 1, null, LocalDateTime.now())));
+        givenActiveRooms(List.of(roomState("ROOM_S", RelayRoomStatus.WAITING, 1, null, LocalDateTime.now())));
 
         mockMvc
             .perform(get("/api/v1/backoffice/relay-rooms").header(HttpHeaders.AUTHORIZATION,
@@ -273,8 +269,7 @@ class BackofficeRelayRoomControllerIntegrationTest extends AbstractReadOnlyInteg
     @Test
     void viewerGetsActiveRelayRoomList() throws Exception {
         insertAdminUser(VIEWER_ID, VIEWER_LOGIN_ID, VIEWER_NICKNAME, VIEWER_EMAIL, AdminRole.VIEWER);
-        given(relayRoomRepository.findAllActiveRooms())
-            .willReturn(List.of(roomState("ROOM_V", RelayRoomStatus.WAITING, 1, null, LocalDateTime.now())));
+        givenActiveRooms(List.of(roomState("ROOM_V", RelayRoomStatus.WAITING, 1, null, LocalDateTime.now())));
 
         mockMvc
             .perform(get("/api/v1/backoffice/relay-rooms").header(HttpHeaders.AUTHORIZATION,
@@ -285,7 +280,7 @@ class BackofficeRelayRoomControllerIntegrationTest extends AbstractReadOnlyInteg
 
     @Test
     void returnsEmptyListWhenNoActiveRooms() throws Exception {
-        given(relayRoomRepository.findAllActiveRooms()).willReturn(List.of());
+        givenActiveRooms(List.of());
 
         mockMvc.perform(get("/api/v1/backoffice/relay-rooms").header(HttpHeaders.AUTHORIZATION, bearerAccessToken()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(0))
@@ -371,7 +366,7 @@ class BackofficeRelayRoomControllerIntegrationTest extends AbstractReadOnlyInteg
             LocalDateTime.of(2026, 5, 9, 11, 50));
         given(relayRoomRepository.findByRoomCode(roomCode)).willReturn(Optional.of(roomState));
         given(relayRoomRepository.saveIfUnchanged(eq(roomState), any(RelayRoomState.class))).willReturn(true);
-        given(relayRoomRepository.findAllActiveRooms()).willReturn(List.of());
+        givenActiveRooms(List.of());
 
         mockMvc.perform(delete("/api/v1/backoffice/relay-rooms/{roomCode}", roomCode).header(HttpHeaders.AUTHORIZATION,
             bearerAccessToken())).andExpect(status().isOk());
@@ -461,6 +456,23 @@ class BackofficeRelayRoomControllerIntegrationTest extends AbstractReadOnlyInteg
         return java.util.stream.IntStream.range(0, count).mapToObj(
             index -> new RelayRoomParticipant("user-" + index, "닉네임" + index, index == 0, index, true, null, joinedAt))
             .toList();
+    }
+
+    private void givenActiveRooms(List<RelayRoomState> rooms) {
+        given(relayRoomRepository.findActiveRoomsByStatuses(any(), anyInt(), anyInt())).willAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            Set<RelayRoomStatus> statuses = invocation.getArgument(0);
+            int page = invocation.getArgument(1);
+            int size = invocation.getArgument(2);
+            List<RelayRoomState> filtered = rooms.stream().filter(room -> statuses.contains(room.status()))
+                .sorted(Comparator.comparing(RelayRoomState::createdAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                    .thenComparing(RelayRoomState::roomCode, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+            int fromIndex = Math.min(page * size, filtered.size());
+            int toIndex = Math.min(fromIndex + size, filtered.size());
+
+            return new RelayActiveRoomPage(filtered.subList(fromIndex, toIndex), filtered.size());
+        });
     }
 
     private void insertAdminUser(long id, String loginId, String nickname, String email, AdminRole role) {

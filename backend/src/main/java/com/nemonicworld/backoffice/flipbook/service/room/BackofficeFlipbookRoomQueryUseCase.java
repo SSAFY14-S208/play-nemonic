@@ -5,10 +5,9 @@ import com.nemonicworld.backoffice.flipbook.dto.response.BackofficeFlipbookRoomL
 import com.nemonicworld.backoffice.flipbook.dto.response.BackofficeFlipbookRoomResponse;
 import com.nemonicworld.common.exception.BadRequestException;
 import com.nemonicworld.common.jwt.AdminPrincipal;
-import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
+import com.nemonicworld.flipbook.repository.FlipbookActiveRoomPage;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
-import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
@@ -44,21 +43,12 @@ public class BackofficeFlipbookRoomQueryUseCase {
         int pageNumber = parsePage(page);
         int pageSize = parseSize(size);
 
-        List<FlipbookRoomState> activeRooms = flipbookRoomRepository.findAllActiveRooms();
-        List<FlipbookRoomState> filtered = activeRooms.stream()
-            .filter(room -> room.status() != FlipbookRoomStatus.CLOSED)
-            .filter(room -> statusFilter.contains(room.status()))
-            .sorted(Comparator.comparing(FlipbookRoomState::createdAt, Comparator.nullsLast(Comparator.reverseOrder()))
-                .thenComparing(FlipbookRoomState::roomCode, Comparator.nullsLast(Comparator.naturalOrder())))
-            .toList();
+        FlipbookActiveRoomPage activeRoomPage = flipbookRoomRepository.findActiveRoomsByStatuses(statusFilter,
+            pageNumber, pageSize);
+        List<BackofficeFlipbookRoomResponse> items = activeRoomPage.items().stream()
+            .filter(room -> statusFilter.contains(room.status())).map(BackofficeFlipbookRoomResponse::from).toList();
 
-        long totalElements = filtered.size();
-        int fromIndex = Math.min(pageNumber * pageSize, filtered.size());
-        int toIndex = Math.min(fromIndex + pageSize, filtered.size());
-        List<BackofficeFlipbookRoomResponse> items = filtered.subList(fromIndex, toIndex).stream()
-            .map(BackofficeFlipbookRoomResponse::from).toList();
-
-        return new BackofficeFlipbookRoomListResponse(items, totalElements, pageNumber, pageSize);
+        return new BackofficeFlipbookRoomListResponse(items, activeRoomPage.totalElements(), pageNumber, pageSize);
     }
 
     private Set<FlipbookRoomStatus> parseStatusFilter(String value) {
