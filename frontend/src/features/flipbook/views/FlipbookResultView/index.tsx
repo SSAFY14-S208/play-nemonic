@@ -8,10 +8,10 @@ import { HowToPlayModal, PhoneLauncherButton } from '@/shared/components'
 import type { FlipbookResultItemResponse } from '@/shared/types'
 import { getDisplayImageUrl } from '@/shared/utils'
 
-import { FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '../../constants'
-import { useFlipbookBgm } from '../../hooks'
-import { toFlipbookPrintParticipants } from '../../utils'
-import { FlipbookPrintResultStage, type FlipbookPrintFrame, type FlipbookPrintParticipant } from '../../components/result-print'
+import { FlipbookPrintResultStage, type FlipbookPrintFrame, type FlipbookPrintParticipant } from '@/features/flipbook/components/result-print'
+import { FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '@/features/flipbook/constants'
+import { useFlipbookBgm } from '@/features/flipbook/hooks'
+import { toFlipbookPrintParticipants } from '@/features/flipbook/utils'
 import { useFlipbookResultActions, useFlipbookResultAutoCycle } from './hooks'
 
 const FLIPBOOK_RESULT_CONTROL_IMAGES = {

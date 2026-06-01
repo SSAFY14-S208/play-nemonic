@@ -7,8 +7,8 @@ import { useEffect, useRef, useState, type RefObject } from 'react'
 import Lottie from 'lottie-react'
 import { downArrowAnimation } from '@/shared/assets'
 import { HowToPlayModal, PhoneLauncherButton } from '@/shared/components'
-import { FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '../../constants'
-import { useFlipbookBgm } from '../../hooks'
+import { FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '@/features/flipbook/constants'
+import { useFlipbookBgm } from '@/features/flipbook/hooks'
 import {
   useFlipbookEntranceIntro,
   useFlipbookEntrancePreload,

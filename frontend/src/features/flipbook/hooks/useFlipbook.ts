@@ -10,7 +10,7 @@ import { completeFunnelStep, logEvent, reachFunnelGoal } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 import type {
   DrawingLine, FlipbookAssignmentResponse, FlipbookBlockedReason, FlipbookFrameSubmitResponse, FlipbookRoomCreateResponse, FlipbookResultItemResponse, FlipbookRoomStateResponse, } from '@/shared/types'
-import { FLIPBOOK_BACKGROUND_COLOR, FLIPBOOK_BOARD_SIZE } from '..'
+import { FLIPBOOK_BACKGROUND_COLOR, FLIPBOOK_BOARD_SIZE } from '../constants'
 import type {
   FlipbookStep,
   FlipbookTimeLimitSeconds,

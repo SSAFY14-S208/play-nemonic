@@ -9,8 +9,8 @@ import { useNemonicPrintVibration } from '@/shared/hooks'
 import { cn } from '@/shared/libs'
 import { playBrowserAudio, preloadBrowserAudio } from '@/shared/utils'
 
-import { FLIPBOOK_SOUND_PATHS } from '../..'
-import { useFlipbookPrintReveal } from '../../hooks'
+import { FLIPBOOK_SOUND_PATHS } from '@/features/flipbook/constants'
+import { useFlipbookPrintReveal } from '@/features/flipbook/hooks'
 import './FlipbookPrintResultStage.css'
 
 const styles = {

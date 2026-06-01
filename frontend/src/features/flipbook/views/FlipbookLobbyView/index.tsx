@@ -6,9 +6,9 @@ import Image from 'next/image'
 import { GameLobbyLayout, HowToPlayModal, PhoneLauncherButton, type GameLobbyTheme, type LobbyParticipant } from '@/shared/components'
 import type { FlipbookConnectionStatus } from '@/shared/types'
 
-import { FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '../../constants'
-import { useFlipbookBgm } from '../../hooks'
-import type { FlipbookParticipant, FlipbookTimeLimitSeconds } from '../../types'
+import { FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '@/features/flipbook/constants'
+import { useFlipbookBgm } from '@/features/flipbook/hooks'
+import type { FlipbookParticipant, FlipbookTimeLimitSeconds } from '@/features/flipbook/types'
 
 const FLIPBOOK_TITLE_IMAGE = '/images/flipbook-entrance-scene/title-logo-sprite.png'
 const FLIPBOOK_LOBBY_BACKGROUND = '/images/flipbook-lobby/background.png'
