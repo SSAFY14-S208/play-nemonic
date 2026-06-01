@@ -10,9 +10,17 @@ Last updated: 2026-06-01
   `backend/docs/performance/k6-실행-가이드.md`, and each troubleshooting doc embeds
   its own k6 result summary instead of relying on a separate aggregate k6 file.
 - Performance docs are now organized from `트러블 슈팅 1` through
-  `트러블 슈팅 5` in `backend/docs/performance/README.md`.
+  `트러블 슈팅 6` in `backend/docs/performance/README.md`.
   Each optimization doc embeds Korean and English SVG graphs directly instead
   of listing graph paths only.
+- Relay and flipbook backoffice active-room listing now uses Redis Sorted Set
+  status indexes instead of scanning every `relay:room:*` or `flipbook:room:*`
+  key for each request. The first lookup lazily backfills indexes for existing
+  Redis room state, and `ContentActivityMetrics` counts active rooms with
+  status `ZCARD` calls after pruning expired room codes from `expires-at`
+  indexes, instead of deserializing room JSON. Performance evidence and k6
+  scripts are documented in
+  `backend/docs/performance/06-릴레이-플립북-활성-방-인덱스-최적화/README.md`.
 - Gallery list query now reduces unnecessary subtype joins. Count uses only
   `gallery + artifact`, and list lookup first selects page items before joining
   subtype artifact tables. Performance evidence is documented in
@@ -206,17 +214,19 @@ Last updated: 2026-06-01
 - Backoffice admins can now manage active relay drawing rooms through
   `GET /api/v1/backoffice/relay-rooms` and
   `DELETE /api/v1/backoffice/relay-rooms/{roomCode}`; delete requires an admin
-  JWT, closes any non-CLOSED Redis room through CAS, returns `roomCode`, rejects
-  already CLOSED rooms with 409, emits `ROOM_CLOSED`, and leaves MinIO,
-  artifact, and gallery cleanup out of scope.
+  JWT, list uses Redis status Sorted Set indexes, delete closes any non-CLOSED
+  Redis room through CAS, returns `roomCode`, rejects already CLOSED rooms with
+  409, emits `ROOM_CLOSED`, and leaves MinIO, artifact, and gallery cleanup out
+  of scope.
 - Backoffice `viewer` accounts can list active rooms/canvases across relay,
   flipbook, and infinite canvas, but cannot force-close or delete them.
 - Backoffice admins can now list active flipbook rooms through
   `GET /api/v1/backoffice/flipbook-rooms`; the API requires an admin JWT,
-  scans Redis `flipbook:room:{roomCode}` state, returns CLOSED-excluded
-  WAITING/PLAYING/FINISHED rooms with `roomCode`, `status`, participant count,
-  current/total round, and `gameStartedAt`, supports `status`, `page`, and
-  `size`, and keeps database/artifact/gallery lookup out of scope.
+  uses Redis status Sorted Set indexes instead of room-key scan for the steady
+  state, returns CLOSED-excluded WAITING/PLAYING/FINISHED rooms with
+  `roomCode`, `status`, participant count, current/total round, and
+  `gameStartedAt`, supports `status`, `page`, and `size`, and keeps
+  database/artifact/gallery lookup out of scope.
 - Backoffice admins can now delete active flipbook rooms through
   `DELETE /api/v1/backoffice/flipbook-rooms/{roomCode}`; delete requires an
   admin JWT, closes any non-CLOSED Redis room through CAS, returns `roomCode`,

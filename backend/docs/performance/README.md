@@ -44,12 +44,20 @@ backend/docs/performance/
 │   └── k6/
 │       ├── 04-무한캔버스-활성-방-목록-k6.js
 │       └── results/
-└── 05-무한캔버스-요소-적용-최적화/
+├── 05-무한캔버스-요소-적용-최적화/
+│   ├── README.md
+│   ├── captures/
+│   ├── graphs/
+│   └── k6/
+│       └── README.md
+└── 06-릴레이-플립북-활성-방-인덱스-최적화/
     ├── README.md
     ├── captures/
     ├── graphs/
     └── k6/
-        └── README.md
+        ├── 06-1-릴레이-활성-방-목록-k6.js
+        ├── 06-2-플립북-활성-방-목록-k6.js
+        └── results/
 ```
 
 ## 한눈에 보기
@@ -62,6 +70,7 @@ backend/docs/performance/
 | 트러블 슈팅 3 | count 쿼리의 subtype JOIN 제거, page row만 subtype JOIN | `03-갤러리-목록-조회-쿼리-최적화/README.md` | `03-갤러리-목록-조회-쿼리-최적화/graphs/` | `03-갤러리-목록-조회-쿼리-최적화/k6/` |
 | 트러블 슈팅 4 | Redis Sorted Set 인덱스와 참여자 delta payload로 SCAN, 큰 JSON 전송 제거 | `04-무한캔버스-조회-payload-최적화/README.md` | `04-무한캔버스-조회-payload-최적화/graphs/` | `04-무한캔버스-조회-payload-최적화/k6/` |
 | 트러블 슈팅 5 | 리스트 반복 탐색을 Map 기반 batch 적용으로 변경 | `05-무한캔버스-요소-적용-최적화/README.md` | `05-무한캔버스-요소-적용-최적화/graphs/` | 직접 k6 없음, `05-무한캔버스-요소-적용-최적화/k6/README.md` 참고 |
+| 트러블 슈팅 6 | 릴레이/플립북 활성 방 목록과 Prometheus gauge를 Redis Sorted Set 인덱스 기반으로 변경 | `06-릴레이-플립북-활성-방-인덱스-최적화/README.md` | `06-릴레이-플립북-활성-방-인덱스-최적화/graphs/` | `06-릴레이-플립북-활성-방-인덱스-최적화/k6/` |
 
 ## k6 결과 파일
 
@@ -71,6 +80,8 @@ backend/docs/performance/
 | 트러블 슈팅 2 문의 답변 | `02-문의-답변-메일-io-트랜잭션-분리/k6/02-문의-답변-k6.js` | `02-문의-답변-메일-io-트랜잭션-분리/k6/results/02-문의-답변-k6-결과.md` | `02-문의-답변-메일-io-트랜잭션-분리/k6/results/02-admin-inquiry-reply-dashboard.html` | `02-문의-답변-메일-io-트랜잭션-분리/captures/` |
 | 트러블 슈팅 3 갤러리 목록 조회 | `03-갤러리-목록-조회-쿼리-최적화/k6/03-갤러리-목록-조회-k6.js` | `03-갤러리-목록-조회-쿼리-최적화/k6/results/03-갤러리-목록-조회-k6-결과.md` | `03-갤러리-목록-조회-쿼리-최적화/k6/results/03-gallery-list-dashboard.html` | `03-갤러리-목록-조회-쿼리-최적화/captures/` |
 | 트러블 슈팅 4 무한캔버스 활성 방 목록 | `04-무한캔버스-조회-payload-최적화/k6/04-무한캔버스-활성-방-목록-k6.js` | `04-무한캔버스-조회-payload-최적화/k6/results/04-무한캔버스-활성-방-목록-k6-결과.md` | `04-무한캔버스-조회-payload-최적화/k6/results/04-infinite-canvas-dashboard.html` | `04-무한캔버스-조회-payload-최적화/captures/` |
+| 트러블 슈팅 6 릴레이 활성 방 목록 | `06-릴레이-플립북-활성-방-인덱스-최적화/k6/06-1-릴레이-활성-방-목록-k6.js` | `06-릴레이-플립북-활성-방-인덱스-최적화/k6/results/06-1-릴레이-활성-방-목록-k6-결과.md` | `06-릴레이-플립북-활성-방-인덱스-최적화/k6/results/06-1-relay-active-room-dashboard.html` | `06-릴레이-플립북-활성-방-인덱스-최적화/captures/` |
+| 트러블 슈팅 6 플립북 활성 방 목록 | `06-릴레이-플립북-활성-방-인덱스-최적화/k6/06-2-플립북-활성-방-목록-k6.js` | `06-릴레이-플립북-활성-방-인덱스-최적화/k6/results/06-2-플립북-활성-방-목록-k6-결과.md` | `06-릴레이-플립북-활성-방-인덱스-최적화/k6/results/06-2-flipbook-active-room-dashboard.html` | `06-릴레이-플립북-활성-방-인덱스-최적화/captures/` |
 
 ## 캡처 파일
 
@@ -94,6 +105,9 @@ backend/docs/performance/
 | 트러블 슈팅 4 활성 방 p95 | `04-무한캔버스-조회-payload-최적화/graphs/infinite-canvas-active-room-p95-ko.svg` | `04-무한캔버스-조회-payload-최적화/graphs/infinite-canvas-active-room-p95.svg` |
 | 트러블 슈팅 4 payload | `04-무한캔버스-조회-payload-최적화/graphs/infinite-canvas-websocket-payload-ko.svg` | `04-무한캔버스-조회-payload-최적화/graphs/infinite-canvas-websocket-payload.svg` |
 | 트러블 슈팅 5 operation apply p95 | `05-무한캔버스-요소-적용-최적화/graphs/infinite-canvas-operation-apply-p95-ko.svg` | `05-무한캔버스-요소-적용-최적화/graphs/infinite-canvas-operation-apply-p95.svg` |
+| 트러블 슈팅 6 활성 방 p95 | `06-릴레이-플립북-활성-방-인덱스-최적화/graphs/relay-flipbook-active-room-p95-ko.svg` | `06-릴레이-플립북-활성-방-인덱스-최적화/graphs/relay-flipbook-active-room-p95.svg` |
+| 트러블 슈팅 6 JSON 역직렬화 | `06-릴레이-플립북-활성-방-인덱스-최적화/graphs/relay-flipbook-deserialize-count-ko.svg` | `06-릴레이-플립북-활성-방-인덱스-최적화/graphs/relay-flipbook-deserialize-count.svg` |
+| 트러블 슈팅 6 gauge 수집 비용 | `06-릴레이-플립북-활성-방-인덱스-최적화/graphs/relay-flipbook-metrics-count-cost-ko.svg` | `06-릴레이-플립북-활성-방-인덱스-최적화/graphs/relay-flipbook-metrics-count-cost.svg` |
 
 ## 실행 가이드
 

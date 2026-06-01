@@ -1,10 +1,12 @@
 package com.nemonicworld.relay.repository;
 
 import com.nemonicworld.relay.redis.RelayRoomState;
+import com.nemonicworld.relay.entity.RelayRoomStatus;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 진행 중 릴레이 방 상태 저장소가 제공해야 하는 최소 동작입니다.
@@ -84,6 +86,21 @@ public interface RelayRoomRepository {
      * 조회합니다.
      */
     List<RelayRoomState> findAllActiveRooms();
+
+    /**
+     * 백오피스와 메트릭 수집에서 필요한 상태의 활성 릴레이 방만 조회합니다.
+     */
+    List<RelayRoomState> findActiveRoomsByStatuses(Set<RelayRoomStatus> statuses);
+
+    /**
+     * 백오피스 목록 조회용으로 상태 필터와 페이지 범위를 반영해 활성 릴레이 방을 조회합니다.
+     */
+    RelayActiveRoomPage findActiveRoomsByStatuses(Set<RelayRoomStatus> statuses, int page, int size);
+
+    /**
+     * 메트릭 수집용으로 상태 필터에 해당하는 활성 릴레이 방 수만 조회합니다.
+     */
+    long countActiveRoomsByStatuses(Set<RelayRoomStatus> statuses);
 
     /**
      * 같은 방 최종화가 여러 서버에서 동시에 실행되지 않도록 짧은 Redis lock을 획득합니다.

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="520" viewBox="0 0 920 520" role="img" aria-labelledby="title desc">
+  <title id="title">메트릭 수집 JSON 역직렬화 수</title>
+  <desc id="desc">Prometheus active room gauge 수집 시 JSON 역직렬화 수 before after 비교</desc>
+  <rect width="920" height="520" fill="#ffffff"/>
+  <text x="48" y="48" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1f2937">Prometheus gauge 수집 JSON 역직렬화 수</text>
+  <text x="48" y="78" font-family="Arial, sans-serif" font-size="14" fill="#6b7280">After는 room JSON 없이 상태별 ZCARD 3회로 계산</text>
+  <line x1="90" y1="420" x2="850" y2="420" stroke="#d1d5db"/>
+  <line x1="90" y1="110" x2="90" y2="420" stroke="#d1d5db"/>
+  <text x="48" y="423" font-family="Arial, sans-serif" font-size="12" fill="#6b7280">0</text>
+  <text x="35" y="266" font-family="Arial, sans-serif" font-size="12" fill="#6b7280">5,000</text>
+  <text x="28" y="112" font-family="Arial, sans-serif" font-size="12" fill="#6b7280">10,000</text>
+  <g fill="#ef4444">
+    <rect x="150" y="417" width="70" height="3"/>
+    <rect x="330" y="389" width="70" height="31"/>
+    <rect x="510" y="265" width="70" height="155"/>
+    <rect x="690" y="110" width="70" height="310"/>
+  </g>
+  <g fill="#10b981">
+    <rect x="230" y="420" width="30" height="0"/>
+    <rect x="410" y="420" width="30" height="0"/>
+    <rect x="590" y="420" width="30" height="0"/>
+    <rect x="770" y="420" width="30" height="0"/>
+  </g>
+  <g font-family="Arial, sans-serif" font-size="13" fill="#374151" text-anchor="middle">
+    <text x="205" y="452">100</text>
+    <text x="385" y="452">1,000</text>
+    <text x="565" y="452">5,000</text>
+    <text x="745" y="452">10,000</text>
+    <text x="205" y="476">활성 방 수</text>
+  </g>
+  <g font-family="Arial, sans-serif" font-size="12" text-anchor="middle">
+    <text x="185" y="407" fill="#991b1b">100</text>
+    <text x="365" y="379" fill="#991b1b">1,000</text>
+    <text x="545" y="255" fill="#991b1b">5,000</text>
+    <text x="725" y="100" fill="#991b1b">10,000</text>
+    <text x="245" y="407" fill="#047857">0</text>
+    <text x="425" y="407" fill="#047857">0</text>
+    <text x="605" y="407" fill="#047857">0</text>
+    <text x="785" y="407" fill="#047857">0</text>
+  </g>
+  <rect x="610" y="50" width="18" height="18" fill="#ef4444"/>
+  <text x="636" y="64" font-family="Arial, sans-serif" font-size="14" fill="#374151">Before: 목록 조회 기반 gauge</text>
+  <rect x="610" y="78" width="18" height="18" fill="#10b981"/>
+  <text x="636" y="92" font-family="Arial, sans-serif" font-size="14" fill="#374151">After: ZCARD 기반 gauge</text>
+</svg>

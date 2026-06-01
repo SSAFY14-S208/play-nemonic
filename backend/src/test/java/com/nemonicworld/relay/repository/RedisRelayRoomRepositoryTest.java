@@ -2,6 +2,7 @@ package com.nemonicworld.relay.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -16,7 +17,9 @@ import com.nemonicworld.relay.entity.RelayRoomStatus;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +30,7 @@ import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.ZSetOperations;
 
 /**
  * Redis WATCH 기반 조건부 저장이 기대한 현재 상태에만 성공하는지 검증합니다.
@@ -42,6 +46,7 @@ class RedisRelayRoomRepositoryTest {
     private StringRedisTemplate redisTemplate;
     private RedisOperations<String, String> redisOperations;
     private ValueOperations<String, String> valueOperations;
+    private ZSetOperations<String, String> zSetOperations;
     private RedisRelayRoomRepository repository;
 
     @BeforeEach
@@ -49,16 +54,30 @@ class RedisRelayRoomRepositoryTest {
         redisTemplate = mock(StringRedisTemplate.class);
         redisOperations = createRedisOperationsMock();
         valueOperations = createValueOperationsMock();
+        zSetOperations = createZSetOperationsMock();
         repository = new RedisRelayRoomRepository(redisTemplate, objectMapper);
 
         given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(redisTemplate.opsForZSet()).willReturn(zSetOperations);
         given(redisOperations.opsForValue()).willReturn(valueOperations);
+        given(redisOperations.opsForZSet()).willReturn(zSetOperations);
         given(redisOperations.exec()).willReturn(List.of("OK"));
         given(redisTemplate.execute(any(SessionCallback.class))).willAnswer(invocation -> {
             SessionCallback<?> callback = invocation.getArgument(0);
 
             return callback.execute(redisOperations);
         });
+    }
+
+    @Test
+    void saveStoresActiveRoomIndexByStatus() {
+        RelayRoomState roomState = roomState(participant(UUID.randomUUID(), "망고", true, 0));
+
+        repository.save(roomState);
+
+        verify(valueOperations).set(eq(ROOM_KEY), any(String.class), eq(ROOM_STATE_TTL));
+        verify(zSetOperations).add(eq("relay:rooms:active:created-at:WAITING"), eq(ROOM_CODE), any(Double.class));
+        verify(zSetOperations).add(eq("relay:rooms:active:expires-at:WAITING"), eq(ROOM_CODE), any(Double.class));
     }
 
     /**
@@ -81,6 +100,8 @@ class RedisRelayRoomRepositoryTest {
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
         verify(valueOperations).set(eq(ROOM_KEY), jsonCaptor.capture(), eq(ROOM_STATE_TTL));
         assertThat(deserialize(jsonCaptor.getValue())).isEqualTo(updatedRoomState);
+        verify(zSetOperations).add(eq("relay:rooms:active:created-at:WAITING"), eq(ROOM_CODE), any(Double.class));
+        verify(zSetOperations).add(eq("relay:rooms:active:expires-at:WAITING"), eq(ROOM_CODE), any(Double.class));
     }
 
     /**
@@ -370,6 +391,109 @@ class RedisRelayRoomRepositoryTest {
     }
 
     @Test
+    void findActiveRoomsByStatusesReadsStatusIndexesWithoutScanningRoomKeys() throws Exception {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        RelayRoomParticipant host = participant(UUID.randomUUID(), "Mango", true, 0);
+        RelayRoomState waitingRoom = roomState("WAIT01", RelayRoomStatus.WAITING, null, null, null, now, host);
+        RelayRoomState playingRoom = roomState("PLAY01", RelayRoomStatus.PLAYING, RelayDrawingPart.FACE,
+            now.minusSeconds(45), now, host);
+        given(redisTemplate.hasKey("relay:rooms:active:index-initialized")).willReturn(true);
+        given(zSetOperations.reverseRange("relay:rooms:active:created-at:WAITING", 0, -1))
+            .willReturn(new LinkedHashSet<>(List.of("WAIT01")));
+        given(zSetOperations.reverseRange("relay:rooms:active:created-at:PLAYING", 0, -1))
+            .willReturn(new LinkedHashSet<>(List.of("PLAY01")));
+        given(valueOperations.get("relay:room:WAIT01")).willReturn(serialize(waitingRoom));
+        given(valueOperations.get("relay:room:PLAY01")).willReturn(serialize(playingRoom));
+
+        List<RelayRoomState> activeRooms = repository
+            .findActiveRoomsByStatuses(Set.of(RelayRoomStatus.WAITING, RelayRoomStatus.PLAYING));
+
+        assertThat(activeRooms).containsExactlyInAnyOrder(waitingRoom, playingRoom);
+        verify(redisTemplate, never()).scan(any(ScanOptions.class));
+    }
+
+    @Test
+    void findActiveRoomsByStatusesWithPageReadsOnlyRequestedWindow() throws Exception {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        RelayRoomParticipant host = participant(UUID.randomUUID(), "Mango", true, 0);
+        RelayRoomState roomA = roomState("ROOM_A", RelayRoomStatus.WAITING, null, null, null, now, host);
+        RelayRoomState roomB = roomState("ROOM_B", RelayRoomStatus.WAITING, null, null, null, now.minusSeconds(1),
+            host);
+        RelayRoomState roomC = roomState("ROOM_C", RelayRoomStatus.WAITING, null, null, null, now.minusSeconds(2),
+            host);
+        RelayRoomState roomD = roomState("ROOM_D", RelayRoomStatus.WAITING, null, null, null, now.minusSeconds(3),
+            host);
+        given(redisTemplate.hasKey("relay:rooms:active:index-initialized")).willReturn(true);
+        given(zSetOperations.reverseRange("relay:rooms:active:created-at:WAITING", 0, 3))
+            .willReturn(new LinkedHashSet<>(List.of("ROOM_A", "ROOM_B", "ROOM_C", "ROOM_D")));
+        given(zSetOperations.zCard("relay:rooms:active:created-at:WAITING")).willReturn(5L);
+        given(valueOperations.get("relay:room:ROOM_A")).willReturn(serialize(roomA));
+        given(valueOperations.get("relay:room:ROOM_B")).willReturn(serialize(roomB));
+        given(valueOperations.get("relay:room:ROOM_C")).willReturn(serialize(roomC));
+        given(valueOperations.get("relay:room:ROOM_D")).willReturn(serialize(roomD));
+
+        RelayActiveRoomPage page = repository.findActiveRoomsByStatuses(Set.of(RelayRoomStatus.WAITING), 1, 2);
+
+        assertThat(page.items()).containsExactly(roomC, roomD);
+        assertThat(page.totalElements()).isEqualTo(5L);
+        verify(zSetOperations).reverseRange("relay:rooms:active:created-at:WAITING", 0, 3);
+        verify(redisTemplate, never()).scan(any(ScanOptions.class));
+    }
+
+    @Test
+    void countActiveRoomsByStatusesUsesStatusIndexesWhenInitialized() {
+        given(redisTemplate.hasKey("relay:rooms:active:index-initialized")).willReturn(true);
+        given(zSetOperations.zCard("relay:rooms:active:created-at:WAITING")).willReturn(3L);
+        given(zSetOperations.zCard("relay:rooms:active:created-at:PLAYING")).willReturn(2L);
+
+        long activeRoomCount = repository
+            .countActiveRoomsByStatuses(Set.of(RelayRoomStatus.WAITING, RelayRoomStatus.PLAYING));
+
+        assertThat(activeRoomCount).isEqualTo(5L);
+        verify(redisTemplate, never()).scan(any(ScanOptions.class));
+    }
+
+    @Test
+    void countActiveRoomsByStatusesRemovesExpiredIndexMembersBeforeCounting() {
+        given(redisTemplate.hasKey("relay:rooms:active:index-initialized")).willReturn(true);
+        given(zSetOperations.rangeByScore(eq("relay:rooms:active:expires-at:WAITING"), eq(0.0), anyDouble()))
+            .willReturn(Set.of("STALE1"));
+        given(zSetOperations.zCard("relay:rooms:active:created-at:WAITING")).willReturn(2L);
+
+        long activeRoomCount = repository.countActiveRoomsByStatuses(Set.of(RelayRoomStatus.WAITING));
+
+        assertThat(activeRoomCount).isEqualTo(2L);
+        verify(zSetOperations).remove("relay:rooms:active:created-at:WAITING", "STALE1");
+        verify(zSetOperations).remove("relay:rooms:active:expires-at:WAITING", "STALE1");
+        verify(redisTemplate, never()).scan(any(ScanOptions.class));
+    }
+
+    @Test
+    void findActiveRoomsByStatusesFallsBackToScanAndBackfillsIndexesWhenIndexesAreEmpty() throws Exception {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        RelayRoomParticipant host = participant(UUID.randomUUID(), "Mango", true, 0);
+        RelayRoomState waitingRoom = roomState("WAIT01", RelayRoomStatus.WAITING, null, null, null, now, host);
+        RelayRoomState finishedRoom = roomState("FINISH", RelayRoomStatus.FINISHED, RelayDrawingPart.LEGS,
+            now.minusMinutes(10), now.minusMinutes(9), host);
+        Cursor<String> cursor = createCursorMock();
+        given(redisTemplate.scan(any(ScanOptions.class))).willReturn(cursor);
+        given(cursor.hasNext()).willReturn(true, true, false);
+        given(cursor.next()).willReturn("relay:room:WAIT01", "relay:room:FINISH");
+        given(valueOperations.get("relay:room:WAIT01")).willReturn(serialize(waitingRoom));
+        given(valueOperations.get("relay:room:FINISH")).willReturn(serialize(finishedRoom));
+
+        List<RelayRoomState> activeRooms = repository.findActiveRoomsByStatuses(Set.of(RelayRoomStatus.WAITING));
+
+        assertThat(activeRooms).containsExactly(waitingRoom);
+        verify(zSetOperations).add(eq("relay:rooms:active:created-at:WAITING"), eq("WAIT01"), any(Double.class));
+        verify(zSetOperations).add(eq("relay:rooms:active:expires-at:WAITING"), eq("WAIT01"), any(Double.class));
+        verify(zSetOperations).add(eq("relay:rooms:active:created-at:FINISHED"), eq("FINISH"), any(Double.class));
+        verify(zSetOperations).add(eq("relay:rooms:active:expires-at:FINISHED"), eq("FINISH"), any(Double.class));
+        verify(valueOperations).set(eq("relay:rooms:active:index-initialized"), eq("true"), eq(ROOM_STATE_TTL));
+        verify(cursor).close();
+    }
+
+    @Test
     void acquireAndReleaseFinalizationLockUsesSeparateLockKey() {
         Duration lockTtl = Duration.ofSeconds(60);
         String lockToken = "token-1";
@@ -470,6 +594,11 @@ class RedisRelayRoomRepositoryTest {
     @SuppressWarnings("unchecked")
     private ValueOperations<String, String> createValueOperationsMock() {
         return (ValueOperations<String, String>) mock(ValueOperations.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    private ZSetOperations<String, String> createZSetOperationsMock() {
+        return (ZSetOperations<String, String>) mock(ZSetOperations.class);
     }
 
     @SuppressWarnings("unchecked")
