@@ -12,7 +12,7 @@ import { FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '../../constan
 import { useFlipbookEntranceBgm } from '../../hooks'
 import { toFlipbookPrintParticipants } from '../../utils'
 import { FlipbookPrintResultStage, type FlipbookPrintFrame, type FlipbookPrintParticipant } from '../../components/result-print'
-import { useFlipbookResultActions } from './hooks'
+import { useFlipbookResultActions, useFlipbookResultAutoCycle } from './hooks'
 
 const FLIPBOOK_RESULT_CONTROL_IMAGES = {
   howToPlay: '/images/flipbook-entrance-scene/how-to-play-button.png',
@@ -35,9 +35,6 @@ interface FlipbookResultViewProps {
   errorMessage: string | null
   onSelectResult: (resultIndex: number) => void
   onReturnToLobby: () => void
-  // 참여자별 print/reveal 시퀀스가 끝나고 GIF가 보이는 시점에 한 번 발사.
-  // 자동 전환 hook이 이 시점을 5초 카운트의 시작점으로 사용한다.
-  onParticipantRevealComplete?: (participantIndex: number) => void
 }
 
 export default function FlipbookResultView({
@@ -50,9 +47,9 @@ export default function FlipbookResultView({
   errorMessage,
   onSelectResult,
   onReturnToLobby,
-  onParticipantRevealComplete,
 }: FlipbookResultViewProps) {
   const [isHowToPlayModalOpen, setIsHowToPlayModalOpen] = useState(false)
+  const [revealedResultIndex, setRevealedResultIndex] = useState<number | null>(null)
   const { audioRef, isBgmMuted, toggleFlipbookEntranceBgmMuted } = useFlipbookEntranceBgm({
     shouldStart: true,
   })
@@ -66,6 +63,13 @@ export default function FlipbookResultView({
     activeResultIndex,
     resultOwnerNames,
     onReturnToLobby,
+  })
+  useFlipbookResultAutoCycle({
+    enabled: true,
+    resultCount: resultItems.length,
+    activeResultIndex,
+    revealedResultIndex,
+    onSelectResult,
   })
   const isResultLoading = printParticipants.length === 0
   const resultActionButtons = [
@@ -130,7 +134,7 @@ export default function FlipbookResultView({
         participants={printParticipants}
         activeParticipantIndex={activeResultIndex}
         onSelectParticipant={onSelectResult}
-        onParticipantRevealComplete={onParticipantRevealComplete}
+        onParticipantRevealComplete={setRevealedResultIndex}
         renderPaper={(frame, frameIndex, participant) => (
           <FlipbookPrintedArtwork
             frame={frame}
