@@ -1,9 +1,18 @@
 # Codex Current State
 
-Last updated: 2026-05-18
+Last updated: 2026-06-01
 
 ## Current Focus
 
+- Fortune create/today requery and admin inquiry reply no longer keep external
+  I/O inside a method-wide transaction. `FortuneTransactionSupport` now wraps
+  short DB read/write sections, while GMS, card upload, and SMTP send execute
+  outside the transaction boundary. Performance evidence is documented in
+  `backend/docs/performance/transaction-external-io-optimization-ko.md`.
+- Infinite canvas performance visualizations were revalidated against the
+  current code shape on 2026-06-01. The docs now reference
+  `InfiniteCanvasEditingUseCase` and `InfiniteCanvasOperationApplier` for
+  operation apply optimization, and the benchmark SVG assets were regenerated.
 - Backend agent harness has been prepared for the `backend/` Spring Boot module.
 - The harness now reflects the intended backend stack: Spring Boot, Java, PostgreSQL, Redis, MinIO, and Flyway.
 - Team contribution and backend MR conventions are recorded for shared workflow.

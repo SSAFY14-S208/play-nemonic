@@ -27,7 +27,7 @@
 측정은 `backend/scripts/benchmark-infinite-canvas-performance.py`로 수행했습니다.
 
 ```bash
-python3 backend/scripts/benchmark-infinite-canvas-performance.py --iterations 10
+python3 backend/scripts/benchmark-infinite-canvas-performance.py --iterations 20 --output-dir backend/docs/performance/assets
 ```
 
 측정 방식은 실제 Redis 서버의 순간 상태에 의존하지 않도록 synthetic benchmark로 구성했습니다.
@@ -87,16 +87,16 @@ ZREVRANGE infinite-canvas:rooms:active:created-at pageOffset pageEnd
 관련 코드:
 
 - `RedisInfiniteCanvasRepository.findActiveCanvases(...)`
-- `BackofficeInfiniteCanvasServiceImpl.getActiveCanvases(...)`
+- `BackofficeInfiniteCanvasQueryUseCase.getActiveCanvases(...)`
 
 ### 측정 결과
 
 | 활성 방 수 | Before avg ms | Before p95 ms | After avg ms | After p95 ms | p95 개선 배율 | Before 역직렬화 | After 역직렬화 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 100 | 46.28 | 398.20 | 0.40 | 1.41 | 281.84x | 100 | 20 |
-| 1,000 | 157.80 | 431.44 | 0.28 | 0.65 | 661.67x | 1,000 | 20 |
-| 5,000 | 512.25 | 1492.82 | 0.49 | 1.00 | 1498.06x | 5,000 | 20 |
-| 10,000 | 1767.09 | 3613.18 | 0.36 | 1.05 | 3432.40x | 10,000 | 20 |
+| 100 | 0.83 | 1.16 | 0.15 | 0.15 | 7.66x | 100 | 20 |
+| 1,000 | 8.42 | 9.22 | 0.15 | 0.15 | 62.35x | 1,000 | 20 |
+| 5,000 | 53.71 | 64.80 | 0.15 | 0.15 | 423.61x | 5,000 | 20 |
+| 10,000 | 108.30 | 124.06 | 0.15 | 0.15 | 834.95x | 10,000 | 20 |
 
 ![활성 방 목록 조회 p95 지연 시간](./assets/infinite-canvas-active-room-p95-ko.svg)
 
@@ -106,7 +106,7 @@ ZREVRANGE infinite-canvas:rooms:active:created-at pageOffset pageEnd
 
 기존 구조는 20개 방을 보여주기 위해 전체 Redis room state를 모두 읽는 구조였습니다. 방 수가 증가할수록 Redis scan, JSON 역직렬화, Java 정렬 비용이 함께 증가했습니다.
 
-변경 후에는 활성 방 roomCode를 Redis Sorted Set에 보조 인덱스로 유지하고, 백오피스 목록 조회 시 필요한 page 범위만 조회합니다. 이로 인해 활성 방 10,000개 기준 p95 latency가 `3613.18ms`에서 `1.05ms`로 줄었고, 역직렬화 대상도 `10,000개`에서 `20개`로 줄었습니다.
+변경 후에는 활성 방 roomCode를 Redis Sorted Set에 보조 인덱스로 유지하고, 백오피스 목록 조회 시 필요한 page 범위만 조회합니다. 이로 인해 활성 방 10,000개 기준 p95 latency가 `124.06ms`에서 `0.15ms`로 줄었고, 역직렬화 대상도 `10,000개`에서 `20개`로 줄었습니다.
 
 <br>
 
@@ -154,9 +154,9 @@ InfiniteCanvasParticipantEventResponse
 
 | 캔버스 요소 수 | Before bytes | After bytes | payload 감소율 | Before parse p95 ms | After parse p95 ms | parse 개선 배율 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 100 | 67,811 | 682 | 98.99% | 8.52 | 0.02 | 412.04x |
-| 1,000 | 262,211 | 682 | 99.74% | 42.14 | 0.18 | 231.39x |
-| 5,000 | 1,130,211 | 682 | 99.94% | 193.13 | 0.05 | 4134.68x |
+| 100 | 67,811 | 682 | 98.99% | 1.55 | 0.06 | 24.04x |
+| 1,000 | 262,211 | 682 | 99.74% | 7.31 | 0.01 | 1271.98x |
+| 5,000 | 1,130,211 | 682 | 99.94% | 23.13 | 0.01 | 3405.65x |
 
 ![참여자 이벤트 페이로드 크기](./assets/infinite-canvas-websocket-payload-ko.svg)
 
@@ -166,7 +166,7 @@ InfiniteCanvasParticipantEventResponse
 
 무한 캔버스는 실시간 협업 기능이라 WebSocket message 크기가 사용자 체감에 직접 영향을 줍니다. 기존 구조에서는 참여자 접속 같은 단순 이벤트도 캔버스 요소 수에 따라 payload가 커질 수 있었습니다.
 
-변경 후에는 참여자 이벤트를 delta payload로 분리했습니다. 요소 5,000개 기준 참여자 이벤트 크기는 `1,130,211 bytes`에서 `682 bytes`로 줄었고, payload 감소율은 `99.94%`입니다. 클라이언트 JSON parse p95도 `193.13ms`에서 `0.05ms`로 줄었습니다.
+변경 후에는 참여자 이벤트를 delta payload로 분리했습니다. 요소 5,000개 기준 참여자 이벤트 크기는 `1,130,211 bytes`에서 `682 bytes`로 줄었고, payload 감소율은 `99.94%`입니다. 클라이언트 JSON parse p95도 `23.13ms`에서 `0.01ms`로 줄었습니다.
 
 <br>
 
@@ -174,10 +174,10 @@ InfiniteCanvasParticipantEventResponse
 
 | 영역 | 핵심 개선 | 대표 수치 |
 | --- | --- | --- |
-| Redis 활성 방 조회 | 전체 SCAN 제거, Sorted Set page 조회 적용 | 활성 방 10,000개 p95 `3613.18ms -> 1.05ms` |
+| Redis 활성 방 조회 | 전체 SCAN 제거, Sorted Set page 조회 적용 | 활성 방 10,000개 p95 `124.06ms -> 0.15ms` |
 | Redis 처리량 | 전체 역직렬화 제거 | 역직렬화 `10,000개 -> 20개` |
 | WebSocket 네트워크 | 참여자 이벤트 delta payload 적용 | 요소 5,000개 payload `1,130,211B -> 682B` |
-| 클라이언트 처리 | 큰 JSON parse 제거 | parse p95 `193.13ms -> 0.05ms` |
+| 클라이언트 처리 | 큰 JSON parse 제거 | parse p95 `23.13ms -> 0.01ms` |
 
 ## 결과 정리
 
@@ -186,7 +186,8 @@ InfiniteCanvasParticipantEventResponse
 ## 검증
 
 ```bash
-./gradlew test --tests '*RedisInfiniteCanvasRepositoryTest' --tests '*InfiniteCanvasEventPublisherTest' --tests '*BackofficeInfiniteCanvasControllerIntegrationTest'
+cd backend
+./gradlew --no-daemon test --tests com.nemonicworld.infinitecanvas.repository.RedisInfiniteCanvasRepositoryTest --tests com.nemonicworld.infinitecanvas.websocket.InfiniteCanvasEventPublisherTest --tests com.nemonicworld.backoffice.infinitecanvas.controller.BackofficeInfiniteCanvasControllerIntegrationTest --tests com.nemonicworld.infinitecanvas.controller.InfiniteCanvasControllerIntegrationTest
 ```
 
 결과: `BUILD SUCCESSFUL`

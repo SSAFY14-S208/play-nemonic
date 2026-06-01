@@ -27,9 +27,9 @@
 
 관련 코드:
 
-- `InfiniteCanvasServiceImpl.applyOperations(...)`
-- `InfiniteCanvasServiceImpl.applyOperation(...)`
-- `InfiniteCanvasServiceImpl.CanvasElementBatch`
+- `InfiniteCanvasEditingUseCase.applyOperations(...)`
+- `InfiniteCanvasOperationApplier.applyOperation(...)`
+- `InfiniteCanvasOperationApplier.CanvasElementBatch`
 
 <br>
 
@@ -109,9 +109,9 @@ python3 backend/scripts/benchmark-infinite-canvas-performance.py --iterations 20
 
 | 요소 수 | operation 수 | Before avg ms | Before p95 ms | After avg ms | After p95 ms | p95 개선 배율 | Before 예상 탐색 | After 예상 탐색 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1,000 | 10 | 0.56 | 0.74 | 0.51 | 0.82 | 0.90x | 10,000 | 1,010 |
-| 3,000 | 50 | 8.36 | 10.68 | 2.18 | 2.73 | 3.91x | 150,000 | 3,050 |
-| 5,000 | 100 | 41.34 | 54.58 | 3.79 | 4.39 | 12.43x | 500,000 | 5,100 |
+| 1,000 | 10 | 0.34 | 0.37 | 0.33 | 0.39 | 0.94x | 10,000 | 1,010 |
+| 3,000 | 50 | 4.54 | 5.28 | 1.14 | 1.22 | 4.33x | 150,000 | 3,050 |
+| 5,000 | 100 | 16.00 | 17.27 | 1.90 | 2.00 | 8.65x | 500,000 | 5,100 |
 
 ![작업 적용 p95 지연 시간](./assets/infinite-canvas-operation-apply-p95-ko.svg)
 
@@ -121,12 +121,12 @@ python3 backend/scripts/benchmark-infinite-canvas-performance.py --iterations 20
 
 ## 결과 해석
 
-작은 캔버스에서는 Map index를 구성하는 고정 비용이 있어 개선폭이 거의 없거나 p95 기준으로 약간 불리할 수 있습니다. `1000 elements + 10 operations` 케이스에서는 p95가 `0.74ms -> 0.82ms`로 측정되어, 사용자가 체감할 정도의 이점은 없습니다.
+작은 캔버스에서는 Map index를 구성하는 고정 비용이 있어 개선폭이 거의 없거나 p95 기준으로 약간 불리할 수 있습니다. `1000 elements + 10 operations` 케이스에서는 p95가 `0.37ms -> 0.39ms`로 측정되어, 사용자가 체감할 정도의 이점은 없습니다.
 
 하지만 요소 수와 operation 수가 커질수록 결과가 뚜렷해집니다.
 
-- `3000 elements + 50 operations`: p95 `10.68ms -> 2.73ms`, 약 `3.91x` 개선
-- `5000 elements + 100 operations`: p95 `54.58ms -> 4.39ms`, 약 `12.43x` 개선
+- `3000 elements + 50 operations`: p95 `5.28ms -> 1.22ms`, 약 `4.33x` 개선
+- `5000 elements + 100 operations`: p95 `17.27ms -> 2.00ms`, 약 `8.65x` 개선
 
 즉 이번 최적화는 작은 캔버스를 빠르게 만드는 목적보다는, 큰 캔버스에서 여러 변경이 한 번에 들어올 때 서버 처리 지연이 커지는 것을 막는 목적에 가깝습니다.
 
@@ -165,7 +165,8 @@ python3 backend/scripts/benchmark-infinite-canvas-performance.py --iterations 20
 로직 변경 후 무한 캔버스 통합 테스트를 실행했습니다.
 
 ```bash
-./gradlew --no-daemon test --tests com.nemonicworld.infinitecanvas.controller.InfiniteCanvasControllerIntegrationTest
+cd backend
+./gradlew --no-daemon test --tests com.nemonicworld.infinitecanvas.repository.RedisInfiniteCanvasRepositoryTest --tests com.nemonicworld.infinitecanvas.websocket.InfiniteCanvasEventPublisherTest --tests com.nemonicworld.backoffice.infinitecanvas.controller.BackofficeInfiniteCanvasControllerIntegrationTest --tests com.nemonicworld.infinitecanvas.controller.InfiniteCanvasControllerIntegrationTest
 ```
 
 결과: `BUILD SUCCESSFUL`

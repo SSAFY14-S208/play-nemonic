@@ -32,6 +32,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,6 +43,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.http.MediaType;
 
 @ExtendWith(OutputCaptureExtension.class)
@@ -99,7 +101,12 @@ class FortuneControllerIntegrationTest extends AbstractIntegrationTest {
     void createFortuneCreatesArtifactAndGallery(CapturedOutput output) throws Exception {
         UUID userUuid = createExistingUser();
         insertPrompt();
-        when(fortuneGmsClient.generate(anyString(), any(JsonNode.class))).thenReturn(sampleGmsResult());
+        AtomicBoolean transactionActiveDuringGms = new AtomicBoolean(true);
+        AtomicBoolean transactionActiveDuringUpload = captureTransactionActiveDuringFortuneCardUpload();
+        when(fortuneGmsClient.generate(anyString(), any(JsonNode.class))).thenAnswer(invocation -> {
+            transactionActiveDuringGms.set(TransactionSynchronizationManager.isActualTransactionActive());
+            return sampleGmsResult();
+        });
 
         mockMvc
             .perform(post("/api/v1/fortune").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString())
@@ -138,6 +145,8 @@ class FortuneControllerIntegrationTest extends AbstractIntegrationTest {
         org.assertj.core.api.Assertions.assertThat(galleryCount).isEqualTo(1);
         org.assertj.core.api.Assertions.assertThat(savedDescription).contains("\"title\":\"오늘은 흐름을 정리하는 날\"")
             .contains("\"yearPillar\":\"임신\"").contains("\"luckyColorHex\":\"#C0C0C0\"");
+        org.assertj.core.api.Assertions.assertThat(transactionActiveDuringGms.get()).isFalse();
+        org.assertj.core.api.Assertions.assertThat(transactionActiveDuringUpload.get()).isFalse();
         verify(fortuneCardStorage).upload(org.mockito.ArgumentMatchers.startsWith("fortune/cards/"), any(byte[].class),
             eq("image/png"));
         org.assertj.core.api.Assertions.assertThat(output).contains("\"event_name\":\"fortune_create_requested\"")
@@ -403,6 +412,7 @@ class FortuneControllerIntegrationTest extends AbstractIntegrationTest {
         LocalDate today = LocalDate.now(KST_ZONE);
         UUID fortuneId = insertFortuneArtifact(userUuid, today, LocalDateTime.now().minusMinutes(10),
             storedFortuneDescription());
+        AtomicBoolean transactionActiveDuringUpload = captureTransactionActiveDuringFortuneCardUpload();
 
         mockMvc.perform(get("/api/v1/fortune/today").header(ANONYMOUS_USER_UUID_HEADER, userUuid.toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true))
@@ -432,6 +442,7 @@ class FortuneControllerIntegrationTest extends AbstractIntegrationTest {
         verifyNoInteractions(fortuneGmsClient);
         verify(fortuneCardStorage).upload(org.mockito.ArgumentMatchers.endsWith("/card-template-v1.png"),
             any(byte[].class), eq("image/png"));
+        org.assertj.core.api.Assertions.assertThat(transactionActiveDuringUpload.get()).isFalse();
         String updatedFortuneImageUrl = jdbcTemplate.queryForObject(
             "SELECT fortune_image_url FROM fortune_artifact WHERE artifact_id = ?", String.class, fortuneId);
         String updatedThumbnailUrl = jdbcTemplate.queryForObject("SELECT thumbnail_url FROM artifact WHERE id = ?",
@@ -493,6 +504,16 @@ class FortuneControllerIntegrationTest extends AbstractIntegrationTest {
 
     private JsonNode responseData(MvcResult result) throws Exception {
         return objectMapper.readTree(result.getResponse().getContentAsString()).path("data");
+    }
+
+    private AtomicBoolean captureTransactionActiveDuringFortuneCardUpload() {
+        AtomicBoolean transactionActive = new AtomicBoolean(true);
+        org.mockito.Mockito.doAnswer(invocation -> {
+            transactionActive.set(TransactionSynchronizationManager.isActualTransactionActive());
+            return null;
+        }).when(fortuneCardStorage).upload(anyString(), any(byte[].class), anyString());
+
+        return transactionActive;
     }
 
     private UUID insertFortuneArtifact(UUID userUuid, LocalDate fortuneDate, LocalDateTime createdAt) {

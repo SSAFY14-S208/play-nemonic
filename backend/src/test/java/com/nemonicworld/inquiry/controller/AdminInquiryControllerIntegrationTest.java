@@ -39,6 +39,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @ExtendWith(OutputCaptureExtension.class)
 @Import(AdminInquiryControllerIntegrationTest.InquiryMailSenderTestConfig.class)
@@ -354,6 +355,7 @@ class AdminInquiryControllerIntegrationTest extends AbstractReadOnlyIntegrationT
         assertThat(inquiryMailSender.to).isEqualTo("user@example.com");
         assertThat(inquiryMailSender.subject).isEqualTo("답변드립니다");
         assertThat(inquiryMailSender.message).isEqualTo("문의하신 결제 내역을 확인했습니다.");
+        assertThat(inquiryMailSender.transactionActiveDuringSend).isFalse();
         assertThat(readStringColumn(100L, "status")).isEqualTo("resolved");
         assertThat(readLongColumn(100L, "assigned_to")).isEqualTo(ADMIN_ID);
         assertThat(readStringColumn(100L, "response_note")).isEqualTo("문의하신 결제 내역을 확인했습니다.");
@@ -746,9 +748,11 @@ class AdminInquiryControllerIntegrationTest extends AbstractReadOnlyIntegrationT
         private String to;
         private String subject;
         private String message;
+        private Boolean transactionActiveDuringSend;
 
         @Override
         public void sendReply(String to, String subject, String message) {
+            transactionActiveDuringSend = TransactionSynchronizationManager.isActualTransactionActive();
             if (failNext) {
                 throw new EmailDeliveryException("이메일 발송에 실패했습니다.");
             }
@@ -767,6 +771,7 @@ class AdminInquiryControllerIntegrationTest extends AbstractReadOnlyIntegrationT
             to = null;
             subject = null;
             message = null;
+            transactionActiveDuringSend = null;
         }
     }
 }
