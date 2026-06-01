@@ -13,17 +13,13 @@ import { useFlipbookBgm } from '@/features/flipbook/hooks'
 import { toFlipbookPrintParticipants } from '@/features/flipbook/utils'
 import { useFlipbookResultActions, useFlipbookResultAutoCycle } from './hooks'
 import { PrintedArtwork } from './sections/PrintedArtwork'
+import { ResultActionButtons, type ResultActionButton } from './sections/ResultActionButtons'
 
 const FLIPBOOK_RESULT_CONTROL_IMAGES = {
   howToPlay: '/images/flipbook-entrance-scene/how-to-play-button.png',
   soundOn: '/images/flipbook-entrance-scene/sound-on-button.png',
   soundMuted: '/images/flipbook-entrance-scene/sound-muted-button.png',
 } as const
-
-const RESULT_ACTION_BUTTONS_IMAGE_SRC = '/images/flipbook-result/result-action-buttons.png'
-const RESULT_ACTION_BUTTONS_IMAGE_WIDTH = 733
-const RESULT_ACTION_BUTTONS_IMAGE_HEIGHT = 70
-const RESULT_ACTION_BUTTONS_ASPECT_RATIO = `${RESULT_ACTION_BUTTONS_IMAGE_WIDTH} / ${RESULT_ACTION_BUTTONS_IMAGE_HEIGHT}`
 
 interface FlipbookResultViewProps {
   resultItems: FlipbookResultItemResponse[]
@@ -72,7 +68,7 @@ export default function FlipbookResultView({
     onSelectResult,
   })
   const isResultLoading = printParticipants.length === 0
-  const resultActionButtons = [
+  const resultActionButtons: ResultActionButton[] = [
     {
       id: 'local-gallery',
       label: '저장하기',
@@ -155,38 +151,7 @@ export default function FlipbookResultView({
         </div>
       )}
 
-      <div className="absolute left-1/2 top-[calc(4.75rem+env(safe-area-inset-top))] z-[120] w-[min(733px,calc(100vw-2rem))] -translate-x-1/2 sm:left-auto sm:right-6 sm:top-6 sm:translate-x-0">
-        <div
-          className="relative w-full"
-          style={{ aspectRatio: RESULT_ACTION_BUTTONS_ASPECT_RATIO }}
-        >
-          <Image
-            src={RESULT_ACTION_BUTTONS_IMAGE_SRC}
-            alt=""
-            fill
-            priority
-            draggable={false}
-            unoptimized
-            sizes={`(max-width: 640px) calc(100vw - 2rem), ${RESULT_ACTION_BUTTONS_IMAGE_WIDTH}px`}
-            className="select-none object-contain"
-            aria-hidden
-          />
-          {resultActionButtons.map((actionButton) => (
-            <button
-              key={actionButton.id}
-              type="button"
-              aria-label={actionButton.label}
-              title={actionButton.label}
-              onClick={actionButton.onClick}
-              disabled={actionButton.disabled}
-              className="absolute top-0 h-full rounded-full text-transparent transition hover:bg-white/10 active:bg-black/5 disabled:cursor-not-allowed disabled:bg-white/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#ff3f7e]"
-              style={{ left: actionButton.left, width: actionButton.width }}
-            >
-              <span className="sr-only">{actionButton.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      <ResultActionButtons actionButtons={resultActionButtons} />
 
       {(errorMessage || resultActions.actionMessage) && (
         <p className="caption-b absolute bottom-[calc(7.75rem+env(safe-area-inset-bottom))] left-4 right-4 z-[120] rounded-full bg-white/86 px-5 py-3 text-center text-[#b84e66] shadow-[0_8px_18px_rgb(120_80_80_/_14%)] backdrop-blur-md sm:bottom-6 sm:left-1/2 sm:right-auto sm:-translate-x-1/2">
