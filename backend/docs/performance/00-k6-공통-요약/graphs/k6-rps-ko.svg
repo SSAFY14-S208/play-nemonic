@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="480.0" y="42.0" text-anchor="middle" font-size="26" font-weight="700" fill="#111827" font-family="Arial, sans-serif">k6 API 처리량</text>
+<text transform="rotate(-90 30 260.0)" x="30.0" y="260.0" text-anchor="middle" font-size="15" font-weight="400" fill="#475569" font-family="Arial, sans-serif">requests/sec</text>
+<line x1="105" y1="436.0" x2="908" y2="436.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="91.0" y="441.0" text-anchor="end" font-size="13" font-weight="400" fill="#64748b" font-family="Arial, sans-serif">0.00</text>
+<line x1="105" y1="365.6" x2="908" y2="365.6" stroke="#e5e7eb" stroke-width="1"/>
+<text x="91.0" y="370.6" text-anchor="end" font-size="13" font-weight="400" fill="#64748b" font-family="Arial, sans-serif">10.0</text>
+<line x1="105" y1="295.2" x2="908" y2="295.2" stroke="#e5e7eb" stroke-width="1"/>
+<text x="91.0" y="300.2" text-anchor="end" font-size="13" font-weight="400" fill="#64748b" font-family="Arial, sans-serif">20.0</text>
+<line x1="105" y1="224.8" x2="908" y2="224.8" stroke="#e5e7eb" stroke-width="1"/>
+<text x="91.0" y="229.8" text-anchor="end" font-size="13" font-weight="400" fill="#64748b" font-family="Arial, sans-serif">30.0</text>
+<line x1="105" y1="154.4" x2="908" y2="154.4" stroke="#e5e7eb" stroke-width="1"/>
+<text x="91.0" y="159.4" text-anchor="end" font-size="13" font-weight="400" fill="#64748b" font-family="Arial, sans-serif">40.0</text>
+<line x1="105" y1="84.0" x2="908" y2="84.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="91.0" y="89.0" text-anchor="end" font-size="13" font-weight="400" fill="#64748b" font-family="Arial, sans-serif">50.0</text>
+<line x1="105" y1="436" x2="908" y2="436" stroke="#334155" stroke-width="1.5"/>
+<rect x="164.4" y="433.2" width="82.0" height="2.8" rx="4" fill="#2563eb"/>
+<text x="205.4" y="425.2" text-anchor="middle" font-size="13" font-weight="400" fill="#1e3a8a" font-family="Arial, sans-serif">0.40</text>
+<text x="205.4" y="468.0" text-anchor="middle" font-size="14" font-weight="400" fill="#334155" font-family="Arial, sans-serif">운세 생성</text>
+<rect x="365.1" y="210.1" width="82.0" height="225.9" rx="4" fill="#2563eb"/>
+<text x="406.1" y="202.1" text-anchor="middle" font-size="13" font-weight="400" fill="#1e3a8a" font-family="Arial, sans-serif">32.1</text>
+<text x="406.1" y="468.0" text-anchor="middle" font-size="14" font-weight="400" fill="#334155" font-family="Arial, sans-serif">문의 답변</text>
+<rect x="565.9" y="314.9" width="82.0" height="121.1" rx="4" fill="#2563eb"/>
+<text x="606.9" y="306.9" text-anchor="middle" font-size="13" font-weight="400" fill="#1e3a8a" font-family="Arial, sans-serif">17.2</text>
+<text x="606.9" y="468.0" text-anchor="middle" font-size="14" font-weight="400" fill="#334155" font-family="Arial, sans-serif">갤러리</text>
+<rect x="766.6" y="374.4" width="82.0" height="61.6" rx="4" fill="#2563eb"/>
+<text x="807.6" y="366.4" text-anchor="middle" font-size="13" font-weight="400" fill="#1e3a8a" font-family="Arial, sans-serif">8.75</text>
+<text x="807.6" y="468.0" text-anchor="middle" font-size="14" font-weight="400" fill="#334155" font-family="Arial, sans-serif">무한캔버스</text>
+</svg>
