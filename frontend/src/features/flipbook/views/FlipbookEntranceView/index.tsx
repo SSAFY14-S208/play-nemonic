@@ -8,12 +8,12 @@ import Lottie from 'lottie-react'
 import { downArrowAnimation } from '@/shared/assets'
 import { HowToPlayModal, PhoneLauncherButton } from '@/shared/components'
 import { FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '../../constants'
+import { useFlipbookEntranceBgm } from '../../hooks'
 import {
-  useFlipbookEntranceBgm,
   useFlipbookEntranceIntro,
   useFlipbookEntrancePreload,
   useFlipbookEntranceWheelFrames,
-} from '../../hooks'
+} from './hooks'
 
 interface FlipbookEntranceViewProps {
   roomCodeDraft: string
