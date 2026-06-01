@@ -1,3 +1,5 @@
 export { useFlipbookEntranceIntro } from './useFlipbookEntranceIntro'
 export { useFlipbookEntrancePreload } from './useFlipbookEntrancePreload'
+export { useFlipbookEntranceViewModel } from './useFlipbookEntranceViewModel'
 export { useFlipbookEntranceWheelFrames } from './useFlipbookEntranceWheelFrames'
+export type { FlipbookEntranceViewModel } from './useFlipbookEntranceViewModel'
