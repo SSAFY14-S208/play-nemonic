@@ -2,29 +2,6 @@ import type {
   FlipbookResultFrameResponse,
   FlipbookResultItemResponse,
 } from '@/shared/types'
-import type { FlipbookFrame } from '../types'
-
-export function getResultFrames(result: FlipbookResultItemResponse | null): FlipbookFrame[] {
-  if (!result) return []
-
-  const sortedFrames = [...result.frames].sort(
-    (firstFrame, secondFrame) => firstFrame.frameIndex - secondFrame.frameIndex,
-  )
-  const singleFrameFallbackImageUrl =
-    sortedFrames.length === 1
-      ? selectFirstImageUrl(result.firstImageUrl, result.thumbnailUrl)
-      : ''
-
-  return sortedFrames.map((frame) => ({
-    id: `${result.flipbookIndex ?? 'result'}-${frame.frameIndex}`,
-    index: frame.frameIndex,
-    drawnByUserUuid: frame.drawnByUserUuid,
-    drawnBy: frame.drawnByNickname,
-    participantAvatar: '🙂',
-    lines: [],
-    imageUrl: selectFirstImageUrl(frame.imageUrl, singleFrameFallbackImageUrl),
-  }))
-}
 
 export function getNormalizedResultItems(
   results: FlipbookResultItemResponse[],

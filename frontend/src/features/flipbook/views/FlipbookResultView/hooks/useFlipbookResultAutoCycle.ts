@@ -17,8 +17,7 @@ interface UseFlipbookResultAutoCycleParams {
   // 시퀀스가 끝났을 때)에만 5초 타이머를 시작한다. 일치하지 않는 동안(reveal
   // 진행 중)에는 타이머가 걸리지 않아 mid-reveal 컷이 발생하지 않는다.
   revealedResultIndex: number | null
-  // useFlipbook.selectResult — 인덱스 업데이트와 함께 resultFrameIndex 리셋 +
-  // GIF 재생 재시작을 수행한다.
+  // useFlipbook.selectResult — 활성 결과 인덱스 업데이트를 수행한다.
   onSelectResult: (resultIndex: number) => void
 }
 

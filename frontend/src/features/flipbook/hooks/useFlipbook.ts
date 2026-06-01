@@ -15,10 +15,9 @@ import type {
   FlipbookStep,
   FlipbookTimeLimitSeconds,
 } from '../types'
-import { createCanvasBlobFromLines, FLIPBOOK_FILE_CONTENT_TYPE, FLIPBOOK_FILE_PURPOSE, createFlipbookDummyResultItems, createLocalFlipbookParticipant, createPreviousFrameLinesFromAssignment, getAssignmentKey, getFlipbookTimeLimitOptions, getRoomParticipantCount, getServerRoundCount, toFlipbookParticipant, toFlipbookTimeLimitSeconds, getFlipbookActionError, hasConfiguredNickname, getNormalizedResultItems, getResultFrames } from '../utils'
+import { createCanvasBlobFromLines, FLIPBOOK_FILE_CONTENT_TYPE, FLIPBOOK_FILE_PURPOSE, createFlipbookDummyResultItems, createLocalFlipbookParticipant, createPreviousFrameLinesFromAssignment, getAssignmentKey, getFlipbookTimeLimitOptions, getRoomParticipantCount, getServerRoundCount, toFlipbookParticipant, toFlipbookTimeLimitSeconds, getFlipbookActionError, hasConfiguredNickname, getNormalizedResultItems } from '../utils'
 import { useFlipbookRealtimeConnection } from './useFlipbookRealtimeConnection'
 import { useFlipbookRealtimeEventHandler } from './useFlipbookRealtimeEventHandler'
-import { useFlipbookResultPlayback } from './useFlipbookResultPlayback'
 import { useFlipbookTimer } from './useFlipbookTimer'
 
 const RESULT_POLLING_INTERVAL_MS = 1500
@@ -434,14 +433,6 @@ export function useFlipbook({
   const isRoundSubmitted =
     activeAssignmentKey !== null &&
     (submittedAssignmentKeys.has(activeAssignmentKey) || isServerAssignmentSubmitted)
-  const activeResult = resultItems[activeResultIndex] ?? resultItems[0] ?? null
-  const resultFrames = useMemo(() => getResultFrames(activeResult), [activeResult])
-  const resultPlayback = useFlipbookResultPlayback({
-    currentStep,
-    frames: resultFrames,
-  })
-  const resetResultPlaybackFrameIndex = resultPlayback.resetResultFrameIndex
-
   const showReadyResult = useCallback(
     ({
       resultItems: readyResultItems,
@@ -481,9 +472,8 @@ export function useFlipbook({
       } else {
         setCurrentStepState('result')
       }
-      resetResultPlaybackFrameIndex()
     },
-    [resetResultPlaybackFrameIndex, setCurrentStep],
+    [setCurrentStep],
   )
 
   useEffect(() => {
@@ -1659,16 +1649,11 @@ export function useFlipbook({
         resetDrawingRound()
       }
 
-      if (step === 'result') {
-        resultPlayback.resetResultFrameIndex()
-      }
-
       setCurrentStep(step)
     },
     [
       detachActiveRoom,
       resetDrawingRound,
-      resultPlayback,
       setCurrentStep,
       startActionRequest,
     ],
@@ -1819,10 +1804,8 @@ export function useFlipbook({
   const selectResult = useCallback(
     (resultIndex: number) => {
       setActiveResultIndex(Math.min(Math.max(0, resultIndex), Math.max(0, resultItems.length - 1)))
-      resultPlayback.resetResultFrameIndex()
-      resultPlayback.setIsGifPlaying(true)
     },
-    [resultItems.length, resultPlayback],
+    [resultItems.length],
   )
 
   return {
@@ -1847,14 +1830,7 @@ export function useFlipbook({
     resultItems,
     resultOwnerNames,
     activeResultIndex,
-    frames: resultFrames,
-    gifUrl: activeResult?.gifUrl ?? null,
     resultCount,
-    resultFrameIndex: resultPlayback.resultFrameIndex,
-    activeResultFrame: resultPlayback.activeResultFrame,
-    isGifPlaying: resultPlayback.isGifPlaying,
-    canGoPreviousResultFrame: resultPlayback.canGoPreviousResultFrame,
-    canGoNextResultFrame: resultPlayback.canGoNextResultFrame,
     connectionStatus: realtime.connectionStatus,
     canStartGame,
     isHost,
@@ -1879,10 +1855,6 @@ export function useFlipbook({
     closeRoom,
     canLeaveRoom: isWaitingRoom && Boolean(roomCode),
     canCloseRoom: isHost && activeRoomState?.status === 'FINISHED' && Boolean(roomCode),
-    setIsGifPlaying: resultPlayback.setIsGifPlaying,
-    showResultFrame: resultPlayback.showResultFrame,
-    showPreviousResultFrame: resultPlayback.showPreviousResultFrame,
-    showNextResultFrame: resultPlayback.showNextResultFrame,
     selectResult,
   }
 }
