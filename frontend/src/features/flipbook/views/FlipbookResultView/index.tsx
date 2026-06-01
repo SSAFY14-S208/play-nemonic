@@ -9,9 +9,10 @@ import type { FlipbookResultItemResponse } from '@/shared/types'
 import { getDisplayImageUrl } from '@/shared/utils'
 
 import { FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '../../constants'
-import { useFlipbookEntranceBgm, useFlipbookResultActions } from '../../hooks'
+import { useFlipbookEntranceBgm } from '../../hooks'
 import { toFlipbookPrintParticipants } from '../../utils'
 import { FlipbookPrintResultStage, type FlipbookPrintFrame, type FlipbookPrintParticipant } from '../../components/result-print'
+import { useFlipbookResultActions } from './hooks'
 
 const FLIPBOOK_RESULT_CONTROL_IMAGES = {
   howToPlay: '/images/flipbook-entrance-scene/how-to-play-button.png',
