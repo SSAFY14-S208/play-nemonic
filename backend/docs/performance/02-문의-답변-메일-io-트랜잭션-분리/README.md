@@ -39,13 +39,15 @@ k6는 리팩토링 후 실제 HTTP 경로가 로컬 통제 환경에서 실패 �
 
 | 측정 대상 | VU | Duration | Ramp up | Ramp down | 외부 I/O 조건 |
 | --- | ---: | --- | --- | --- | --- |
-| 문의 답변 | 5 | 20s | 5s | 5s | SMTP 로컬 stub |
+| 문의 답변 | 5 | 20s | 5s | 5s | 로컬 테스트 SMTP 설정 |
+
+스크립트 기본 p95 threshold는 `5,000ms`입니다. 로컬 SMTP stub이 아니라 실제 SMTP 설정으로 실행하면 메일 서버 응답 시간이 섞여 p95가 3초를 넘을 수 있으므로, k6 threshold는 “요청 성공 여부를 확인하는 안전선”으로 사용하고 커넥션 점유 before/after는 아래 synthetic capacity model로 판단합니다.
 
 ### k6 결과
 
 | 측정 대상 | 요청 수 | RPS | p50 | p95 | p99 | 실패율 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 문의 답변 | 967 | 32.09 | 13.18ms | 19.53ms | 35.20ms | 0.00% |
+| 문의 답변 | 32 | 1.00 | 3,076.17ms | 4,133.07ms | 4,469.38ms | 0.00% |
 
 ```bash
 k6 run \
@@ -55,6 +57,7 @@ k6 run \
   -e DURATION=20s \
   -e RAMP_DOWN=5s \
   -e VUS=5 \
+  -e P95_THRESHOLD_MS=5000 \
   backend/docs/performance/02-문의-답변-메일-io-트랜잭션-분리/k6/02-문의-답변-k6.js
 ```
 

@@ -5,7 +5,7 @@ import {summaryOutputs} from "../../k6-common/summary.js";
 const BASE_URL = __ENV.BASE_URL || "http://localhost:8080/api/v1";
 const ADMIN_TOKEN = __ENV.ADMIN_TOKEN || "";
 const VUS = Number(__ENV.VUS || 10);
-const P95_THRESHOLD_MS = Number(__ENV.P95_THRESHOLD_MS || 3000);
+const P95_THRESHOLD_MS = Number(__ENV.P95_THRESHOLD_MS || 5000);
 
 export const options = {
     summaryTrendStats: ["avg", "min", "med", "p(90)", "p(95)", "p(99)", "max"],
