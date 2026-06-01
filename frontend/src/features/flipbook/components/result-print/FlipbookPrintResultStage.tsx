@@ -7,14 +7,13 @@ import { useNemonicPrintVibration } from '@/shared/hooks'
 import { cn } from '@/shared/libs'
 
 import {
-  ARTIST_BADGE_IMAGE_SRC,
   PARTICIPANT_PANEL_IMAGE_SRC,
   PRINT_AFTER_RISE_PAUSE_RATIO,
-  SKIP_BUTTON_IMAGE_SRC,
   resultPrintStageStyles as styles,
 } from './constants'
 import { useFlipbookPrintReveal } from './hooks'
 import { ParticipantListPanel } from './ParticipantListPanel'
+import { FrameArtistBadge, SkipPlaybackButton } from './PlaybackControls'
 import {
   AttachedPrintedPaper,
   DirectPlaybackPaper,
@@ -29,7 +28,6 @@ import {
   StageBackground,
 } from './StageLayers'
 import type {
-  FlipbookPrintFrame,
   FlipbookPrintParticipant,
   RenderFlipbookPrintPaper,
 } from './types'
@@ -343,69 +341,5 @@ export default function FlipbookPrintResultStage({
         </aside>
       </div>
     </section>
-  )
-}
-
-function SkipPlaybackButton({
-  disabled,
-  onClick,
-}: {
-  disabled: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      className={styles.skipPlaybackButton}
-      aria-label="현재 플립북 GIF 장면으로 건너뛰기"
-      title="skip"
-      onClick={onClick}
-    >
-      <Image
-        src={SKIP_BUTTON_IMAGE_SRC}
-        alt=""
-        fill
-        sizes="86px"
-        unoptimized
-        draggable={false}
-        className={styles.skipPlaybackButtonImage}
-        aria-hidden
-      />
-      <span className={styles.skipPlaybackButtonText}>
-      skip
-      </span>
-    </button>
-  )
-}
-
-function FrameArtistBadge({
-  frame,
-  participant,
-}: {
-  frame: FlipbookPrintFrame
-  participant: FlipbookPrintParticipant
-}) {
-  const isGifPlaybackFrame = frame.outputMode === 'gif-playback'
-  const artistName = isGifPlaybackFrame
-    ? participant.name
-    : frame.drawnByName?.trim() || participant.name
-  const labelText = isGifPlaybackFrame ? '완성본' : '그린 사람'
-
-  return (
-    <div className={styles.frameArtistBadge} aria-live="polite">
-      <Image
-        src={ARTIST_BADGE_IMAGE_SRC}
-        alt=""
-        fill
-        sizes="150px"
-        unoptimized
-        draggable={false}
-        className={styles.frameArtistBadgeImage}
-        aria-hidden
-      />
-      <span className={styles.frameArtistBadgeLabel}>{labelText}</span>
-      <span className={styles.frameArtistBadgeName}>{artistName}</span>
-    </div>
   )
 }
