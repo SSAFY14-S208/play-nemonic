@@ -10,6 +10,7 @@ const VUS = Number(__ENV.VUS || 20);
 const P95_THRESHOLD_MS = Number(__ENV.P95_THRESHOLD_MS || 500);
 
 export const options = {
+    summaryTrendStats: ["avg", "min", "med", "p(90)", "p(95)", "p(99)", "max"],
     scenarios: {
         gallery_list: {
             executor: "ramping-vus",
