@@ -10,7 +10,7 @@ import { cn } from '@/shared/libs'
 import { playBrowserAudio, preloadBrowserAudio } from '@/shared/utils'
 
 import { FLIPBOOK_SOUND_PATHS } from '@/features/flipbook/constants'
-import { useFlipbookPrintReveal } from '@/features/flipbook/hooks'
+import { useFlipbookPrintReveal } from './hooks'
 import './FlipbookPrintResultStage.css'
 
 const styles = {

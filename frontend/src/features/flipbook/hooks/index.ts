@@ -1,7 +1,6 @@
 export { useFlipbook } from './useFlipbook'
 export { useFlipbookBgm } from './useFlipbookBgm'
 export { useFlipbookNickname } from './useFlipbookNickname'
-export { useFlipbookPrintReveal } from './useFlipbookPrintReveal'
 export { useFlipbookRealtimeConnection } from './useFlipbookRealtimeConnection'
 export { useFlipbookRealtimeEventHandler } from './useFlipbookRealtimeEventHandler'
 export { useFlipbookTimer } from './useFlipbookTimer'
