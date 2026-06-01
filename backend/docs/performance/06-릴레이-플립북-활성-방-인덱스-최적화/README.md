@@ -198,6 +198,33 @@ k6는 실제 HTTP 백오피스 목록 조회 경로가 관리자 인증과 응�
 | Duration | 30s |
 | Ramp up / down | 5s / 5s |
 
+### 실제 k6 실행 결과
+
+2026-06-02 로컬 환경에서 릴레이 활성 방 목록 조회를 실행한 결과입니다.
+
+| 지표 | 값 |
+| --- | ---: |
+| 요청 수 | 355 |
+| RPS | 8.77 |
+| 실패율 | 0.00% |
+| check 성공률 | 100.00% |
+| 평균 latency | 10.26 ms |
+| p50 latency | 9.39 ms |
+| p95 latency | 15.85 ms |
+| p99 latency | 23.48 ms |
+
+#### k6 Dashboard Overview
+
+<img src="./captures/relay-k6-dashboard-overview.png" width="720" alt="릴레이 활성 방 목록 k6 dashboard overview">
+
+#### k6 HTTP Request Duration
+
+<img src="./captures/relay-k6-dashboard-duration.png" width="720" alt="릴레이 활성 방 목록 k6 HTTP request duration">
+
+#### k6 Terminal Summary
+
+<img src="./captures/relay-k6-terminal-summary.png" width="720" alt="릴레이 활성 방 목록 k6 terminal summary">
+
 ### 릴레이 실행 명령
 
 Dashboard 캡처용:
