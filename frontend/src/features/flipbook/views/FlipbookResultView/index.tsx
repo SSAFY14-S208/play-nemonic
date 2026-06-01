@@ -10,11 +10,15 @@ import { FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '@/features/fl
 import { useFlipbookBgm } from '@/features/flipbook/hooks'
 import { toFlipbookPrintParticipants } from '@/features/flipbook/utils'
 import { useFlipbookResultActions, useFlipbookResultAutoCycle } from './hooks'
-import { MobileResultSelector } from './sections/MobileResultSelector'
-import { PrintedArtwork } from './sections/PrintedArtwork'
-import { ResultActionButtons, type ResultActionButton } from './sections/ResultActionButtons'
-import { ResultActionMessage, ResultLoadingOverlay } from './sections/ResultStatusOverlay'
-import { ResultTopControls } from './sections/ResultTopControls'
+import {
+  MobileResultSelector,
+  PrintedArtwork,
+  ResultActionButtons,
+  ResultActionMessage,
+  ResultLoadingOverlay,
+  ResultTopControls,
+  type ResultActionButton,
+} from './sections'
 
 interface FlipbookResultViewProps {
   resultItems: FlipbookResultItemResponse[]
