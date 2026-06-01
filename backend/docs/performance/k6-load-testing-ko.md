@@ -8,12 +8,13 @@ k6는 터미널에서 실행하는 부하 테스트 CLI입니다. JavaScript 파
 
 ## 대상 최적화
 
-| 최적화 | k6 스크립트 | 주요 지표 |
-| --- | --- | --- |
-| 갤러리 목록 조회 쿼리 최적화 | `backend/scripts/k6/gallery-list-load.js` | `http_req_duration p95`, RPS |
-| 무한캔버스 활성 방 목록 인덱스 최적화 | `backend/scripts/k6/infinite-canvas-active-room-load.js` | backoffice 목록 p95, 실패율 |
-| 운세 생성 외부 I/O 트랜잭션 분리 | `backend/scripts/k6/fortune-create-load.js` | 운세 생성 p95, 실패율, Hikari pending connection |
-| 문의 답변 SMTP 외부 I/O 트랜잭션 분리 | `backend/scripts/k6/admin-inquiry-reply-load.js` | 문의 답변 p95, 실패율, Hikari pending connection |
+| 트러블 슈팅 | 최적화 | k6 스크립트 | 주요 지표 |
+| --- | --- | --- | --- |
+| 트러블 슈팅 1 | 운세 생성 외부 I/O 트랜잭션 분리 | `backend/scripts/k6/fortune-create-load.js` | 운세 생성 p95, 실패율, Hikari pending connection |
+| 트러블 슈팅 1 | 문의 답변 SMTP 외부 I/O 트랜잭션 분리 | `backend/scripts/k6/admin-inquiry-reply-load.js` | 문의 답변 p95, 실패율, Hikari pending connection |
+| 트러블 슈팅 2 | 갤러리 목록 조회 쿼리 최적화 | `backend/scripts/k6/gallery-list-load.js` | `http_req_duration p95`, RPS |
+| 트러블 슈팅 3 | 무한캔버스 활성 방 목록 인덱스 최적화 | `backend/scripts/k6/infinite-canvas-active-room-load.js` | backoffice 목록 p95, 실패율 |
+| 트러블 슈팅 5 | 실제 HTTP 부하 테스트 결과 정리 | `backend/docs/performance/k6-load-test-results-ko.md` | p95, p99, RPS, 실패율 |
 
 ## 설치
 

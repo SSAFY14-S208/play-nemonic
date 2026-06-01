@@ -1,4 +1,4 @@
-# k6 부하 테스트 실행 결과
+# 트러블 슈팅 5. k6 부하 테스트 실행 결과
 
 최근 백엔드 성능 최적화 지점에 k6 부하 테스트를 적용한 결과입니다.
 
@@ -35,9 +35,17 @@
 
 ## 성능 그래프
 
-<img src="assets/k6-p95-latency-ko.svg" width="720" alt="k6 API p95 지연 시간">
+### 한국어 그래프
 
-<img src="assets/k6-rps-ko.svg" width="720" alt="k6 API 처리량">
+<img src="./assets/k6-p95-latency-ko.svg" width="720" alt="k6 API p95 지연 시간">
+
+<img src="./assets/k6-rps-ko.svg" width="720" alt="k6 API 처리량">
+
+### English Graphs
+
+<img src="./assets/k6-p95-latency.svg" width="720" alt="k6 API p95 latency">
+
+<img src="./assets/k6-rps.svg" width="720" alt="k6 API throughput">
 
 ## 결과 파일
 

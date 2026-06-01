@@ -1,4 +1,4 @@
-# 외부 I/O 트랜잭션 분리 성능 최적화 Before / After
+# 트러블 슈팅 1. 외부 I/O 트랜잭션 분리 성능 최적화 Before / After
 
 ## 요약
 
@@ -73,9 +73,17 @@ python3 backend/scripts/benchmark-transaction-io-performance.py --output-dir bac
 | 운세 생성 - GMS 3회 timeout | 90,024.00ms | 24.00ms | 99.97% | 9,002.40s | 2.40s | 0.11 | 416.67 | 3,751.00x |
 | 문의 답변 - SMTP 1.2초 | 1,212.00ms | 12.00ms | 99.01% | 121.20s | 1.20s | 8.25 | 833.33 | 101.00x |
 
-![요청 1건당 커넥션 점유 시간](./assets/transaction-io-connection-hold-ko.svg)
+### 한국어 그래프
 
-![Hikari pool 10 기준 처리 가능 RPS](./assets/transaction-io-pool-capacity-ko.svg)
+<img src="./assets/transaction-io-connection-hold-ko.svg" width="720" alt="요청 1건당 커넥션 점유 시간">
+
+<img src="./assets/transaction-io-pool-capacity-ko.svg" width="720" alt="Hikari pool 10 기준 처리 가능 RPS">
+
+### English Graphs
+
+<img src="./assets/transaction-io-connection-hold.svg" width="720" alt="Connection hold time per request">
+
+<img src="./assets/transaction-io-pool-capacity.svg" width="720" alt="Available RPS with Hikari pool size 10">
 
 <br>
 

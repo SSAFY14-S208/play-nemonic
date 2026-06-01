@@ -1,4 +1,4 @@
-# 무한 캔버스 성능 최적화 Before / After
+# 트러블 슈팅 3. 무한 캔버스 조회 / Payload 성능 최적화 Before / After
 
 ## 요약
 
@@ -98,9 +98,17 @@ ZREVRANGE infinite-canvas:rooms:active:created-at pageOffset pageEnd
 | 5,000 | 53.71 | 64.80 | 0.15 | 0.15 | 423.61x | 5,000 | 20 |
 | 10,000 | 108.30 | 124.06 | 0.15 | 0.15 | 834.95x | 10,000 | 20 |
 
-![활성 방 목록 조회 p95 지연 시간](./assets/infinite-canvas-active-room-p95-ko.svg)
+#### 한국어 그래프
 
-![활성 방 목록 조회 시 JSON 역직렬화 개수](./assets/infinite-canvas-deserialize-count-ko.svg)
+<img src="./assets/infinite-canvas-active-room-p95-ko.svg" width="720" alt="활성 방 목록 조회 p95 지연 시간">
+
+<img src="./assets/infinite-canvas-deserialize-count-ko.svg" width="720" alt="활성 방 목록 조회 시 JSON 역직렬화 개수">
+
+#### English Graphs
+
+<img src="./assets/infinite-canvas-active-room-p95.svg" width="720" alt="Active room list p95 latency">
+
+<img src="./assets/infinite-canvas-deserialize-count.svg" width="720" alt="JSON deserialize count for active room list">
 
 ### 결과 해석
 
@@ -158,9 +166,17 @@ InfiniteCanvasParticipantEventResponse
 | 1,000 | 262,211 | 682 | 99.74% | 7.31 | 0.01 | 1271.98x |
 | 5,000 | 1,130,211 | 682 | 99.94% | 23.13 | 0.01 | 3405.65x |
 
-![참여자 이벤트 페이로드 크기](./assets/infinite-canvas-websocket-payload-ko.svg)
+#### 한국어 그래프
 
-![참여자 이벤트 JSON 파싱 p95](./assets/infinite-canvas-json-parse-p95-ko.svg)
+<img src="./assets/infinite-canvas-websocket-payload-ko.svg" width="720" alt="참여자 이벤트 페이로드 크기">
+
+<img src="./assets/infinite-canvas-json-parse-p95-ko.svg" width="720" alt="참여자 이벤트 JSON 파싱 p95">
+
+#### English Graphs
+
+<img src="./assets/infinite-canvas-websocket-payload.svg" width="720" alt="Participant event payload size">
+
+<img src="./assets/infinite-canvas-json-parse-p95.svg" width="720" alt="Participant event JSON parse p95">
 
 ### 결과 해석
 

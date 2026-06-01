@@ -1,4 +1,4 @@
-# 무한 캔버스 요소 적용 로직 최적화 Before / After
+# 트러블 슈팅 4. 무한 캔버스 요소 적용 로직 최적화 Before / After
 
 ## 요약
 
@@ -113,9 +113,17 @@ python3 backend/scripts/benchmark-infinite-canvas-performance.py --iterations 20
 | 3,000 | 50 | 4.54 | 5.28 | 1.14 | 1.22 | 4.33x | 150,000 | 3,050 |
 | 5,000 | 100 | 16.00 | 17.27 | 1.90 | 2.00 | 8.65x | 500,000 | 5,100 |
 
-![작업 적용 p95 지연 시간](./assets/infinite-canvas-operation-apply-p95-ko.svg)
+### 한국어 그래프
 
-![메시지당 요소 탐색 작업량](./assets/infinite-canvas-operation-lookup-steps-ko.svg)
+<img src="./assets/infinite-canvas-operation-apply-p95-ko.svg" width="720" alt="작업 적용 p95 지연 시간">
+
+<img src="./assets/infinite-canvas-operation-lookup-steps-ko.svg" width="720" alt="메시지당 요소 탐색 작업량">
+
+### English Graphs
+
+<img src="./assets/infinite-canvas-operation-apply-p95.svg" width="720" alt="Operation apply p95 latency">
+
+<img src="./assets/infinite-canvas-operation-lookup-steps.svg" width="720" alt="Element lookup work per message">
 
 <br>
 

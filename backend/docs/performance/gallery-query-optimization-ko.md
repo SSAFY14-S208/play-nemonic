@@ -1,4 +1,4 @@
-# 갤러리 목록 조회 쿼리 최적화 Before / After
+# 트러블 슈팅 2. 갤러리 목록 조회 쿼리 최적화 Before / After
 
 ## 요약
 
@@ -138,11 +138,21 @@ python3 backend/scripts/benchmark-gallery-query-performance.py --iterations 20 -
 | 10,000 | 6.84 | 1.08 | 6.35x | 7.72 | 5.33 | 1.45x | 50,000 | 100 |
 | 50,000 | 43.57 | 7.43 | 5.86x | 50.19 | 32.85 | 1.53x | 250,000 | 100 |
 
-![갤러리 count 쿼리 p95](./assets/gallery-query-count-p95-ko.svg)
+### 한국어 그래프
 
-![갤러리 목록 조회 p95](./assets/gallery-query-list-p95-ko.svg)
+<img src="./assets/gallery-query-count-p95-ko.svg" width="720" alt="갤러리 count 쿼리 p95">
 
-![목록 조회 1회당 subtype lookup](./assets/gallery-query-subtype-lookup-ko.svg)
+<img src="./assets/gallery-query-list-p95-ko.svg" width="720" alt="갤러리 목록 조회 p95">
+
+<img src="./assets/gallery-query-subtype-lookup-ko.svg" width="720" alt="목록 조회 1회당 subtype lookup">
+
+### English Graphs
+
+<img src="./assets/gallery-query-count-p95.svg" width="720" alt="Gallery count query p95">
+
+<img src="./assets/gallery-query-list-p95.svg" width="720" alt="Gallery list query p95">
+
+<img src="./assets/gallery-query-subtype-lookup.svg" width="720" alt="Subtype lookups per list request">
 
 <br>
 

@@ -10,6 +10,10 @@ Last updated: 2026-06-01
   `backend/docs/performance/k6-load-testing-ko.md`, and the 2026-06-01 local
   controlled run results are summarized in
   `backend/docs/performance/k6-load-test-results-ko.md`.
+- Performance docs are now organized from `트러블 슈팅 1` through
+  `트러블 슈팅 5` in `backend/docs/performance/performance-optimization-index-ko.md`.
+  Each optimization doc embeds Korean and English SVG graphs directly instead
+  of listing graph paths only.
 - Gallery list query now reduces unnecessary subtype joins. Count uses only
   `gallery + artifact`, and list lookup first selects page items before joining
   subtype artifact tables. Performance evidence is documented in
