@@ -10,18 +10,21 @@ Last updated: 2026-06-01
   `backend/docs/performance/k6-실행-가이드.md`, and each troubleshooting doc embeds
   its own k6 result summary instead of relying on a separate aggregate k6 file.
 - Performance docs are now organized from `트러블 슈팅 1` through
-  `트러블 슈팅 4` in `backend/docs/performance/README.md`.
+  `트러블 슈팅 5` in `backend/docs/performance/README.md`.
   Each optimization doc embeds Korean and English SVG graphs directly instead
   of listing graph paths only.
 - Gallery list query now reduces unnecessary subtype joins. Count uses only
   `gallery + artifact`, and list lookup first selects page items before joining
   subtype artifact tables. Performance evidence is documented in
-  `backend/docs/performance/02-갤러리-목록-조회-쿼리-최적화.md`.
+  `backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/README.md`.
 - Fortune create/today requery and admin inquiry reply no longer keep external
   I/O inside a method-wide transaction. `FortuneTransactionSupport` now wraps
-  short DB read/write sections, while GMS, card upload, and SMTP send execute
-  outside the transaction boundary. Performance evidence is documented in
-  `backend/docs/performance/01-외부-io-트랜잭션-분리.md`.
+  short DB read/write sections while GMS and card upload execute outside the
+  transaction boundary. Performance evidence is documented in
+  `backend/docs/performance/01-운세-생성-외부-io-트랜잭션-분리/README.md`.
+- Admin inquiry reply SMTP send also executes outside the transaction boundary
+  and is documented as a separate incident in
+  `backend/docs/performance/02-문의-답변-메일-io-트랜잭션-분리/README.md`.
 - Infinite canvas performance visualizations were revalidated against the
   current code shape on 2026-06-01. The docs now reference
   `InfiniteCanvasEditingUseCase` and `InfiniteCanvasOperationApplier` for
