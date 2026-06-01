@@ -4,6 +4,10 @@ Last updated: 2026-06-01
 
 ## Current Focus
 
+- Gallery list query now reduces unnecessary subtype joins. Count uses only
+  `gallery + artifact`, and list lookup first selects page items before joining
+  subtype artifact tables. Performance evidence is documented in
+  `backend/docs/performance/gallery-query-optimization-ko.md`.
 - Fortune create/today requery and admin inquiry reply no longer keep external
   I/O inside a method-wide transaction. `FortuneTransactionSupport` now wraps
   short DB read/write sections, while GMS, card upload, and SMTP send execute
