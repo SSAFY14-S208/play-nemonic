@@ -43,14 +43,35 @@ k6는 이 트러블 슈팅 중 `백오피스 활성 방 목록 조회` HTTP 경�
 | --- | --- | --- | --- |
 | 무한캔버스 활성 방 목록 | `backend/scripts/k6/infinite-canvas-active-room-load.js` | `infinite_canvas_active_rooms` | `backend/docs/performance/k6-results/infinite-canvas-active-room-load.md` |
 
+### k6 실행 조건
+
+| 항목 | 값 |
+| --- | --- |
+| 대상 API | `GET /api/v1/backoffice/infinite-canvas/canvases?status=ACTIVE&page=0&size=20` |
+| Seed | active canvas 200개 |
+| VU | 20 |
+| Duration | 30s |
+| Ramp up / down | 5s / 5s |
+| 인증 | `ADMIN_TOKEN` 필요 |
+
+### k6 결과
+
+| 요청 수 | RPS | p50 | p95 | p99 | 실패율 |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 11,000 | 274.57 | 11.76ms | 20.54ms | 49.64ms | 0.00% |
+
+이 k6 결과는 Redis Sorted Set 기반 활성 방 조회가 실제 HTTP 경로에서도 안정적으로 처리되는지 확인한 값입니다. WebSocket 참여자 payload 크기와 JSON parse before/after는 HTTP 요청이 아니라 메시지 body 비용이므로 아래 synthetic benchmark 결과로 분리해 설명합니다.
+
 실행 예시:
 
 ```bash
 k6 run \
   -e BASE_URL=http://localhost:8080/api/v1 \
   -e ADMIN_TOKEN=<관리자-access-token> \
+  -e RAMP_UP=5s \
+  -e DURATION=30s \
+  -e RAMP_DOWN=5s \
   -e VUS=20 \
-  -e DURATION=1m \
   backend/scripts/k6/infinite-canvas-active-room-load.js
 ```
 

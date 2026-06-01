@@ -44,10 +44,10 @@ backend/docs/performance/
 
 | 트러블 슈팅 | 사용한 k6 | 결과 |
 | --- | --- | --- |
-| 트러블 슈팅 1 | `backend/scripts/k6/fortune-create-load.js`, `backend/scripts/k6/admin-inquiry-reply-load.js` | 운세 생성, 문의 답변의 실제 HTTP p95/RPS 확인 |
-| 트러블 슈팅 2 | `backend/scripts/k6/gallery-list-load.js` | 갤러리 목록 조회 API p95/RPS 확인 |
-| 트러블 슈팅 3 | `backend/scripts/k6/infinite-canvas-active-room-load.js` | 백오피스 활성 방 목록 API p95/RPS 확인 |
-| 트러블 슈팅 4 | 직접 k6 없음 | WebSocket 내부 `applyOperations()` 로직이라 synthetic benchmark로 분리 측정 |
+| 트러블 슈팅 1 | `backend/scripts/k6/fortune-create-load.js`, `backend/scripts/k6/admin-inquiry-reply-load.js` | 개별 문서에 운세 생성, 문의 답변 k6 p95/RPS 표 포함 |
+| 트러블 슈팅 2 | `backend/scripts/k6/gallery-list-load.js` | 개별 문서에 갤러리 목록 조회 k6 p95/RPS 표 포함 |
+| 트러블 슈팅 3 | `backend/scripts/k6/infinite-canvas-active-room-load.js` | 개별 문서에 백오피스 활성 방 목록 k6 p95/RPS 표 포함 |
+| 트러블 슈팅 4 | 직접 k6 없음 | 개별 문서에 k6 제외 사유와 synthetic benchmark 결과 표 포함 |
 | 트러블 슈팅 5 | 전체 k6 결과 취합 | `backend/docs/performance/05-k6-부하-테스트-결과.md`에 요약 |
 
 ## 그래프 경로
