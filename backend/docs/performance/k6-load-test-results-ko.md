@@ -33,6 +33,12 @@
 | 운세 생성 | 5 | `fortune_create` | 465 | 15.45 | 162.66ms | 204.33ms | 243.67ms | 0.00% |
 | 문의 답변 | 5 | `admin_inquiry_reply` | 967 | 32.09 | 13.18ms | 19.53ms | 35.20ms | 0.00% |
 
+## 성능 그래프
+
+<img src="assets/k6-p95-latency-ko.svg" width="720" alt="k6 API p95 지연 시간">
+
+<img src="assets/k6-rps-ko.svg" width="720" alt="k6 API 처리량">
+
 ## 결과 파일
 
 | 시나리오 | Markdown | JSON |
