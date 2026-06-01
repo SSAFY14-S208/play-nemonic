@@ -1,4 +1,4 @@
-# 무한 캔버스 성능 최적화 Before / After
+# 트러블 슈팅 4. 무한 캔버스 조회 / Payload 성능 최적화 Before / After
 
 ## 요약
 
@@ -22,12 +22,88 @@
 
 <br>
 
+## 자료 위치
+
+| 구분 | 경로 |
+| --- | --- |
+| 최적화 문서 | `backend/docs/performance/04-무한캔버스-조회-payload-최적화/README.md` |
+| Redis 활성 방 조회 코드 | `backend/src/main/java/com/nemonicworld/infinitecanvas/repository/RedisInfiniteCanvasRepository.java` |
+| WebSocket 이벤트 발행 코드 | `backend/src/main/java/com/nemonicworld/infinitecanvas/websocket/InfiniteCanvasEventPublisher.java` |
+| synthetic benchmark | `backend/scripts/benchmark-infinite-canvas-performance.py` |
+| k6 스크립트 | `backend/docs/performance/04-무한캔버스-조회-payload-최적화/k6/04-무한캔버스-활성-방-목록-k6.js` |
+| k6 결과 파일 | `backend/docs/performance/04-무한캔버스-조회-payload-최적화/k6/results/04-무한캔버스-활성-방-목록-k6-결과.md` |
+| k6 Web Dashboard HTML | `backend/docs/performance/04-무한캔버스-조회-payload-최적화/k6/results/04-infinite-canvas-dashboard.html` |
+| k6 캡처 | `backend/docs/performance/04-무한캔버스-조회-payload-최적화/captures/` |
+| 그래프 assets | `backend/docs/performance/04-무한캔버스-조회-payload-최적화/graphs/infinite-canvas-active-room-p95-ko.svg`, `backend/docs/performance/04-무한캔버스-조회-payload-최적화/graphs/infinite-canvas-websocket-payload-ko.svg` |
+
+## 산출물 검증
+
+| 산출물 | 파일 | 확인 내용 |
+| --- | --- | --- |
+| k6 실행 파일 | `./k6/04-무한캔버스-활성-방-목록-k6.js` | `infinite_canvas_active_rooms` endpoint tag, `ADMIN_TOKEN` 기반 백오피스 목록 조회 |
+| k6 결과 Markdown | `./k6/results/04-무한캔버스-활성-방-목록-k6-결과.md` | 요청 수, RPS, p50/p95/p99, 실패율, 상세 터미널 지표 |
+| k6 결과 JSON | `./k6/results/04-무한캔버스-활성-방-목록-k6-결과.json` | 같은 실행의 원본 summary data |
+| Web Dashboard HTML | `./k6/results/04-infinite-canvas-dashboard.html` | k6 내장 dashboard export 결과 |
+| Dashboard 캡처 | `./captures/k6-dashboard-overview.png` | 상단 지표 카드와 HTTP Performance overview |
+| Duration 캡처 | `./captures/k6-dashboard-duration.png` | avg/p90/p95/p99 latency 흐름 |
+| 터미널 캡처 | `./captures/k6-terminal-summary.png` | `failed=0.00%`, `checks=100.00%`, 상세 k6 지표 |
+
+## 사용한 k6
+
+k6는 이 트러블 슈팅 중 `백오피스 활성 방 목록 조회` HTTP 경로를 측정하는 데 사용했습니다. WebSocket 참여자 이벤트 payload 크기와 JSON parse 비용은 k6가 아니라 synthetic benchmark로 분리 측정했습니다.
+
+| 측정 대상 | k6 스크립트 | endpoint tag | 결과 파일 |
+| --- | --- | --- | --- |
+| 무한캔버스 활성 방 목록 | `backend/docs/performance/04-무한캔버스-조회-payload-최적화/k6/04-무한캔버스-활성-방-목록-k6.js` | `infinite_canvas_active_rooms` | `backend/docs/performance/04-무한캔버스-조회-payload-최적화/k6/results/04-무한캔버스-활성-방-목록-k6-결과.md` |
+
+### k6 실행 조건
+
+| 항목 | 값 |
+| --- | --- |
+| 대상 API | `GET /api/v1/backoffice/infinite-canvas/canvases?status=ACTIVE&page=0&size=20` |
+| Seed | active canvas 200개 |
+| VU | 10 |
+| Duration | 30s |
+| Ramp up / down | 5s / 5s |
+| 인증 | `ADMIN_TOKEN` 필요 |
+
+### k6 결과
+
+| 요청 수 | RPS | p50 | p95 | p99 | 실패율 |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 355 | 8.76 | 11.71ms | 17.04ms | 28.24ms | 0.00% |
+
+이 k6 결과는 Redis Sorted Set 기반 활성 방 조회가 실제 HTTP 경로에서도 안정적으로 처리되는지 확인한 값입니다. WebSocket 참여자 payload 크기와 JSON parse before/after는 HTTP 요청이 아니라 메시지 body 비용이므로 아래 synthetic benchmark 결과로 분리해 설명합니다.
+
+### k6 실측 캡처
+
+<img src="./captures/k6-dashboard-overview.png" width="720" alt="무한캔버스 활성 방 목록 k6 Web Dashboard overview">
+
+<img src="./captures/k6-dashboard-duration.png" width="720" alt="무한캔버스 활성 방 목록 HTTP Request Duration">
+
+<img src="./captures/k6-terminal-summary.png" width="720" alt="무한캔버스 활성 방 목록 k6 터미널 상세 결과">
+
+실행 예시:
+
+```bash
+k6 run \
+  -e BASE_URL=http://localhost:8080/api/v1 \
+  -e ADMIN_TOKEN=<관리자-access-token> \
+  -e RAMP_UP=5s \
+  -e DURATION=30s \
+  -e RAMP_DOWN=5s \
+  -e VUS=10 \
+  backend/docs/performance/04-무한캔버스-조회-payload-최적화/k6/04-무한캔버스-활성-방-목록-k6.js
+```
+
+<br>
+
 ## 측정 조건
 
 측정은 `backend/scripts/benchmark-infinite-canvas-performance.py`로 수행했습니다.
 
 ```bash
-python3 backend/scripts/benchmark-infinite-canvas-performance.py --iterations 20 --output-dir backend/docs/performance/assets
+python3 backend/scripts/benchmark-infinite-canvas-performance.py --iterations 20 --output-dir backend/docs/performance/04-무한캔버스-조회-payload-최적화/graphs
 ```
 
 측정 방식은 실제 Redis 서버의 순간 상태에 의존하지 않도록 synthetic benchmark로 구성했습니다.
@@ -98,9 +174,17 @@ ZREVRANGE infinite-canvas:rooms:active:created-at pageOffset pageEnd
 | 5,000 | 53.71 | 64.80 | 0.15 | 0.15 | 423.61x | 5,000 | 20 |
 | 10,000 | 108.30 | 124.06 | 0.15 | 0.15 | 834.95x | 10,000 | 20 |
 
-![활성 방 목록 조회 p95 지연 시간](./assets/infinite-canvas-active-room-p95-ko.svg)
+#### 한국어 그래프
 
-![활성 방 목록 조회 시 JSON 역직렬화 개수](./assets/infinite-canvas-deserialize-count-ko.svg)
+<img src="./graphs/infinite-canvas-active-room-p95-ko.svg" width="720" alt="활성 방 목록 조회 p95 지연 시간">
+
+<img src="./graphs/infinite-canvas-deserialize-count-ko.svg" width="720" alt="활성 방 목록 조회 시 JSON 역직렬화 개수">
+
+#### English Graphs
+
+<img src="./graphs/infinite-canvas-active-room-p95.svg" width="720" alt="Active room list p95 latency">
+
+<img src="./graphs/infinite-canvas-deserialize-count.svg" width="720" alt="JSON deserialize count for active room list">
 
 ### 결과 해석
 
@@ -158,9 +242,17 @@ InfiniteCanvasParticipantEventResponse
 | 1,000 | 262,211 | 682 | 99.74% | 7.31 | 0.01 | 1271.98x |
 | 5,000 | 1,130,211 | 682 | 99.94% | 23.13 | 0.01 | 3405.65x |
 
-![참여자 이벤트 페이로드 크기](./assets/infinite-canvas-websocket-payload-ko.svg)
+#### 한국어 그래프
 
-![참여자 이벤트 JSON 파싱 p95](./assets/infinite-canvas-json-parse-p95-ko.svg)
+<img src="./graphs/infinite-canvas-websocket-payload-ko.svg" width="720" alt="참여자 이벤트 페이로드 크기">
+
+<img src="./graphs/infinite-canvas-json-parse-p95-ko.svg" width="720" alt="참여자 이벤트 JSON 파싱 p95">
+
+#### English Graphs
+
+<img src="./graphs/infinite-canvas-websocket-payload.svg" width="720" alt="Participant event payload size">
+
+<img src="./graphs/infinite-canvas-json-parse-p95.svg" width="720" alt="Participant event JSON parse p95">
 
 ### 결과 해석
 

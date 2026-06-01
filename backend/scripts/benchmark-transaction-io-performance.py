@@ -50,9 +50,17 @@ SCENARIOS = (
 )
 
 
-def run_model(pool_size: int) -> list[dict]:
+def select_scenarios(group: str) -> tuple[dict, ...]:
+    if group == "fortune":
+        return tuple(scenario for scenario in SCENARIOS if scenario["workflow"].startswith("fortune-create"))
+    if group == "inquiry":
+        return tuple(scenario for scenario in SCENARIOS if scenario["workflow"].startswith("inquiry-reply"))
+    return SCENARIOS
+
+
+def run_model(pool_size: int, scenarios: tuple[dict, ...]) -> list[dict]:
     rows = []
-    for scenario in SCENARIOS:
+    for scenario in scenarios:
         before_hold_ms = scenario["db_ms"] + scenario["external_ms"]
         after_hold_ms = scenario["db_ms"]
         before_max_rps = pool_size * 1000 / before_hold_ms
@@ -282,9 +290,15 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pool-size", type=int, default=POOL_SIZE)
     parser.add_argument("--output-dir", type=Path)
+    parser.add_argument(
+        "--scenario-group",
+        choices=("all", "fortune", "inquiry"),
+        default="all",
+        help="Filter output to one portfolio troubleshooting incident.",
+    )
     args = parser.parse_args()
 
-    rows = run_model(args.pool_size)
+    rows = run_model(args.pool_size, select_scenarios(args.scenario_group))
     if args.output_dir:
         write_charts(args.output_dir, rows, args.pool_size)
 

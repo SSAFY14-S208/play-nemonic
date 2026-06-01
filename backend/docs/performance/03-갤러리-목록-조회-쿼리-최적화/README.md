@@ -1,4 +1,4 @@
-# 갤러리 목록 조회 쿼리 최적화 Before / After
+# 트러블 슈팅 3. 갤러리 목록 조회 쿼리 최적화 Before / After
 
 ## 요약
 
@@ -15,6 +15,81 @@
 | 페이지네이션 최적화 | `GET /api/v1/gallery` | page size와 무관하게 전체 row에 subtype JOIN하던 비용 제거 |
 | Latency 측정 | synthetic benchmark | count/list p95 before/after 비교 |
 | Throughput 개선 기반 | DB 부하 감소 | 같은 DB 리소스로 처리 가능한 목록 조회 수 증가 |
+
+<br>
+
+## 자료 위치
+
+| 구분 | 경로 |
+| --- | --- |
+| 최적화 문서 | `backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/README.md` |
+| 갤러리 조회 코드 | `backend/src/main/java/com/nemonicworld/gallery/service/gallery/GalleryQueryUseCase.java` |
+| 갤러리 SQL 코드 | `backend/src/main/java/com/nemonicworld/gallery/repository/GalleryRepository.java` |
+| synthetic benchmark | `backend/scripts/benchmark-gallery-query-performance.py` |
+| k6 스크립트 | `backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/k6/03-갤러리-목록-조회-k6.js` |
+| k6 결과 파일 | `backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/k6/results/03-갤러리-목록-조회-k6-결과.md` |
+| k6 Web Dashboard HTML | `backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/k6/results/03-gallery-list-dashboard.html` |
+| k6 캡처 | `backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/captures/` |
+| 그래프 assets | `backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/graphs/gallery-query-count-p95-ko.svg`, `backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/graphs/gallery-query-list-p95-ko.svg`, `backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/graphs/gallery-query-subtype-lookup-ko.svg` |
+
+## 산출물 검증
+
+| 산출물 | 파일 | 확인 내용 |
+| --- | --- | --- |
+| k6 실행 파일 | `./k6/03-갤러리-목록-조회-k6.js` | `gallery_list` endpoint tag, `USER_UUID` 기반 갤러리 목록 조회 |
+| k6 결과 Markdown | `./k6/results/03-갤러리-목록-조회-k6-결과.md` | 요청 수, RPS, p50/p95/p99, 실패율, 상세 터미널 지표 |
+| k6 결과 JSON | `./k6/results/03-갤러리-목록-조회-k6-결과.json` | 같은 실행의 원본 summary data |
+| Web Dashboard HTML | `./k6/results/03-gallery-list-dashboard.html` | k6 내장 dashboard export 결과 |
+| Dashboard 캡처 | `./captures/k6-dashboard-overview.png` | 상단 지표 카드와 HTTP Performance overview |
+| Duration 캡처 | `./captures/k6-dashboard-duration.png` | avg/p90/p95/p99 latency 흐름 |
+| 터미널 캡처 | `./captures/k6-terminal-summary.png` | `failed=0.00%`, `checks=100.00%`, 상세 k6 지표 |
+
+## 사용한 k6
+
+갤러리 쿼리 최적화는 synthetic benchmark로 SQL shape 차이를 수치화하고, k6로 실제 `GET /api/v1/gallery` HTTP 경로의 p95, RPS, 실패율을 확인했습니다.
+
+| 측정 대상 | k6 스크립트 | endpoint tag | 결과 파일 |
+| --- | --- | --- | --- |
+| 갤러리 목록 조회 | `backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/k6/03-갤러리-목록-조회-k6.js` | `gallery_list` | `backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/k6/results/03-갤러리-목록-조회-k6-결과.md` |
+
+### k6 실행 조건
+
+| 항목 | 값 |
+| --- | --- |
+| 대상 API | `GET /api/v1/gallery?page=0&size=20` |
+| Seed | 단일 사용자 active gallery row 10,000개 |
+| VU | 5 |
+| Duration | 20s |
+| Ramp up / down | 5s / 5s |
+
+### k6 결과
+
+| 요청 수 | RPS | p50 | p95 | p99 | 실패율 |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 128 | 4.21 | 10.47ms | 15.85ms | 29.71ms | 0.00% |
+
+이 k6 결과는 쿼리 shape 최적화 이후 실제 HTTP 목록 조회 경로가 VU 5 조건에서 p95 20ms 전후로 안정적으로 처리된다는 것을 확인한 값입니다. SQL 구조 자체의 before/after 비교는 아래 synthetic benchmark 표와 그래프를 기준으로 봅니다.
+
+### k6 실측 캡처
+
+<img src="./captures/k6-dashboard-overview.png" width="720" alt="갤러리 목록 조회 k6 Web Dashboard overview">
+
+<img src="./captures/k6-dashboard-duration.png" width="720" alt="갤러리 목록 조회 HTTP Request Duration">
+
+<img src="./captures/k6-terminal-summary.png" width="720" alt="갤러리 목록 조회 k6 터미널 상세 결과">
+
+실행 예시:
+
+```bash
+k6 run \
+  -e BASE_URL=http://localhost:8080/api/v1 \
+  -e USER_UUID=<익명-사용자-UUID> \
+  -e RAMP_UP=5s \
+  -e DURATION=20s \
+  -e RAMP_DOWN=5s \
+  -e VUS=5 \
+  backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/k6/03-갤러리-목록-조회-k6.js
+```
 
 <br>
 
@@ -122,7 +197,7 @@ page_items 20~50개
 측정은 운영 DB 실측이 아니라, 현재 SQL 구조의 비용 차이를 재현하기 위한 synthetic benchmark입니다. 절대값보다 “subtype JOIN을 전체 row에 적용하는가, page row에만 적용하는가”를 비교하기 위한 모델입니다.
 
 ```bash
-python3 backend/scripts/benchmark-gallery-query-performance.py --iterations 20 --output-dir backend/docs/performance/assets
+python3 backend/scripts/benchmark-gallery-query-performance.py --iterations 20 --output-dir backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/graphs
 ```
 
 측정 조건:
@@ -138,11 +213,21 @@ python3 backend/scripts/benchmark-gallery-query-performance.py --iterations 20 -
 | 10,000 | 6.84 | 1.08 | 6.35x | 7.72 | 5.33 | 1.45x | 50,000 | 100 |
 | 50,000 | 43.57 | 7.43 | 5.86x | 50.19 | 32.85 | 1.53x | 250,000 | 100 |
 
-![갤러리 count 쿼리 p95](./assets/gallery-query-count-p95-ko.svg)
+### 한국어 그래프
 
-![갤러리 목록 조회 p95](./assets/gallery-query-list-p95-ko.svg)
+<img src="./graphs/gallery-query-count-p95-ko.svg" width="720" alt="갤러리 count 쿼리 p95">
 
-![목록 조회 1회당 subtype lookup](./assets/gallery-query-subtype-lookup-ko.svg)
+<img src="./graphs/gallery-query-list-p95-ko.svg" width="720" alt="갤러리 목록 조회 p95">
+
+<img src="./graphs/gallery-query-subtype-lookup-ko.svg" width="720" alt="목록 조회 1회당 subtype lookup">
+
+### English Graphs
+
+<img src="./graphs/gallery-query-count-p95.svg" width="720" alt="Gallery count query p95">
+
+<img src="./graphs/gallery-query-list-p95.svg" width="720" alt="Gallery list query p95">
+
+<img src="./graphs/gallery-query-subtype-lookup.svg" width="720" alt="Subtype lookups per list request">
 
 <br>
 
