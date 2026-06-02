@@ -9,9 +9,14 @@ import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.Cursor;
@@ -34,6 +39,9 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
     private static final Logger log = LoggerFactory.getLogger(RedisRelayRoomRepository.class);
 
     private static final String ROOM_KEY_PREFIX = "relay:room:";
+    private static final String ACTIVE_ROOM_INDEX_KEY_PREFIX = "relay:rooms:active:created-at:";
+    private static final String ACTIVE_ROOM_EXPIRY_INDEX_KEY_PREFIX = "relay:rooms:active:expires-at:";
+    private static final String ACTIVE_ROOM_INDEX_INITIALIZED_KEY = "relay:rooms:active:index-initialized";
     private static final String FINALIZATION_LOCK_KEY_PREFIX = "relay:room-finalization-lock:";
     private static final String TEMP_CLEANUP_MARKER_KEY_PREFIX = "relay:room-temp-cleanup:";
     private static final String TEMP_CLEANUP_LOCK_KEY_PREFIX = "relay:room-temp-cleanup-lock:";
@@ -42,6 +50,8 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
         Long.class);
     private static final String ROOM_STATE_SERIALIZATION_ERROR_MESSAGE = "릴레이 방 상태를 저장할 수 없습니다.";
     private static final String ROOM_STATE_DESERIALIZATION_ERROR_MESSAGE = "릴레이 방 상태를 읽을 수 없습니다.";
+    private static final Set<RelayRoomStatus> NON_CLOSED_STATUSES = EnumSet.of(RelayRoomStatus.WAITING,
+        RelayRoomStatus.PLAYING, RelayRoomStatus.FINALIZING, RelayRoomStatus.FINISHED);
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
@@ -66,6 +76,7 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
     public void save(RelayRoomState roomState) {
         redisTemplate.opsForValue().set(createRoomKey(roomState.roomCode()), serialize(roomState),
             RelayRoomRepository.ROOM_STATE_TTL);
+        syncActiveRoomIndex(roomState);
     }
 
     /**
@@ -99,6 +110,7 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
                 stringOperations.multi();
                 stringOperations.opsForValue().set(roomKey, serialize(updatedRoomState),
                     RelayRoomRepository.ROOM_STATE_TTL);
+                syncActiveRoomIndex(stringOperations, updatedRoomState);
                 List<Object> results = stringOperations.exec();
 
                 return results != null;
@@ -188,8 +200,90 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
      */
     @Override
     public List<RelayRoomState> findAllActiveRooms() {
-        // SCAN count는 Redis 내부 페이지 힌트일 뿐 결과 상한이 아닙니다.
-        return scanRoomKeys("active_rooms", 200, Integer.MAX_VALUE, this::findActiveRoom);
+        return findActiveRoomsByStatuses(NON_CLOSED_STATUSES);
+    }
+
+    /**
+     * 백오피스 관리 화면용 — 상태별 ZSET 인덱스로 필요한 활성 방만 조회합니다.
+     */
+    @Override
+    public List<RelayRoomState> findActiveRoomsByStatuses(Set<RelayRoomStatus> statuses) {
+        Set<RelayRoomStatus> statusFilter = normalizeActiveStatuses(statuses);
+        if (statusFilter.isEmpty()) {
+            return List.of();
+        }
+
+        long startedNanos = System.nanoTime();
+        if (isActiveRoomIndexUninitialized()) {
+            List<RelayRoomState> rooms = scanRoomKeys("active_rooms_fallback", 200, Integer.MAX_VALUE,
+                this::findActiveRoom);
+            rooms.forEach(this::syncActiveRoomIndex);
+            markActiveRoomIndexInitialized();
+
+            return rooms.stream().filter(room -> statusFilter.contains(room.status())).toList();
+        }
+
+        List<RelayRoomState> rooms = findActiveRoomsByIndex(statusFilter, startedNanos);
+        log.debug("relay room indexed lookup completed. status_count={} matched_room_count={} duration_ms={}",
+            statusFilter.size(), rooms.size(), Duration.ofNanos(System.nanoTime() - startedNanos).toMillis());
+
+        return rooms;
+    }
+
+    @Override
+    public RelayActiveRoomPage findActiveRoomsByStatuses(Set<RelayRoomStatus> statuses, int page, int size) {
+        Set<RelayRoomStatus> statusFilter = normalizeActiveStatuses(statuses);
+        if (statusFilter.isEmpty() || page < 0 || size <= 0) {
+            return new RelayActiveRoomPage(List.of(), 0L);
+        }
+
+        long startedNanos = System.nanoTime();
+        if (isActiveRoomIndexUninitialized()) {
+            List<RelayRoomState> rooms = scanRoomKeys("active_rooms_page_fallback", 200, Integer.MAX_VALUE,
+                this::findActiveRoom);
+            rooms.forEach(this::syncActiveRoomIndex);
+            markActiveRoomIndexInitialized();
+            List<RelayRoomState> filtered = rooms.stream().filter(room -> statusFilter.contains(room.status()))
+                .sorted(activeRoomComparator()).toList();
+            long totalElements = filtered.size();
+            int fromIndex = Math.min(page * size, filtered.size());
+            int toIndex = Math.min(fromIndex + size, filtered.size());
+
+            return new RelayActiveRoomPage(filtered.subList(fromIndex, toIndex), totalElements);
+        }
+
+        List<RelayRoomState> window = findActiveRoomWindowByIndex(statusFilter, page, size, startedNanos);
+        long totalElements = countActiveRoomIndexes(statusFilter);
+        int fromIndex = Math.min(page * size, window.size());
+        int toIndex = Math.min(fromIndex + size, window.size());
+        List<RelayRoomState> items = window.stream().sorted(activeRoomComparator()).toList().subList(fromIndex,
+            toIndex);
+        log.debug(
+            "relay room indexed page completed. page={} size={} status_count={} item_count={} total_elements={} "
+                + "duration_ms={}",
+            page, size, statusFilter.size(), items.size(), totalElements,
+            Duration.ofNanos(System.nanoTime() - startedNanos).toMillis());
+
+        return new RelayActiveRoomPage(items, totalElements);
+    }
+
+    @Override
+    public long countActiveRoomsByStatuses(Set<RelayRoomStatus> statuses) {
+        Set<RelayRoomStatus> statusFilter = normalizeActiveStatuses(statuses);
+        if (statusFilter.isEmpty()) {
+            return 0L;
+        }
+
+        if (isActiveRoomIndexUninitialized()) {
+            List<RelayRoomState> rooms = scanRoomKeys("active_rooms_count_fallback", 200, Integer.MAX_VALUE,
+                this::findActiveRoom);
+            rooms.forEach(this::syncActiveRoomIndex);
+            markActiveRoomIndexInitialized();
+
+            return rooms.stream().filter(room -> statusFilter.contains(room.status())).count();
+        }
+
+        return countActiveRoomIndexes(statusFilter);
     }
 
     /**
@@ -522,6 +616,185 @@ public class RedisRelayRoomRepository implements RelayRoomRepository {
         }
 
         return Optional.of(roomState);
+    }
+
+    private List<RelayRoomState> findActiveRoomsByIndex(Set<RelayRoomStatus> statusFilter, long startedNanos) {
+        return findActiveRoomsByIndex(statusFilter, 0, -1, startedNanos);
+    }
+
+    private List<RelayRoomState> findActiveRoomWindowByIndex(Set<RelayRoomStatus> statusFilter, int page, int size,
+        long startedNanos) {
+        long endOffset = (long) page * size + size - 1;
+
+        return findActiveRoomsByIndex(statusFilter, 0, endOffset, startedNanos);
+    }
+
+    private List<RelayRoomState> findActiveRoomsByIndex(Set<RelayRoomStatus> statusFilter, long startOffset,
+        long endOffset, long startedNanos) {
+        Set<String> seenRoomCodes = new LinkedHashSet<>();
+        List<RelayRoomState> rooms = new ArrayList<>();
+        int fetchedRoomCount = 0;
+
+        for (RelayRoomStatus indexedStatus : statusFilter) {
+            String indexKey = createActiveRoomIndexKey(indexedStatus);
+            Set<String> roomCodes = redisTemplate.opsForZSet().reverseRange(indexKey, startOffset, endOffset);
+            if (roomCodes == null || roomCodes.isEmpty()) {
+                continue;
+            }
+
+            fetchedRoomCount += roomCodes.size();
+            for (String roomCode : roomCodes) {
+                Optional<RelayRoomState> roomState = findByRoomCode(roomCode);
+                if (roomState.isEmpty()) {
+                    removeActiveRoomIndexes(roomCode);
+                    continue;
+                }
+
+                RelayRoomState restoredRoomState = roomState.get();
+                if (restoredRoomState.status() == RelayRoomStatus.CLOSED) {
+                    removeActiveRoomIndexes(roomCode);
+                    continue;
+                }
+
+                if (restoredRoomState.status() != indexedStatus) {
+                    syncActiveRoomIndex(restoredRoomState);
+                }
+
+                if (statusFilter.contains(restoredRoomState.status())
+                    && seenRoomCodes.add(restoredRoomState.roomCode())) {
+                    rooms.add(restoredRoomState);
+                }
+            }
+        }
+
+        log.debug(
+            "relay room index read completed. status_count={} fetched_room_count={} matched_room_count={} "
+                + "duration_ms={}",
+            statusFilter.size(), fetchedRoomCount, rooms.size(),
+            Duration.ofNanos(System.nanoTime() - startedNanos).toMillis());
+        return rooms;
+    }
+
+    private long countActiveRoomIndexes(Set<RelayRoomStatus> statusFilter) {
+        removeExpiredActiveRoomIndexes(statusFilter);
+
+        long total = 0L;
+        for (RelayRoomStatus status : statusFilter) {
+            Long indexedRoomCount = redisTemplate.opsForZSet().zCard(createActiveRoomIndexKey(status));
+            total += indexedRoomCount == null ? 0L : indexedRoomCount;
+        }
+
+        return total;
+    }
+
+    private Set<RelayRoomStatus> normalizeActiveStatuses(Set<RelayRoomStatus> statuses) {
+        if (statuses == null || statuses.isEmpty()) {
+            return Set.of();
+        }
+
+        EnumSet<RelayRoomStatus> normalized = EnumSet.noneOf(RelayRoomStatus.class);
+        for (RelayRoomStatus status : statuses) {
+            if (status != null && status != RelayRoomStatus.CLOSED) {
+                normalized.add(status);
+            }
+        }
+
+        return normalized;
+    }
+
+    private boolean isActiveRoomIndexUninitialized() {
+        return !Boolean.TRUE.equals(redisTemplate.hasKey(ACTIVE_ROOM_INDEX_INITIALIZED_KEY));
+    }
+
+    private void markActiveRoomIndexInitialized() {
+        redisTemplate.opsForValue().set(ACTIVE_ROOM_INDEX_INITIALIZED_KEY, "true", RelayRoomRepository.ROOM_STATE_TTL);
+    }
+
+    private void syncActiveRoomIndex(RelayRoomState roomState) {
+        syncActiveRoomIndex(redisTemplate, roomState);
+    }
+
+    private void syncActiveRoomIndex(RedisOperations<String, String> operations, RelayRoomState roomState) {
+        removeActiveRoomIndexes(operations, roomState.roomCode());
+        if (roomState.status() == RelayRoomStatus.CLOSED) {
+            return;
+        }
+
+        var zSetOperations = operations.opsForZSet();
+        if (zSetOperations == null) {
+            return;
+        }
+
+        String indexKey = createActiveRoomIndexKey(roomState.status());
+        zSetOperations.add(indexKey, roomState.roomCode(), toCreatedAtScore(roomState.createdAt()));
+        operations.expire(indexKey, RelayRoomRepository.ROOM_STATE_TTL);
+
+        String expiryIndexKey = createActiveRoomExpiryIndexKey(roomState.status());
+        zSetOperations.add(expiryIndexKey, roomState.roomCode(), toExpiresAtScore());
+        operations.expire(expiryIndexKey, RelayRoomRepository.ROOM_STATE_TTL);
+    }
+
+    private void removeActiveRoomIndexes(String roomCode) {
+        removeActiveRoomIndexes(redisTemplate, roomCode);
+    }
+
+    private void removeActiveRoomIndexes(RedisOperations<String, String> operations, String roomCode) {
+        if (!StringUtils.hasText(roomCode)) {
+            return;
+        }
+
+        var zSetOperations = operations.opsForZSet();
+        if (zSetOperations == null) {
+            return;
+        }
+
+        for (RelayRoomStatus status : NON_CLOSED_STATUSES) {
+            zSetOperations.remove(createActiveRoomIndexKey(status), roomCode);
+            zSetOperations.remove(createActiveRoomExpiryIndexKey(status), roomCode);
+        }
+    }
+
+    private void removeExpiredActiveRoomIndexes(Set<RelayRoomStatus> statusFilter) {
+        var zSetOperations = redisTemplate.opsForZSet();
+        if (zSetOperations == null) {
+            return;
+        }
+
+        double nowScore = System.currentTimeMillis();
+        for (RelayRoomStatus status : statusFilter) {
+            Set<String> expiredRoomCodes = zSetOperations.rangeByScore(createActiveRoomExpiryIndexKey(status), 0,
+                nowScore);
+            if (expiredRoomCodes == null || expiredRoomCodes.isEmpty()) {
+                continue;
+            }
+
+            for (String roomCode : expiredRoomCodes) {
+                removeActiveRoomIndexes(roomCode);
+            }
+        }
+    }
+
+    private String createActiveRoomIndexKey(RelayRoomStatus status) {
+        return ACTIVE_ROOM_INDEX_KEY_PREFIX + status.name();
+    }
+
+    private String createActiveRoomExpiryIndexKey(RelayRoomStatus status) {
+        return ACTIVE_ROOM_EXPIRY_INDEX_KEY_PREFIX + status.name();
+    }
+
+    private double toCreatedAtScore(LocalDateTime createdAt) {
+        LocalDateTime safeCreatedAt = createdAt == null ? LocalDateTime.of(1970, 1, 1, 0, 0) : createdAt;
+
+        return safeCreatedAt.toInstant(ZoneOffset.UTC).toEpochMilli();
+    }
+
+    private double toExpiresAtScore() {
+        return System.currentTimeMillis() + RelayRoomRepository.ROOM_STATE_TTL.toMillis();
+    }
+
+    private Comparator<RelayRoomState> activeRoomComparator() {
+        return Comparator.comparing(RelayRoomState::createdAt, Comparator.nullsLast(Comparator.reverseOrder()))
+            .thenComparing(RelayRoomState::roomCode, Comparator.nullsLast(Comparator.naturalOrder()));
     }
 
     private String createRoomKey(String roomCode) {

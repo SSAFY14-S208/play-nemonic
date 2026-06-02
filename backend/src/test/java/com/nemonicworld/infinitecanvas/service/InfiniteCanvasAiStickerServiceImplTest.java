@@ -20,9 +20,13 @@ import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasParticipant;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasState;
 import com.nemonicworld.infinitecanvas.redis.InfiniteCanvasStatus;
 import com.nemonicworld.infinitecanvas.repository.InfiniteCanvasRepository;
+import com.nemonicworld.infinitecanvas.service.ai.InfiniteCanvasAiStickerCreateUseCase;
+import com.nemonicworld.infinitecanvas.service.ai.InfiniteCanvasAiStickerElementFactory;
+import com.nemonicworld.infinitecanvas.service.ai.InfiniteCanvasAiStickerEventLogger;
 import com.nemonicworld.infinitecanvas.service.ai.InfiniteCanvasAiStickerGmsClient;
 import com.nemonicworld.infinitecanvas.service.ai.InfiniteCanvasAiStickerGmsRequest;
 import com.nemonicworld.infinitecanvas.service.ai.InfiniteCanvasAiStickerImage;
+import com.nemonicworld.infinitecanvas.service.ai.InfiniteCanvasAiStickerRequestSupport;
 import com.nemonicworld.infinitecanvas.service.ai.InfiniteCanvasAiStickerStorage;
 import com.nemonicworld.infinitecanvas.service.ai.InfiniteCanvasStickerPromptTemplateProvider;
 import com.nemonicworld.infinitecanvas.service.ai.InfiniteCanvasStickerPromptTemplateProvider.CurrentStickerPrompt;
@@ -75,9 +79,14 @@ class InfiniteCanvasAiStickerServiceImplTest {
         InfiniteCanvasAiStickerProperties properties = new InfiniteCanvasAiStickerProperties(true, 200, 512, 1024,
             Set.of("sticker", "cartoon"), new InfiniteCanvasAiStickerProperties.Gms("test-key", "gpt-image-1",
                 "https://example.com/images", 1000L, 5000L));
-        service = new InfiniteCanvasAiStickerServiceImpl(anonymousUserResolver, roomCodeGenerator,
-            infiniteCanvasRepository, properties, promptTemplateProvider, gmsClient, storage, minioPublicUrlResolver,
-            new ObjectMapper());
+        ObjectMapper objectMapper = new ObjectMapper();
+        InfiniteCanvasAiStickerRequestSupport requestSupport = new InfiniteCanvasAiStickerRequestSupport(
+            roomCodeGenerator, properties);
+        InfiniteCanvasAiStickerCreateUseCase createUseCase = new InfiniteCanvasAiStickerCreateUseCase(
+            anonymousUserResolver, infiniteCanvasRepository, properties, promptTemplateProvider, gmsClient, storage,
+            minioPublicUrlResolver, requestSupport, new InfiniteCanvasAiStickerElementFactory(objectMapper),
+            new InfiniteCanvasAiStickerEventLogger());
+        service = new InfiniteCanvasAiStickerServiceImpl(createUseCase);
     }
 
     @Test

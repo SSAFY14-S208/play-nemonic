@@ -20,9 +20,11 @@ import com.nemonicworld.flipbook.repository.FlipbookRoomMutationLockRepository;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.repository.FlipbookRoomTimeUpNotificationRepository;
 import com.nemonicworld.flipbook.repository.FlipbookSubmissionLockRepository;
-import com.nemonicworld.flipbook.service.game.FlipbookRoomRoundAdvanceService;
 import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationTriggerService;
+import com.nemonicworld.flipbook.service.game.FlipbookRoomRoundAdvanceService;
+import com.nemonicworld.flipbook.service.game.FlipbookRoundTransitionUseCase;
 import com.nemonicworld.flipbook.service.support.FlipbookInviteMetadataSyncService;
+import com.nemonicworld.flipbook.service.timeout.FlipbookFrameAutoSubmitUseCase;
 import com.nemonicworld.flipbook.service.timeout.FlipbookRoomTimeoutResult;
 import com.nemonicworld.flipbook.service.timeout.FlipbookRoomTimeoutService;
 import com.nemonicworld.flipbook.service.timeout.FlipbookTimeoutProcessResult;
@@ -75,10 +77,10 @@ class FlipbookRoomTimeoutServiceTest {
     @BeforeEach
     void setUp() {
         flipbookRoomTimeoutService = new FlipbookRoomTimeoutService(flipbookRoomRepository,
-            flipbookRoomTimeUpNotificationRepository, flipbookSubmissionLockRepository,
-            flipbookRoomMutationLockRepository, new FlipbookRoomRoundAdvanceService(), flipbookRoomEventPublisher,
-            flipbookInviteMetadataSyncService, flipbookRoomFinalizationTriggerService, 100, AUTO_SUBMIT_GRACE_MS,
-            5000L);
+            flipbookRoomTimeUpNotificationRepository, flipbookRoomMutationLockRepository,
+            new FlipbookRoomRoundAdvanceService(), new FlipbookFrameAutoSubmitUseCase(flipbookSubmissionLockRepository),
+            new FlipbookRoundTransitionUseCase(flipbookRoomEventPublisher, flipbookRoomFinalizationTriggerService),
+            flipbookRoomEventPublisher, flipbookInviteMetadataSyncService, 100, AUTO_SUBMIT_GRACE_MS, 5000L);
         lenient().when(flipbookRoomMutationLockRepository.acquireRoomMutationLock(any(), any(), any(Duration.class)))
             .thenReturn(true);
     }
@@ -266,9 +268,10 @@ class FlipbookRoomTimeoutServiceTest {
         FlipbookRoomState roomState = playingRoom(1, 4, currentNow.minusSeconds(45), currentNow.minusSeconds(5),
             List.of(pendingAssignment(0, 0, 1, hostUuid)), participant(hostUuid, "Mango", true, 0));
         FlipbookRoomTimeoutService limitedService = new FlipbookRoomTimeoutService(flipbookRoomRepository,
-            flipbookRoomTimeUpNotificationRepository, flipbookSubmissionLockRepository,
-            flipbookRoomMutationLockRepository, new FlipbookRoomRoundAdvanceService(), flipbookRoomEventPublisher,
-            flipbookInviteMetadataSyncService, flipbookRoomFinalizationTriggerService, 5, AUTO_SUBMIT_GRACE_MS, 5000L);
+            flipbookRoomTimeUpNotificationRepository, flipbookRoomMutationLockRepository,
+            new FlipbookRoomRoundAdvanceService(), new FlipbookFrameAutoSubmitUseCase(flipbookSubmissionLockRepository),
+            new FlipbookRoundTransitionUseCase(flipbookRoomEventPublisher, flipbookRoomFinalizationTriggerService),
+            flipbookRoomEventPublisher, flipbookInviteMetadataSyncService, 5, AUTO_SUBMIT_GRACE_MS, 5000L);
         given(flipbookRoomRepository.findExpiredPlayingRooms(any(LocalDateTime.class), eq(5)))
             .willReturn(List.of(roomState));
         given(flipbookRoomRepository.findByRoomCode(ROOM_CODE)).willReturn(Optional.of(roomState));

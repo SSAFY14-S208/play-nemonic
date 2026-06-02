@@ -2,8 +2,11 @@ package com.nemonicworld.flipbook.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,30 +17,61 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.ScanOptions;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.ZSetOperations;
 
 class RedisFlipbookRoomRepositoryTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     private StringRedisTemplate redisTemplate;
+    private RedisOperations<String, String> redisOperations;
     private ValueOperations<String, String> valueOperations;
+    private ZSetOperations<String, String> zSetOperations;
     private RedisFlipbookRoomRepository repository;
 
     @BeforeEach
     void prepare() {
         redisTemplate = mock(StringRedisTemplate.class);
+        redisOperations = createRedisOperationsMock();
         valueOperations = createValueOperationsMock();
+        zSetOperations = createZSetOperationsMock();
         repository = new RedisFlipbookRoomRepository(redisTemplate, objectMapper);
 
         given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(redisTemplate.opsForZSet()).willReturn(zSetOperations);
+        given(redisOperations.opsForValue()).willReturn(valueOperations);
+        given(redisOperations.opsForZSet()).willReturn(zSetOperations);
+        given(redisOperations.exec()).willReturn(List.of("OK"));
+        given(redisTemplate.execute(any(SessionCallback.class))).willAnswer(invocation -> {
+            SessionCallback<?> callback = invocation.getArgument(0);
+
+            return callback.execute(redisOperations);
+        });
+    }
+
+    @Test
+    void saveStoresActiveRoomIndexByStatus() {
+        FlipbookRoomState roomState = roomState("FA2B3C", FlipbookRoomStatus.WAITING, null, null, null,
+            LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS), participant(UUID.randomUUID(), "Mango", true, 0));
+
+        repository.save(roomState);
+
+        verify(valueOperations).set(eq("flipbook:room:FA2B3C"), any(String.class),
+            eq(FlipbookRoomRepository.ROOM_STATE_TTL));
+        verify(zSetOperations).add(eq("flipbook:rooms:active:created-at:WAITING"), eq("FA2B3C"), any(Double.class));
+        verify(zSetOperations).add(eq("flipbook:rooms:active:expires-at:WAITING"), eq("FA2B3C"), any(Double.class));
     }
 
     @Test
@@ -65,6 +99,110 @@ class RedisFlipbookRoomRepositoryTest {
         List<FlipbookRoomState> activeRooms = repository.findAllActiveRooms();
 
         assertThat(activeRooms).containsExactly(waitingRoom, playingRoom, finishedRoom);
+        verify(cursor).close();
+    }
+
+    @Test
+    void findActiveRoomsByStatusesReadsStatusIndexesWithoutScanningRoomKeys() throws Exception {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        FlipbookRoomParticipant host = participant(UUID.randomUUID(), "Mango", true, 0);
+        FlipbookRoomState waitingRoom = roomState("FA2B3C", FlipbookRoomStatus.WAITING, null, null, null, now, host);
+        FlipbookRoomState playingRoom = roomState("FB3K9Q", FlipbookRoomStatus.PLAYING, 3, 8, now.plusMinutes(1), now,
+            host);
+        given(redisTemplate.hasKey("flipbook:rooms:active:index-initialized")).willReturn(true);
+        given(zSetOperations.reverseRange("flipbook:rooms:active:created-at:WAITING", 0, -1))
+            .willReturn(new LinkedHashSet<>(List.of("FA2B3C")));
+        given(zSetOperations.reverseRange("flipbook:rooms:active:created-at:PLAYING", 0, -1))
+            .willReturn(new LinkedHashSet<>(List.of("FB3K9Q")));
+        given(valueOperations.get("flipbook:room:FA2B3C")).willReturn(serialize(waitingRoom));
+        given(valueOperations.get("flipbook:room:FB3K9Q")).willReturn(serialize(playingRoom));
+
+        List<FlipbookRoomState> activeRooms = repository
+            .findActiveRoomsByStatuses(Set.of(FlipbookRoomStatus.WAITING, FlipbookRoomStatus.PLAYING));
+
+        assertThat(activeRooms).containsExactlyInAnyOrder(waitingRoom, playingRoom);
+        verify(redisTemplate, never()).scan(any(ScanOptions.class));
+    }
+
+    @Test
+    void findActiveRoomsByStatusesWithPageReadsOnlyRequestedWindow() throws Exception {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        FlipbookRoomParticipant host = participant(UUID.randomUUID(), "Mango", true, 0);
+        FlipbookRoomState roomA = roomState("ROOM_A", FlipbookRoomStatus.WAITING, null, null, null, now, host);
+        FlipbookRoomState roomB = roomState("ROOM_B", FlipbookRoomStatus.WAITING, null, null, null, now.minusSeconds(1),
+            host);
+        FlipbookRoomState roomC = roomState("ROOM_C", FlipbookRoomStatus.WAITING, null, null, null, now.minusSeconds(2),
+            host);
+        FlipbookRoomState roomD = roomState("ROOM_D", FlipbookRoomStatus.WAITING, null, null, null, now.minusSeconds(3),
+            host);
+        given(redisTemplate.hasKey("flipbook:rooms:active:index-initialized")).willReturn(true);
+        given(zSetOperations.reverseRange("flipbook:rooms:active:created-at:WAITING", 0, 3))
+            .willReturn(new LinkedHashSet<>(List.of("ROOM_A", "ROOM_B", "ROOM_C", "ROOM_D")));
+        given(zSetOperations.zCard("flipbook:rooms:active:created-at:WAITING")).willReturn(5L);
+        given(valueOperations.get("flipbook:room:ROOM_A")).willReturn(serialize(roomA));
+        given(valueOperations.get("flipbook:room:ROOM_B")).willReturn(serialize(roomB));
+        given(valueOperations.get("flipbook:room:ROOM_C")).willReturn(serialize(roomC));
+        given(valueOperations.get("flipbook:room:ROOM_D")).willReturn(serialize(roomD));
+
+        FlipbookActiveRoomPage page = repository.findActiveRoomsByStatuses(Set.of(FlipbookRoomStatus.WAITING), 1, 2);
+
+        assertThat(page.items()).containsExactly(roomC, roomD);
+        assertThat(page.totalElements()).isEqualTo(5L);
+        verify(zSetOperations).reverseRange("flipbook:rooms:active:created-at:WAITING", 0, 3);
+        verify(redisTemplate, never()).scan(any(ScanOptions.class));
+    }
+
+    @Test
+    void countActiveRoomsByStatusesUsesStatusIndexesWhenInitialized() {
+        given(redisTemplate.hasKey("flipbook:rooms:active:index-initialized")).willReturn(true);
+        given(zSetOperations.zCard("flipbook:rooms:active:created-at:WAITING")).willReturn(3L);
+        given(zSetOperations.zCard("flipbook:rooms:active:created-at:PLAYING")).willReturn(2L);
+
+        long activeRoomCount = repository
+            .countActiveRoomsByStatuses(Set.of(FlipbookRoomStatus.WAITING, FlipbookRoomStatus.PLAYING));
+
+        assertThat(activeRoomCount).isEqualTo(5L);
+        verify(redisTemplate, never()).scan(any(ScanOptions.class));
+    }
+
+    @Test
+    void countActiveRoomsByStatusesRemovesExpiredIndexMembersBeforeCounting() {
+        given(redisTemplate.hasKey("flipbook:rooms:active:index-initialized")).willReturn(true);
+        given(zSetOperations.rangeByScore(eq("flipbook:rooms:active:expires-at:WAITING"), eq(0.0), anyDouble()))
+            .willReturn(Set.of("STALE1"));
+        given(zSetOperations.zCard("flipbook:rooms:active:created-at:WAITING")).willReturn(2L);
+
+        long activeRoomCount = repository.countActiveRoomsByStatuses(Set.of(FlipbookRoomStatus.WAITING));
+
+        assertThat(activeRoomCount).isEqualTo(2L);
+        verify(zSetOperations).remove("flipbook:rooms:active:created-at:WAITING", "STALE1");
+        verify(zSetOperations).remove("flipbook:rooms:active:expires-at:WAITING", "STALE1");
+        verify(redisTemplate, never()).scan(any(ScanOptions.class));
+    }
+
+    @Test
+    void findActiveRoomsByStatusesFallsBackToScanAndBackfillsIndexesWhenIndexesAreEmpty() throws Exception {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        FlipbookRoomParticipant host = participant(UUID.randomUUID(), "Mango", true, 0);
+        FlipbookRoomState waitingRoom = roomState("FA2B3C", FlipbookRoomStatus.WAITING, null, null, null, now, host);
+        FlipbookRoomState finishedRoom = roomState("FC4M8N", FlipbookRoomStatus.FINISHED, 8, 8, now.plusMinutes(2), now,
+            host);
+        Cursor<String> cursor = createCursorMock();
+        given(redisTemplate.scan(any(ScanOptions.class))).willReturn(cursor);
+        given(cursor.hasNext()).willReturn(true, true, false);
+        given(cursor.next()).willReturn("flipbook:room:FA2B3C", "flipbook:room:FC4M8N");
+        given(valueOperations.get("flipbook:room:FA2B3C")).willReturn(serialize(waitingRoom));
+        given(valueOperations.get("flipbook:room:FC4M8N")).willReturn(serialize(finishedRoom));
+
+        List<FlipbookRoomState> activeRooms = repository.findActiveRoomsByStatuses(Set.of(FlipbookRoomStatus.WAITING));
+
+        assertThat(activeRooms).containsExactly(waitingRoom);
+        verify(zSetOperations).add(eq("flipbook:rooms:active:created-at:WAITING"), eq("FA2B3C"), any(Double.class));
+        verify(zSetOperations).add(eq("flipbook:rooms:active:expires-at:WAITING"), eq("FA2B3C"), any(Double.class));
+        verify(zSetOperations).add(eq("flipbook:rooms:active:created-at:FINISHED"), eq("FC4M8N"), any(Double.class));
+        verify(zSetOperations).add(eq("flipbook:rooms:active:expires-at:FINISHED"), eq("FC4M8N"), any(Double.class));
+        verify(valueOperations).set(eq("flipbook:rooms:active:index-initialized"), eq("true"),
+            eq(FlipbookRoomRepository.ROOM_STATE_TTL));
         verify(cursor).close();
     }
 
@@ -234,8 +372,18 @@ class RedisFlipbookRoomRepositoryTest {
     }
 
     @SuppressWarnings("unchecked")
+    private RedisOperations<String, String> createRedisOperationsMock() {
+        return (RedisOperations<String, String>) mock(RedisOperations.class);
+    }
+
+    @SuppressWarnings("unchecked")
     private ValueOperations<String, String> createValueOperationsMock() {
         return (ValueOperations<String, String>) mock(ValueOperations.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    private ZSetOperations<String, String> createZSetOperationsMock() {
+        return (ZSetOperations<String, String>) mock(ZSetOperations.class);
     }
 
     @SuppressWarnings("unchecked")

@@ -48,13 +48,17 @@ class ArtifactDownloadServiceImplTest {
     @Mock
     private SignedShareTokenIssuer signedShareTokenIssuer;
 
-    private ArtifactQrAssetServiceImpl artifactQrAssetService;
+    private ArtifactQrAssetService artifactQrAssetService;
 
     @BeforeEach
     void setUp() {
-        artifactQrAssetService = new ArtifactQrAssetServiceImpl(artifactImageUrlRepository, anonymousUserResolver,
-            artifactDownloadStorage, artifactQrComposer, signedShareTokenIssuer,
+        ArtifactDownloadTargetResolver artifactDownloadTargetResolver = new ArtifactDownloadTargetResolver();
+        ArtifactQrShareUrlSupport artifactQrShareUrlSupport = new ArtifactQrShareUrlSupport(signedShareTokenIssuer,
             new ShareProperties("https://nemonic.example.com", "test-share-token-secret"));
+        ArtifactQrAssetPrepareUseCase artifactQrAssetPrepareUseCase = new ArtifactQrAssetPrepareUseCase(
+            artifactImageUrlRepository, anonymousUserResolver, artifactDownloadStorage, artifactQrComposer,
+            artifactDownloadTargetResolver, artifactQrShareUrlSupport);
+        artifactQrAssetService = new ArtifactQrAssetServiceImpl(artifactQrAssetPrepareUseCase);
     }
 
     /**

@@ -40,12 +40,10 @@ public class ContentActivityMetrics {
     }
 
     private long countRelayActiveRooms() {
-        return relayRoomRepository.findAllActiveRooms().stream()
-            .filter(roomState -> RELAY_ACTIVE.contains(roomState.status())).count();
+        return relayRoomRepository.countActiveRoomsByStatuses(RELAY_ACTIVE);
     }
 
     private long countFlipbookActiveRooms() {
-        return flipbookRoomRepository.findAllActiveRooms().stream()
-            .filter(roomState -> FLIPBOOK_ACTIVE.contains(roomState.status())).count();
+        return flipbookRoomRepository.countActiveRoomsByStatuses(FLIPBOOK_ACTIVE);
     }
 }

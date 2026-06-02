@@ -1,9 +1,47 @@
 # Codex Current State
 
-Last updated: 2026-05-18
+Last updated: 2026-06-02
 
 ## Current Focus
 
+- k6 load-test scripts now cover the recent gallery query, infinite canvas
+  active-room lookup, fortune external I/O transaction-boundary, and admin
+  inquiry SMTP transaction-boundary optimizations. The execution guide is
+  `backend/docs/performance/k6-실행-가이드.md`, and each troubleshooting doc embeds
+  its own k6 result summary instead of relying on a separate aggregate k6 file.
+- Performance docs are now organized from `트러블 슈팅 1` through
+  `트러블 슈팅 7` in `backend/docs/performance/README.md`.
+  Each optimization doc embeds Korean and English SVG graphs directly instead
+  of listing graph paths only.
+- Community memo query indexes from Flyway V12 are now documented as
+  `트러블 슈팅 7`. The docs cover public wall ordering, admin memo filters,
+  memo report history filters, synthetic before/after benchmark graphs, and
+  k6 scripts for public/admin list endpoints in
+  `backend/docs/performance/07-커뮤니티-메모-조회-인덱스-최적화/README.md`.
+- Relay and flipbook backoffice active-room listing now uses Redis Sorted Set
+  status indexes instead of scanning every `relay:room:*` or `flipbook:room:*`
+  key for each request. The first lookup lazily backfills indexes for existing
+  Redis room state, and `ContentActivityMetrics` counts active rooms with
+  status `ZCARD` calls after pruning expired room codes from `expires-at`
+  indexes, instead of deserializing room JSON. Performance evidence and k6
+  scripts are documented in
+  `backend/docs/performance/06-릴레이-플립북-활성-방-인덱스-최적화/README.md`.
+- Gallery list query now reduces unnecessary subtype joins. Count uses only
+  `gallery + artifact`, and list lookup first selects page items before joining
+  subtype artifact tables. Performance evidence is documented in
+  `backend/docs/performance/03-갤러리-목록-조회-쿼리-최적화/README.md`.
+- Fortune create/today requery and admin inquiry reply no longer keep external
+  I/O inside a method-wide transaction. `FortuneTransactionSupport` now wraps
+  short DB read/write sections while GMS and card upload execute outside the
+  transaction boundary. Performance evidence is documented in
+  `backend/docs/performance/01-운세-생성-외부-io-트랜잭션-분리/README.md`.
+- Admin inquiry reply SMTP send also executes outside the transaction boundary
+  and is documented as a separate incident in
+  `backend/docs/performance/02-문의-답변-메일-io-트랜잭션-분리/README.md`.
+- Infinite canvas performance visualizations were revalidated against the
+  current code shape on 2026-06-01. The docs now reference
+  `InfiniteCanvasEditingUseCase` and `InfiniteCanvasOperationApplier` for
+  operation apply optimization, and the benchmark SVG assets were regenerated.
 - Backend agent harness has been prepared for the `backend/` Spring Boot module.
 - The harness now reflects the intended backend stack: Spring Boot, Java, PostgreSQL, Redis, MinIO, and Flyway.
 - Team contribution and backend MR conventions are recorded for shared workflow.
@@ -181,17 +219,19 @@ Last updated: 2026-05-18
 - Backoffice admins can now manage active relay drawing rooms through
   `GET /api/v1/backoffice/relay-rooms` and
   `DELETE /api/v1/backoffice/relay-rooms/{roomCode}`; delete requires an admin
-  JWT, closes any non-CLOSED Redis room through CAS, returns `roomCode`, rejects
-  already CLOSED rooms with 409, emits `ROOM_CLOSED`, and leaves MinIO,
-  artifact, and gallery cleanup out of scope.
+  JWT, list uses Redis status Sorted Set indexes, delete closes any non-CLOSED
+  Redis room through CAS, returns `roomCode`, rejects already CLOSED rooms with
+  409, emits `ROOM_CLOSED`, and leaves MinIO, artifact, and gallery cleanup out
+  of scope.
 - Backoffice `viewer` accounts can list active rooms/canvases across relay,
   flipbook, and infinite canvas, but cannot force-close or delete them.
 - Backoffice admins can now list active flipbook rooms through
   `GET /api/v1/backoffice/flipbook-rooms`; the API requires an admin JWT,
-  scans Redis `flipbook:room:{roomCode}` state, returns CLOSED-excluded
-  WAITING/PLAYING/FINISHED rooms with `roomCode`, `status`, participant count,
-  current/total round, and `gameStartedAt`, supports `status`, `page`, and
-  `size`, and keeps database/artifact/gallery lookup out of scope.
+  uses Redis status Sorted Set indexes instead of room-key scan for the steady
+  state, returns CLOSED-excluded WAITING/PLAYING/FINISHED rooms with
+  `roomCode`, `status`, participant count, current/total round, and
+  `gameStartedAt`, supports `status`, `page`, and `size`, and keeps
+  database/artifact/gallery lookup out of scope.
 - Backoffice admins can now delete active flipbook rooms through
   `DELETE /api/v1/backoffice/flipbook-rooms/{roomCode}`; delete requires an
   admin JWT, closes any non-CLOSED Redis room through CAS, returns `roomCode`,

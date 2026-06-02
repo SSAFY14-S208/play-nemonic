@@ -15,6 +15,9 @@ import com.nemonicworld.common.exception.NotFoundException;
 import com.nemonicworld.invite.dto.response.InviteJoinResponse;
 import com.nemonicworld.invite.redis.InviteMetadata;
 import com.nemonicworld.invite.repository.InviteRepository;
+import com.nemonicworld.invite.service.join.InviteJoinUseCase;
+import com.nemonicworld.invite.service.support.InviteCodeSupport;
+import com.nemonicworld.invite.service.support.InviteJoinEventLogger;
 import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
@@ -63,8 +66,12 @@ class InviteServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        inviteService = new InviteServiceImpl(inviteRepository, anonymousUserResolver,
-            List.of(new RelayInviteJoinHandler(relayRoomRepository, relayInviteMetadataSyncService, 10L)));
+        InviteCodeSupport inviteCodeSupport = new InviteCodeSupport();
+        InviteJoinEventLogger inviteJoinEventLogger = new InviteJoinEventLogger();
+        InviteJoinUseCase inviteJoinUseCase = new InviteJoinUseCase(inviteRepository, anonymousUserResolver,
+            List.of(new RelayInviteJoinHandler(relayRoomRepository, relayInviteMetadataSyncService, 10L)),
+            inviteCodeSupport, inviteJoinEventLogger);
+        inviteService = new InviteServiceImpl(inviteJoinUseCase);
     }
 
     /**

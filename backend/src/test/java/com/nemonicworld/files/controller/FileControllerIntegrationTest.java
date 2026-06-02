@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.support.FileUploadTestFixture;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
@@ -664,24 +665,8 @@ class FileControllerIntegrationTest {
         UUID fileId = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         String objectKey = "uploads/flipbook/2026/05/03/%s/drawing.png".formatted(fileId);
-
-        jdbcTemplate.update("""
-            INSERT INTO file_upload (
-                id,
-                user_id,
-                purpose,
-                original_file_name,
-                content_type,
-                byte_size,
-                object_key,
-                status,
-                expires_at,
-                created_at,
-                updated_at
-            )
-            VALUES (?, ?, 'FLIPBOOK', 'drawing.png', 'image/png', ?, ?, ?, ?, ?, ?)
-            """, fileId, userUuid, byteSize, objectKey, status, Timestamp.valueOf(now.plusMinutes(10)),
-            Timestamp.valueOf(now), Timestamp.valueOf(now));
+        new FileUploadTestFixture(jdbcTemplate).insert(fileId, userUuid, "FLIPBOOK", "drawing.png", "image/png",
+            byteSize, objectKey, status, now.plusMinutes(10), now, now, null);
 
         return fileId;
     }

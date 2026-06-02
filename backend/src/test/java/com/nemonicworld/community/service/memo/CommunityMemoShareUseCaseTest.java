@@ -70,9 +70,13 @@ class CommunityMemoShareUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        communityMemoShareUseCase = new CommunityMemoShareUseCase(communityMemoSupport, artifactDownloadStorage,
-            artifactQrComposer, signedShareTokenIssuer, minioPublicUrlResolver,
-            new ShareProperties("https://nemonic.example.com/", "test-share-token-secret"), shareEventLogger);
+        CommunityMemoShareQrCacheSupport qrCacheSupport = new CommunityMemoShareQrCacheSupport(artifactDownloadStorage,
+            artifactQrComposer);
+        CommunityMemoShareUrlSupport urlSupport = new CommunityMemoShareUrlSupport(signedShareTokenIssuer,
+            new ShareProperties("https://nemonic.example.com/", "test-share-token-secret"));
+        communityMemoShareUseCase = new CommunityMemoShareUseCase(communityMemoSupport,
+            new CommunityMemoShareSourceResolver(), qrCacheSupport, urlSupport, minioPublicUrlResolver,
+            shareEventLogger);
     }
 
     @Test

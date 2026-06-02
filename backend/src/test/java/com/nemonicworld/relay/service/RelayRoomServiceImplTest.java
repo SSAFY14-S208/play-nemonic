@@ -50,11 +50,19 @@ import com.nemonicworld.relay.service.room.RelayRoomQueryUseCase;
 import com.nemonicworld.relay.service.room.RelayRoomSettingsUseCase;
 import com.nemonicworld.relay.service.result.RelayRoomResultQueryUseCase;
 import com.nemonicworld.relay.service.submission.RelayRoomSubmissionUseCase;
+import com.nemonicworld.relay.service.submission.RelaySubmissionAssignmentSupport;
+import com.nemonicworld.relay.service.submission.RelaySubmissionEventSupport;
+import com.nemonicworld.relay.service.submission.RelaySubmissionFileSupport;
+import com.nemonicworld.relay.service.submission.RelaySubmissionLockSupport;
 import com.nemonicworld.relay.service.submission.RelaySubmissionStorage;
 import com.nemonicworld.relay.service.support.RelayInviteMetadataSyncService;
+import com.nemonicworld.relay.service.support.RelayRoomActionPolicySupport;
 import com.nemonicworld.relay.service.support.RelayRoomParticipantLimit;
+import com.nemonicworld.relay.service.support.RelayRoomParticipantPolicySupport;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
+import com.nemonicworld.relay.service.support.RelayRoomReconnectPolicySupport;
 import com.nemonicworld.relay.service.support.RelayRoomTimeLimitSettings;
+import com.nemonicworld.relay.service.support.RelayRoomValidationSupport;
 import com.nemonicworld.relay.service.support.RelayRoomViewerFactory;
 import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import com.nemonicworld.relay.service.support.RelayRuntimeSettingsSnapshot;
@@ -131,8 +139,11 @@ class RelayRoomServiceImplTest {
             .thenReturn(Duration.ofSeconds(RelayRoomPolicy.DEFAULT_RECONNECT_GRACE_SECONDS));
         lenient().when(relayRuntimeSettingsProvider.currentSettingsSnapshot())
             .thenReturn(defaultRuntimeSettingsSnapshot());
-        RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository,
-            relayRuntimeSettingsProvider);
+        RelayRoomParticipantPolicySupport relayRoomParticipantPolicySupport = new RelayRoomParticipantPolicySupport();
+        RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(relayRoomRepository,
+            new RelayRoomValidationSupport(roomCodeGenerator, relayRuntimeSettingsProvider),
+            relayRoomParticipantPolicySupport, new RelayRoomActionPolicySupport(),
+            new RelayRoomReconnectPolicySupport(relayRuntimeSettingsProvider, relayRoomParticipantPolicySupport));
         RelayRoomViewerFactory relayRoomViewerFactory = new RelayRoomViewerFactory(relayRoomPolicy);
         RelayRoomPartAdvanceService relayRoomPartAdvanceService = new RelayRoomPartAdvanceService();
         relayRoomService = new RelayRoomServiceImpl(
@@ -154,9 +165,11 @@ class RelayRoomServiceImplTest {
                 relayRoomPolicy, new ObjectMapper().findAndRegisterModules(),
                 new MinioPublicUrlResolver(minioStorageProperties())),
             new RelayRoomSubmissionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,
-                relayRoomPartAdvanceService, relaySubmissionStorage, relaySubmissionLockRepository,
-                relayRoomMutationLockRepository, minioStorageProperties(), relayInviteMetadataSyncService, 2000L,
-                10000L, 5000L),
+                relayRoomPartAdvanceService, relayInviteMetadataSyncService,
+                new RelaySubmissionFileSupport(minioStorageProperties(), relaySubmissionStorage),
+                new RelaySubmissionLockSupport(relaySubmissionLockRepository, relayRoomMutationLockRepository, 10000L,
+                    5000L),
+                new RelaySubmissionAssignmentSupport(2000L), new RelaySubmissionEventSupport()),
             new RelayRoomManualCloseUseCase(anonymousUserResolver, relayRoomPolicy,
                 new RelayRoomCloseCommand(relayRoomRepository, relayInviteMetadataSyncService)),
             new RelayRoomConnectionUseCase(anonymousUserResolver, relayRoomRepository, relayRoomPolicy,

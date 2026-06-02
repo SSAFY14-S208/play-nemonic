@@ -16,38 +16,60 @@ import org.springframework.stereotype.Repository;
  */
 public class GalleryRepository {
 
-    private static final String ACTIVE_GALLERY_FROM = """
+    private static final String ACTIVE_GALLERY_BASE_FROM = """
         FROM gallery g
         JOIN artifact a ON a.id = g.artifact_id
+        """;
+
+    private static final String ACTIVE_GALLERY_SUBTYPE_JOINS = """
         LEFT JOIN fortune_artifact fa ON fa.artifact_id = a.id
         LEFT JOIN relay_drawing_artifact rda ON rda.artifact_id = a.id
         LEFT JOIN flipbook_artifact fba ON fba.artifact_id = a.id
         LEFT JOIN infinite_canvas_artifact ica ON ica.artifact_id = a.id
         LEFT JOIN phone_artifact pa ON pa.artifact_id = a.id
+        """;
+
+    private static final String ACTIVE_GALLERY_FILTER = """
         WHERE g.user_id = :userUuid
           AND g.deleted_at IS NULL
         """;
 
     private static final String FIND_ACTIVE_ITEMS_SQL = """
+        WITH page_items AS (
+            SELECT
+                g.id AS gallery_id,
+                a.id AS artifact_id,
+                CAST(a.kind AS VARCHAR) AS kind,
+                a.thumbnail_url AS thumbnail_url,
+                a.source_room_id AS source_room_id,
+                a.created_at AS created_at
+        """ + ACTIVE_GALLERY_BASE_FROM + ACTIVE_GALLERY_FILTER + """
+            ORDER BY a.created_at DESC, a.id DESC
+            LIMIT :limit OFFSET :offset
+        )
         SELECT
-            g.id AS gallery_id,
-            a.id AS artifact_id,
-            CAST(a.kind AS VARCHAR) AS kind,
-            a.thumbnail_url AS thumbnail_url,
-            CASE CAST(a.kind AS VARCHAR)
-                WHEN 'fortune' THEN COALESCE(fa.fortune_image_url, a.thumbnail_url)
-                WHEN 'relay_drawing' THEN COALESCE(rda.combined_preview_url, a.thumbnail_url)
-                WHEN 'flipbook' THEN COALESCE(fba.gif_url, a.thumbnail_url)
-                WHEN 'infinite_canvas' THEN COALESCE(ica.canvas_image_url, a.thumbnail_url)
-                WHEN 'phone' THEN COALESCE(pa.phone_image_url, a.thumbnail_url)
-                WHEN 'community_memo' THEN a.thumbnail_url
-                ELSE a.thumbnail_url
+            pi.gallery_id AS gallery_id,
+            pi.artifact_id AS artifact_id,
+            pi.kind AS kind,
+            pi.thumbnail_url AS thumbnail_url,
+            CASE pi.kind
+                WHEN 'fortune' THEN COALESCE(fa.fortune_image_url, pi.thumbnail_url)
+                WHEN 'relay_drawing' THEN COALESCE(rda.combined_preview_url, pi.thumbnail_url)
+                WHEN 'flipbook' THEN COALESCE(fba.gif_url, pi.thumbnail_url)
+                WHEN 'infinite_canvas' THEN COALESCE(ica.canvas_image_url, pi.thumbnail_url)
+                WHEN 'phone' THEN COALESCE(pa.phone_image_url, pi.thumbnail_url)
+                WHEN 'community_memo' THEN pi.thumbnail_url
+                ELSE pi.thumbnail_url
             END AS content_url,
-            a.source_room_id AS source_room_id,
-            a.created_at AS created_at
-        """ + ACTIVE_GALLERY_FROM + """
-        ORDER BY a.created_at DESC, a.id DESC
-        LIMIT :limit OFFSET :offset
+            pi.source_room_id AS source_room_id,
+            pi.created_at AS created_at
+        FROM page_items pi
+        LEFT JOIN fortune_artifact fa ON fa.artifact_id = pi.artifact_id
+        LEFT JOIN relay_drawing_artifact rda ON rda.artifact_id = pi.artifact_id
+        LEFT JOIN flipbook_artifact fba ON fba.artifact_id = pi.artifact_id
+        LEFT JOIN infinite_canvas_artifact ica ON ica.artifact_id = pi.artifact_id
+        LEFT JOIN phone_artifact pa ON pa.artifact_id = pi.artifact_id
+        ORDER BY pi.created_at DESC, pi.artifact_id DESC
         """;
 
     private static final String FIND_ACTIVE_ITEM_DETAIL_SQL = """
@@ -69,11 +91,12 @@ public class GalleryRepository {
             a.meta AS meta,
             a.created_at AS created_at,
             a.updated_at AS updated_at
-        """ + ACTIVE_GALLERY_FROM + """
+        """ + ACTIVE_GALLERY_BASE_FROM + ACTIVE_GALLERY_SUBTYPE_JOINS + ACTIVE_GALLERY_FILTER + """
           AND g.id = :galleryId
         """;
 
-    private static final String COUNT_ACTIVE_ITEMS_SQL = "SELECT COUNT(*) " + ACTIVE_GALLERY_FROM;
+    private static final String COUNT_ACTIVE_ITEMS_SQL = "SELECT COUNT(*) " + ACTIVE_GALLERY_BASE_FROM
+        + ACTIVE_GALLERY_FILTER;
 
     private static final String FIND_ACTIVE_DELETE_TARGET_SQL = """
         SELECT

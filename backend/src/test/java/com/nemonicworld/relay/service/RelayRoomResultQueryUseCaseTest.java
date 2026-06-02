@@ -21,7 +21,11 @@ import com.nemonicworld.relay.repository.RelayArtifactRepository;
 import com.nemonicworld.relay.repository.RelayResultArtifactRow;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import com.nemonicworld.relay.service.result.RelayRoomResultQueryUseCase;
+import com.nemonicworld.relay.service.support.RelayRoomActionPolicySupport;
+import com.nemonicworld.relay.service.support.RelayRoomParticipantPolicySupport;
 import com.nemonicworld.relay.service.support.RelayRoomPolicy;
+import com.nemonicworld.relay.service.support.RelayRoomReconnectPolicySupport;
+import com.nemonicworld.relay.service.support.RelayRoomValidationSupport;
 import com.nemonicworld.relay.service.support.RelayRuntimeSettingsProvider;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.service.AnonymousUserResolver;
@@ -63,8 +67,11 @@ class RelayRoomResultQueryUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(roomCodeGenerator, relayRoomRepository,
-            relayRuntimeSettingsProvider);
+        RelayRoomParticipantPolicySupport relayRoomParticipantPolicySupport = new RelayRoomParticipantPolicySupport();
+        RelayRoomPolicy relayRoomPolicy = new RelayRoomPolicy(relayRoomRepository,
+            new RelayRoomValidationSupport(roomCodeGenerator, relayRuntimeSettingsProvider),
+            relayRoomParticipantPolicySupport, new RelayRoomActionPolicySupport(),
+            new RelayRoomReconnectPolicySupport(relayRuntimeSettingsProvider, relayRoomParticipantPolicySupport));
         MinioPublicUrlResolver minioPublicUrlResolver = new MinioPublicUrlResolver(minioStorageProperties());
         useCase = new RelayRoomResultQueryUseCase(anonymousUserResolver, relayArtifactRepository, relayRoomRepository,
             relayRoomPolicy, new ObjectMapper().findAndRegisterModules(), minioPublicUrlResolver);

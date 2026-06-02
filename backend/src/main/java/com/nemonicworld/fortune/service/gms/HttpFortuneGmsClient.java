@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.nemonicworld.fortune.config.FortuneGmsProperties;
+import com.nemonicworld.fortune.service.FortuneLuckyColorResolver;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -47,12 +48,13 @@ public class HttpFortuneGmsClient implements FortuneGmsClient {
           "iconKey": "moon_waning"
         }
         점수는 0 이상 100 이하의 정수로 만든다.
+        luckyColor는 다음 색상명 중 하나로만 만든다: %s.
         cardTheme, bgColor, accentColor, iconKey는 카드 에셋 메타데이터가 없으면 null로 둘 수 있다.
         bgColor와 accentColor를 넣는다면 반드시 #RRGGBB 형식으로 만든다.
         luckyDirection은 동쪽, 서쪽, 남쪽, 북쪽 중 하나로 만든다.
         caution은 공백 포함 32자 이내의 짧은 문장으로 만든다.
         postitLine은 네모닉 출력에 어울리는 짧은 한 문장으로 만든다.
-        """;
+        """.formatted(FortuneLuckyColorResolver.SUPPORTED_COLOR_NAMES);
 
     private final FortuneGmsProperties properties;
     private final ObjectMapper objectMapper;

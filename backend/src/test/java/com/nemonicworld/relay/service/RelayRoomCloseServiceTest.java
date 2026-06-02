@@ -18,7 +18,9 @@ import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
+import com.nemonicworld.relay.service.close.RelayFinishedRoomCloseUseCase;
 import com.nemonicworld.relay.service.close.RelayRoomCloseCommand;
+import com.nemonicworld.relay.service.close.RelayRoomCloseEventSupport;
 import com.nemonicworld.relay.service.close.RelayRoomCloseProcessResult;
 import com.nemonicworld.relay.service.close.RelayRoomCloseResult;
 import com.nemonicworld.relay.service.close.RelayRoomCloseService;
@@ -60,9 +62,12 @@ class RelayRoomCloseServiceTest {
 
     @BeforeEach
     void setUp() {
-        relayRoomCloseService = new RelayRoomCloseService(relayRoomRepository,
-            new RelayRoomCloseCommand(relayRoomRepository, relayInviteMetadataSyncService), relayRoomEventPublisher,
-            CLOSE_DELAY_SECONDS, SCAN_LIMIT);
+        RelayRoomCloseCommand closeCommand = new RelayRoomCloseCommand(relayRoomRepository,
+            relayInviteMetadataSyncService);
+        RelayRoomCloseEventSupport closeEventSupport = new RelayRoomCloseEventSupport(relayRoomEventPublisher);
+        RelayFinishedRoomCloseUseCase finishedRoomCloseUseCase = new RelayFinishedRoomCloseUseCase(relayRoomRepository,
+            closeCommand, closeEventSupport, CLOSE_DELAY_SECONDS, SCAN_LIMIT);
+        relayRoomCloseService = new RelayRoomCloseService(finishedRoomCloseUseCase);
     }
 
     @Test
