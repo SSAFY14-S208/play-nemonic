@@ -42,8 +42,13 @@
 | benchmark 결과 JSON | `./benchmark/community-memo-index-benchmark.json` | 같은 실행의 원본 결과 |
 | k6 실행 파일 | `./k6/07-1-커뮤니티-메모-공개-목록-k6.js` | `community_memo_public_list` endpoint tag, 공개 벽 조회 |
 | k6 실행 파일 | `./k6/07-2-관리자-커뮤니티-메모-목록-k6.js` | `admin_community_memo_list` endpoint tag, 관리자 신고 메모 목록 조회 |
+| k6 결과 Markdown | `./k6/results/07-2-관리자-커뮤니티-메모-목록-k6-결과.md` | 요청 수, RPS, p50/p95/p99, 실패율, 상세 터미널 지표 |
+| k6 결과 JSON | `./k6/results/07-2-관리자-커뮤니티-메모-목록-k6-결과.json` | 같은 실행의 원본 summary data |
+| Web Dashboard HTML | `./k6/results/07-2-admin-community-memo-dashboard.html` | k6 내장 dashboard export 결과 |
 | 그래프 | `./graphs/*.svg` | 한국어/영어 before/after 그래프 |
-| 캡처 폴더 | `./captures/` | k6 실행 후 dashboard overview, duration, terminal summary 저장 위치 |
+| Dashboard 캡처 | `./captures/admin-community-memo-k6-dashboard-overview.png` | 상단 지표 카드와 HTTP Performance overview |
+| Duration 캡처 | `./captures/admin-community-memo-k6-dashboard-duration.png` | avg/p90/p95/p99 latency 흐름 |
+| 터미널 캡처 | `./captures/admin-community-memo-k6-terminal-summary.png` | `failed=0.00%`, `checks=100.00%`, 상세 k6 지표 |
 
 <br>
 
@@ -178,6 +183,38 @@ k6는 실제 HTTP API가 관리자 인증과 응답 contract를 유지한 채 �
 | --- | --- | --- | --- |
 | 공개 커뮤니티 메모 목록 | `./k6/07-1-커뮤니티-메모-공개-목록-k6.js` | `community_memo_public_list` | `./k6/results/07-1-커뮤니티-메모-공개-목록-k6-결과.md` |
 | 관리자 신고 메모 목록 | `./k6/07-2-관리자-커뮤니티-메모-목록-k6.js` | `admin_community_memo_list` | `./k6/results/07-2-관리자-커뮤니티-메모-목록-k6-결과.md` |
+
+### 실제 k6 실행 결과
+
+2026-06-02 로컬 환경에서 관리자 커뮤니티 메모 목록 조회를 실행한 결과입니다.
+
+| 지표 | 값 |
+| --- | ---: |
+| 대상 API | `GET /api/v1/admin/community/memos?reported=true&page=0&size=20` |
+| VU | 10 |
+| Duration | 30s |
+| 요청 수 | 330 |
+| RPS | 8.24 |
+| 실패율 | 0.00% |
+| check 성공률 | 100.00% |
+| 평균 latency | 74.35 ms |
+| p50 latency | 24.23 ms |
+| p95 latency | 394.46 ms |
+| p99 latency | 558.88 ms |
+
+이 k6 결과는 인덱스가 적용된 현재 HTTP 경로가 관리자 인증과 응답 contract를 유지한 채 실패 없이 처리되는지 확인하는 값입니다. 인덱스 before/after 구조 차이는 위 synthetic benchmark 표와 그래프를 기준으로 봅니다.
+
+#### k6 Dashboard Overview
+
+<img src="./captures/admin-community-memo-k6-dashboard-overview.png" width="720" alt="관리자 커뮤니티 메모 목록 k6 dashboard overview">
+
+#### k6 HTTP Request Duration
+
+<img src="./captures/admin-community-memo-k6-dashboard-duration.png" width="720" alt="관리자 커뮤니티 메모 목록 k6 HTTP request duration">
+
+#### k6 Terminal Summary
+
+<img src="./captures/admin-community-memo-k6-terminal-summary.png" width="720" alt="관리자 커뮤니티 메모 목록 k6 terminal summary">
 
 ### 공개 목록 실행 명령
 
