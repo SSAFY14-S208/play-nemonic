@@ -1,0 +1,295 @@
+{
+  "options": {
+    "summaryTrendStats": [
+      "avg",
+      "min",
+      "med",
+      "p(90)",
+      "p(95)",
+      "p(99)",
+      "max"
+    ],
+    "summaryTimeUnit": "",
+    "noColor": false
+  },
+  "state": {
+    "isStdOutTTY": true,
+    "isStdErrTTY": true,
+    "testRunDurationMs": 40062.495
+  },
+  "metrics": {
+    "checks": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "fails": 0,
+        "rate": 1,
+        "passes": 990
+      }
+    },
+    "iterations": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 330,
+        "rate": 8.237130513214417
+      }
+    },
+    "checks{endpoint:admin_community_memo_list}": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 1,
+        "passes": 990,
+        "fails": 0
+      },
+      "thresholds": {
+        "rate>0.99": {
+          "ok": true
+        }
+      }
+    },
+    "http_reqs{endpoint:admin_community_memo_list}": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 330,
+        "rate": 8.237130513214417
+      },
+      "thresholds": {
+        "count>0": {
+          "ok": true
+        }
+      }
+    },
+    "http_req_sending": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(99)": 1.5957899999999987,
+        "max": 35.059,
+        "avg": 0.18772424242424268,
+        "min": 0.005,
+        "med": 0.028,
+        "p(90)": 0.10150000000000005,
+        "p(95)": 0.2941999999999997
+      }
+    },
+    "vus": {
+      "type": "gauge",
+      "contains": "default",
+      "values": {
+        "value": 2,
+        "min": 2,
+        "max": 10
+      }
+    },
+    "vus_max": {
+      "type": "gauge",
+      "contains": "default",
+      "values": {
+        "value": 10,
+        "min": 10,
+        "max": 10
+      }
+    },
+    "http_req_duration{expected_response:true}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "min": 9.504,
+        "med": 24.228499999999997,
+        "p(90)": 244.59940000000003,
+        "p(95)": 394.4648499999999,
+        "p(99)": 558.8787999999998,
+        "max": 635.224,
+        "avg": 74.34895454545456
+      }
+    },
+    "iteration_duration": {
+      "values": {
+        "min": 1010.816583,
+        "med": 1025.5624375,
+        "p(90)": 1248.0379834,
+        "p(95)": 1436.43358155,
+        "p(99)": 1589.20159936,
+        "max": 1635.7925,
+        "avg": 1079.5341370060605
+      },
+      "type": "trend",
+      "contains": "time"
+    },
+    "http_req_failed{endpoint:admin_community_memo_list}": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "fails": 330,
+        "rate": 0,
+        "passes": 0
+      },
+      "thresholds": {
+        "rate<0.01": {
+          "ok": true
+        }
+      }
+    },
+    "http_reqs": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 330,
+        "rate": 8.237130513214417
+      }
+    },
+    "http_req_waiting": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "min": 9.017,
+        "med": 23.625999999999998,
+        "p(90)": 233.81210000000004,
+        "p(95)": 389.8346,
+        "p(99)": 557.9633399999999,
+        "max": 634.613,
+        "avg": 73.15661515151514
+      }
+    },
+    "data_sent": {
+      "contains": "data",
+      "values": {
+        "count": 141240,
+        "rate": 3525.4918596557704
+      },
+      "type": "counter"
+    },
+    "data_received": {
+      "type": "counter",
+      "contains": "data",
+      "values": {
+        "count": 176880,
+        "rate": 4415.101955082928
+      }
+    },
+    "http_req_connecting": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "med": 0,
+        "p(90)": 0,
+        "p(95)": 0,
+        "p(99)": 0.30896999999999997,
+        "max": 0.912,
+        "avg": 0.01092121212121212,
+        "min": 0
+      }
+    },
+    "http_req_receiving": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 1.0046151515151527,
+        "min": 0.022,
+        "med": 0.6114999999999999,
+        "p(90)": 1.7582,
+        "p(95)": 2.4190499999999995,
+        "p(99)": 7.717519999999998,
+        "max": 16.735
+      }
+    },
+    "http_req_blocked": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(90)": 0.018100000000000005,
+        "p(95)": 0.0658499999999996,
+        "p(99)": 1.3758699999999995,
+        "max": 40.056,
+        "avg": 0.16569090909090922,
+        "min": 0.001,
+        "med": 0.008
+      }
+    },
+    "http_req_duration{endpoint:admin_community_memo_list}": {
+      "thresholds": {
+        "p(95)<500": {
+          "ok": true
+        }
+      },
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "max": 635.224,
+        "avg": 74.34895454545456,
+        "min": 9.504,
+        "med": 24.228499999999997,
+        "p(90)": 244.59940000000003,
+        "p(95)": 394.4648499999999,
+        "p(99)": 558.8787999999998
+      }
+    },
+    "http_req_failed": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 0,
+        "passes": 0,
+        "fails": 330
+      }
+    },
+    "http_req_duration": {
+      "values": {
+        "med": 24.228499999999997,
+        "p(90)": 244.59940000000003,
+        "p(95)": 394.4648499999999,
+        "p(99)": 558.8787999999998,
+        "max": 635.224,
+        "avg": 74.34895454545456,
+        "min": 9.504
+      },
+      "type": "trend",
+      "contains": "time"
+    },
+    "http_req_tls_handshaking": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 0,
+        "min": 0,
+        "med": 0,
+        "p(90)": 0,
+        "p(95)": 0,
+        "p(99)": 0,
+        "max": 0
+      }
+    }
+  },
+  "root_group": {
+    "groups": [],
+    "checks": [
+        {
+          "path": "::admin community memo list status is 200",
+          "id": "53e5a8f254cbcfb1ed8759ab530c853e",
+          "passes": 330,
+          "fails": 0,
+          "name": "admin community memo list status is 200"
+        },
+        {
+          "name": "admin community memo list success is true",
+          "path": "::admin community memo list success is true",
+          "id": "b19d8f89a048275588a1cc16daed1f24",
+          "passes": 330,
+          "fails": 0
+        },
+        {
+          "fails": 0,
+          "name": "admin community memo list items is array",
+          "path": "::admin community memo list items is array",
+          "id": "f9c9f5b3560f18a72864c32c4179f767",
+          "passes": 330
+        }
+      ],
+    "name": "",
+    "path": "",
+    "id": "d41d8cd98f00b204e9800998ecf8427e"
+  }
+}
