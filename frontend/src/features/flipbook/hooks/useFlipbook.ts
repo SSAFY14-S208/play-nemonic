@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { HTTPError } from 'ky'
 import {
-  deleteFlipbookRoomParticipantMe, getFlipbookRoom, getFlipbookRoomAssignmentMe, getFlipbookRoomResult, postFlipbookRoom, postFlipbookRoomClose, postFlipbookRoomKick, postFlipbookRoomRoundFrame, postFlipbookRoomStart, postInvite, patchFlipbookRoomSettings, } from '@/shared/apis'
+  deleteFlipbookRoomParticipantMe, getFlipbookRoom, getFlipbookRoomAssignmentMe, postFlipbookRoom, postFlipbookRoomClose, postFlipbookRoomKick, postFlipbookRoomRoundFrame, postFlipbookRoomStart, postInvite, patchFlipbookRoomSettings, } from '@/shared/apis'
 import { DRAWING_COLORS, DEFAULT_DRAWING_STROKE_WIDTH } from '@/shared/constants'
 import { useDrawingBoard, useFunnelEntry } from '@/shared/hooks'
 import { completeFunnelStep, logEvent } from '@/shared/libs'
@@ -20,10 +20,10 @@ import { useFlipbookFrameUpload } from './useFlipbookFrameUpload'
 import { useFlipbookRealtimeConnection } from './useFlipbookRealtimeConnection'
 import { useFlipbookRealtimeEventHandler } from './useFlipbookRealtimeEventHandler'
 import { useFlipbookResultPresenter } from './useFlipbookResultPresenter'
+import { useFlipbookResultPolling } from './useFlipbookResultPolling'
 import { useFlipbookRoomDerivedState } from './useFlipbookRoomDerivedState'
 import { useFlipbookTimer } from './useFlipbookTimer'
 
-const RESULT_POLLING_INTERVAL_MS = 1500
 const SUBMITTED_ROUND_POLLING_INTERVAL_MS = 5000
 const ASSIGNMENT_RETRY_DELAYS_MS = [1000, 2000, 3000, 5000]
 
@@ -528,29 +528,16 @@ export function useFlipbook({
     [assignment, replaceDrawingLines, roomCode, roomState?.totalRounds, userUuid],
   )
 
-  const fetchResult = useCallback(
-    async (targetRoomCode = roomCode, resultParticipantCount = participantCount) => {
-      if (!targetRoomCode) return null
-      if (shouldIgnoreInactiveFlipbookRoom(targetRoomCode)) return null
-
-      const nextResult = await getFlipbookRoomResult(targetRoomCode)
-      if (shouldIgnoreInactiveFlipbookRoom(targetRoomCode)) return null
-
-      if (nextResult.ready) {
-        showReadyResult({
-          resultItems: nextResult.results,
-          resultParticipantCount,
-          targetRoomCode,
-        })
-      } else {
-        setResultCount(nextResult.resultCount)
-        setIsResultReady(false)
-      }
-
-      return nextResult
-    },
-    [participantCount, roomCode, showReadyResult],
-  )
+  const { fetchResult } = useFlipbookResultPolling({
+    currentStep,
+    isDummyResultPreview,
+    isResultReady,
+    participantCount,
+    roomCode,
+    setIsResultReady,
+    setResultCount,
+    showReadyResult,
+  })
 
   const enterResultMode = useCallback(
     async (targetRoomCode: string, resultParticipantCount = participantCount) => {
@@ -1468,36 +1455,6 @@ export function useFlipbook({
     roomCode,
     syncActiveRoomProgress,
   ])
-
-  useEffect(() => {
-    if (isDummyResultPreview || currentStep !== 'result' || !roomCode || isResultReady) return
-
-    let cancelled = false
-    let pollingTimer: number | null = null
-    const pollResult = async () => {
-      if (cancelled) return
-
-      try {
-        const nextResult = await fetchResult(roomCode)
-        if (!nextResult?.ready && !cancelled) {
-          pollingTimer = window.setTimeout(pollResult, RESULT_POLLING_INTERVAL_MS)
-        }
-      } catch {
-        if (!cancelled) {
-          pollingTimer = window.setTimeout(pollResult, RESULT_POLLING_INTERVAL_MS)
-        }
-      }
-    }
-
-    void pollResult()
-
-    return () => {
-      cancelled = true
-      if (pollingTimer !== null) {
-        window.clearTimeout(pollingTimer)
-      }
-    }
-  }, [currentStep, fetchResult, isDummyResultPreview, isResultReady, roomCode])
 
   return {
     currentStep,
