@@ -13,31 +13,25 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.admin.entity.AdminRole;
-import com.nemonicworld.admin.entity.AdminUser;
-import com.nemonicworld.auth.service.AdminTokenStore;
-import com.nemonicworld.auth.service.IssuedAdminRefreshToken;
-import com.nemonicworld.auth.service.StoredAdminRefreshToken;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
-import com.nemonicworld.common.jwt.AdminTokenClaims;
 import com.nemonicworld.common.jwt.JwtTokenProvider;
 import com.nemonicworld.community.service.moderation.CommunityMemoModerationClient;
 import com.nemonicworld.support.AbstractReadOnlyIntegrationTest;
-import java.time.Instant;
+import com.nemonicworld.support.AdminUserTestFixture;
+import com.nemonicworld.support.AppUserTestFixture;
+import com.nemonicworld.support.ArtifactGalleryTestFixture;
+import com.nemonicworld.support.ArtifactSubtypeTestFixture;
+import com.nemonicworld.support.BackofficeAuthTestFixture;
+import com.nemonicworld.support.CommunityMemoTestFixture;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -49,6 +43,7 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
 
     private static final long ADMIN_ID = 1L;
     private static final String ADMIN_LOGIN_ID = "community-admin";
+    private static final String ADMIN_NICKNAME = "Community Admin";
     private static final String ADMIN_EMAIL = "community-admin@example.com";
     private static final String ANONYMOUS_USER_UUID_HEADER = AnonymousUserHeaders.ANONYMOUS_USER_UUID;
     private static final String ORIGINAL_OBJECT_KEY = "uploads/community/admin/original.png";
@@ -68,11 +63,22 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
+    private AdminUserTestFixture adminUserFixture;
+    private AppUserTestFixture appUserFixture;
+    private ArtifactGalleryTestFixture artifactGalleryFixture;
+    private ArtifactSubtypeTestFixture artifactSubtypeFixture;
+    private CommunityMemoTestFixture communityMemoFixture;
+
     @MockitoBean
     private CommunityMemoModerationClient moderationClient;
 
     @BeforeEach
     void prepareTables() {
+        adminUserFixture = new AdminUserTestFixture(jdbcTemplate);
+        appUserFixture = new AppUserTestFixture(jdbcTemplate);
+        artifactGalleryFixture = new ArtifactGalleryTestFixture(jdbcTemplate);
+        artifactSubtypeFixture = new ArtifactSubtypeTestFixture(jdbcTemplate);
+        communityMemoFixture = new CommunityMemoTestFixture(jdbcTemplate);
         createTables();
         cleanTables();
         insertAdminUser();
@@ -501,150 +507,28 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
     }
 
     private void createTables() {
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS admin_user (
-                id BIGINT PRIMARY KEY,
-                login_id VARCHAR(64) NOT NULL UNIQUE,
-                password_hash VARCHAR(255) NOT NULL,
-                nickname VARCHAR(20) NOT NULL,
-                email VARCHAR(255) NOT NULL,
-                role VARCHAR(32) NOT NULL,
-                last_login_at TIMESTAMP NULL,
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL,
-                deleted_at TIMESTAMP NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS app_user (
-                id UUID NOT NULL PRIMARY KEY,
-                nickname VARCHAR(10) NOT NULL,
-                last_seen_at TIMESTAMP NOT NULL,
-                birthday DATE NULL,
-                birthtime TIME NULL,
-                is_lunar BOOLEAN NULL,
-                user_agent TEXT NOT NULL,
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS artifact (
-                id UUID PRIMARY KEY,
-                kind VARCHAR(32) NOT NULL,
-                source_room_id VARCHAR(64) NULL,
-                thumbnail_url VARCHAR(1000) NOT NULL,
-                meta VARCHAR(1000) NOT NULL DEFAULT '{}',
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS flipbook_artifact (
-                artifact_id UUID PRIMARY KEY,
-                room_code VARCHAR(32) NULL,
-                frame_count INT NULL,
-                gif_url VARCHAR(1000) NULL,
-                first_image VARCHAR(1000) NULL
-            )
-            """);
-        jdbcTemplate.execute("ALTER TABLE flipbook_artifact ADD COLUMN IF NOT EXISTS first_image VARCHAR(1000)");
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS community_memo (
-                id UUID PRIMARY KEY,
-                user_id UUID NOT NULL,
-                artifact_id UUID NULL,
-                position_x DOUBLE PRECISION NOT NULL DEFAULT 0,
-                position_y DOUBLE PRECISION NOT NULL DEFAULT 0,
-                z_index INT NOT NULL DEFAULT 0,
-                rotation_deg REAL NOT NULL DEFAULT 0,
-                decoration VARCHAR(1000) NULL DEFAULT '{}',
-                body_image_url VARCHAR(1000) NULL,
-                thumbnail_image_url VARCHAR(1000) NULL,
-                attached_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                report_count INT NOT NULL DEFAULT 0,
-                is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
-                hidden_reason VARCHAR(32) NULL,
-                hidden_at TIMESTAMP NULL,
-                moderation_status VARCHAR(32) NOT NULL DEFAULT 'pending',
-                ocr_text VARCHAR(1000) NULL,
-                ocr_categories VARCHAR(1000) NULL,
-                moderation_checked_at TIMESTAMP NULL,
-                reviewed_by BIGINT NULL,
-                reviewed_at TIMESTAMP NULL,
-                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                deleted_at TIMESTAMP NULL,
-                deleted_reason VARCHAR(32) NULL
-            )
-            """);
-        jdbcTemplate
-            .execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS position_x DOUBLE PRECISION DEFAULT 0");
-        jdbcTemplate
-            .execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS position_y DOUBLE PRECISION DEFAULT 0");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS z_index INT DEFAULT 0");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS rotation_deg REAL DEFAULT 0");
-        jdbcTemplate
-            .execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS decoration VARCHAR(1000) DEFAULT '{}'");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS body_image_url VARCHAR(1000)");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS thumbnail_image_url VARCHAR(1000)");
-        jdbcTemplate.execute(
-            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS attached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS report_count INT DEFAULT 0");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS hidden_reason VARCHAR(32)");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS hidden_at TIMESTAMP");
-        jdbcTemplate.execute(
-            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS moderation_status VARCHAR(32) DEFAULT 'pending'");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS ocr_text VARCHAR(1000)");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS ocr_categories VARCHAR(1000)");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS moderation_checked_at TIMESTAMP");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS reviewed_by BIGINT");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP");
-        jdbcTemplate.execute(
-            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
-        jdbcTemplate.execute(
-            "ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS deleted_reason VARCHAR(32)");
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS community_memo_report (
-                id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-                memo_id UUID NOT NULL,
-                user_id UUID NOT NULL,
-                reason VARCHAR(32) NOT NULL,
-                reason_detail VARCHAR(1000) NULL,
-                created_at TIMESTAMP NOT NULL,
-                CONSTRAINT uq_community_memo_report_memo_user UNIQUE (memo_id, user_id)
-            )
-            """);
+        adminUserFixture.ensureTable();
+        appUserFixture.ensureTable();
+        artifactGalleryFixture.ensureArtifactTable();
+        artifactSubtypeFixture.ensureFlipbookArtifactTable();
+        communityMemoFixture.ensureCommunityMemoTables();
     }
 
     private void cleanTables() {
-        jdbcTemplate.update("DELETE FROM community_memo_report");
-        jdbcTemplate.update("DELETE FROM community_memo");
-        jdbcTemplate.update("DELETE FROM artifact");
-        jdbcTemplate.update("DELETE FROM app_user");
-        jdbcTemplate.update("DELETE FROM admin_user");
+        communityMemoFixture.deleteCommunityMemoRows();
+        artifactGalleryFixture.deleteArtifactRows();
+        appUserFixture.deleteAll();
+        adminUserFixture.deleteAll();
     }
 
     private void insertAdminUser() {
-        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        jdbcTemplate.update("""
-            INSERT INTO admin_user (
-                id, login_id, password_hash, nickname, email, role, last_login_at, created_at, updated_at, deleted_at
-            )
-            VALUES (?, ?, 'encoded', 'Community Admin', ?, 'admin', NULL, ?, ?, NULL)
-            """, ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_EMAIL, now, now);
+        adminUserFixture.insertEncoded(ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_NICKNAME, ADMIN_EMAIL, AdminRole.ADMIN);
     }
 
     private UUID insertAppUser(String nickname) {
         UUID userUuid = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        jdbcTemplate.update("""
-            INSERT INTO app_user (id, nickname, last_seen_at, user_agent, created_at, updated_at)
-            VALUES (?, ?, ?, 'MangoApp/1.0', ?, ?)
-            """, userUuid, nickname, now, now, now);
+        appUserFixture.insertAnonymous(userUuid, nickname, "MangoApp/1.0", now, now, now);
 
         return userUuid;
     }
@@ -655,21 +539,12 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
 
     private long insertCommunityMemoReport(UUID memoId, UUID reporterUuid, String reason, String reasonDetail,
         LocalDateTime createdAt) {
-        Long reportId = jdbcTemplate.queryForObject("SELECT COALESCE(MAX(id), 0) + 1 FROM community_memo_report",
-            Long.class);
-        jdbcTemplate.update("""
-            INSERT INTO community_memo_report (id, memo_id, user_id, reason, reason_detail, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """, reportId, memoId, reporterUuid, reason, reasonDetail, createdAt);
-
-        return reportId == null ? 0 : reportId;
+        return communityMemoFixture.insertReportWithNextId(memoId, reporterUuid, reason, reasonDetail, createdAt);
     }
 
     private void insertArtifact(UUID artifactId, String kind, LocalDateTime createdAt) {
-        jdbcTemplate.update("""
-            INSERT INTO artifact (id, kind, source_room_id, thumbnail_url, meta, created_at, updated_at)
-            VALUES (?, ?, NULL, 'artifact-thumbnail.png', '{}', ?, ?)
-            """, artifactId, kind, createdAt, createdAt);
+        artifactGalleryFixture.insertArtifact(artifactId, kind, null, "artifact-thumbnail.png", "{}", createdAt,
+            createdAt);
     }
 
     private UUID insertCommunityMemo(UUID userUuid, UUID artifactId, String bodyImageUrl, String thumbnailImageUrl,
@@ -683,19 +558,9 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
         boolean hidden, String hiddenReason, LocalDateTime hiddenAt, int reportCount, String moderationStatus,
         String ocrText, Long reviewedBy, LocalDateTime createdAt, LocalDateTime updatedAt, LocalDateTime deletedAt) {
         UUID memoId = UUID.randomUUID();
-        jdbcTemplate.update("""
-            INSERT INTO community_memo (
-                id, user_id, artifact_id, position_x, position_y, z_index, rotation_deg, decoration, body_image_url,
-                thumbnail_image_url, attached_at, report_count, is_hidden, hidden_reason, hidden_at,
-                moderation_status, ocr_text, ocr_categories, moderation_checked_at, reviewed_by, created_at,
-                updated_at, deleted_at, deleted_reason
-            )
-            VALUES (
-                ?, ?, ?, 120.5, -30.0, 12, 5.5, '{"scale":1.0}', ?, ?, ?, ?, ?, ?, ?, ?, ?, '["safe"]', ?, ?, ?, ?,
-                ?, NULL
-            )
-            """, memoId, userUuid, artifactId, bodyImageUrl, thumbnailImageUrl, createdAt, reportCount, hidden,
-            hiddenReason, hiddenAt, moderationStatus, ocrText, createdAt, reviewedBy, createdAt, updatedAt, deletedAt);
+        communityMemoFixture.insertMemo(memoId, userUuid, artifactId, 120.5, -30.0, 12, 5.5, "{\"scale\":1.0}",
+            bodyImageUrl, thumbnailImageUrl, createdAt, reportCount, hidden, hiddenReason, hiddenAt, moderationStatus,
+            ocrText, "[\"safe\"]", createdAt, reviewedBy, null, createdAt, updatedAt, deletedAt, null);
 
         return memoId;
     }
@@ -711,11 +576,8 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
     }
 
     private String bearerAccessToken() {
-        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        AdminUser adminUser = new AdminUser(ADMIN_ID, ADMIN_LOGIN_ID, "encoded", "Community Admin", ADMIN_EMAIL,
-            AdminRole.ADMIN, null, now, now, null);
-
-        return "Bearer %s".formatted(jwtTokenProvider.createAccessToken(adminUser).accessToken());
+        return BackofficeAuthTestFixture.bearerAccessToken(jwtTokenProvider, ADMIN_ID, ADMIN_LOGIN_ID, ADMIN_NICKNAME,
+            ADMIN_EMAIL, AdminRole.ADMIN);
     }
 
     private void assertPreservedMemoSnapshot(UUID memoId) {
@@ -744,44 +606,4 @@ class AdminCommunityMemoControllerIntegrationTest extends AbstractReadOnlyIntegr
             """;
     }
 
-    @TestConfiguration
-    static class AdminCommunityTokenStoreTestConfig {
-
-    }
-
-    static class NoOpAdminTokenStore implements AdminTokenStore {
-
-        @Override
-        public IssuedAdminRefreshToken issueRefreshToken(AdminUser adminUser) {
-            Instant expiresAt = Instant.now().plusSeconds(60);
-
-            return new IssuedAdminRefreshToken("unused", OffsetDateTime.ofInstant(expiresAt, ZoneOffset.UTC));
-        }
-
-        @Override
-        public Optional<StoredAdminRefreshToken> findRefreshToken(String refreshToken) {
-            return Optional.empty();
-        }
-
-        @Override
-        public void revokeRefreshToken(String refreshToken) {
-        }
-
-        @Override
-        public void revokeAllRefreshTokens(Long adminId) {
-        }
-
-        @Override
-        public void blacklistAccessToken(AdminTokenClaims claims) {
-        }
-
-        @Override
-        public void revokeAccessTokensIssuedBefore(Long adminId, Instant revokedAt) {
-        }
-
-        @Override
-        public boolean isAccessTokenRevoked(AdminTokenClaims claims) {
-            return false;
-        }
-    }
 }

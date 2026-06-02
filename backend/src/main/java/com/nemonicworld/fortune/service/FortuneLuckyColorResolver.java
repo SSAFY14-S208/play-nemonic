@@ -8,8 +8,16 @@ import org.springframework.util.StringUtils;
  */
 public final class FortuneLuckyColorResolver {
 
+    public static final String SUPPORTED_COLOR_NAMES = "라벤더 밀크, 민트 포그, 버터 옐로, 코랄 핑크, 스카이 블루, "
+        + "은회색, 베이지, 살구색, 초록, 파랑, 보라, 분홍, 노랑, 흰색, 검정";
+
     private static final String[] FALLBACK_COLORS = {"#CDB7F6", "#9ED8C3", "#EFD27B", "#EF9AA7", "#91BDE8"};
     private static final Map<String, String> LUCKY_COLOR_HEX = Map.ofEntries(Map.entry("은회색", "#C0C0C0"),
+        Map.entry("라벤더 밀크", "#CDB7F6"), Map.entry("라벤더밀크", "#CDB7F6"), Map.entry("라벤더", "#CDB7F6"),
+        Map.entry("민트 포그", "#9ED8C3"), Map.entry("민트포그", "#9ED8C3"), Map.entry("민트", "#9ED8C3"),
+        Map.entry("버터 옐로", "#EFD27B"), Map.entry("버터옐로", "#EFD27B"), Map.entry("버터 노랑", "#EFD27B"),
+        Map.entry("버터노랑", "#EFD27B"), Map.entry("코랄 핑크", "#EF9AA7"), Map.entry("코랄핑크", "#EF9AA7"),
+        Map.entry("코랄", "#EF9AA7"), Map.entry("스카이 블루", "#91BDE8"), Map.entry("스카이블루", "#91BDE8"),
         Map.entry("베이지", "#D7C09A"), Map.entry("베이지색", "#D7C09A"), Map.entry("샌드베이지", "#D7C09A"),
         Map.entry("샌드 베이지", "#D7C09A"), Map.entry("짙은베이지", "#9B7A52"), Map.entry("짙은 베이지", "#9B7A52"),
         Map.entry("진한베이지", "#9B7A52"), Map.entry("진한 베이지", "#9B7A52"), Map.entry("갈색", "#8B5A32"),

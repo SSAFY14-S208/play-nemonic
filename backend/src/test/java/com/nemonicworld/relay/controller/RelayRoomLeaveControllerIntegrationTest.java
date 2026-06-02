@@ -22,6 +22,7 @@ import com.nemonicworld.relay.redis.RelayRoomParticipant;
 import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.websocket.RelayRoomEventPublisher;
 import com.nemonicworld.support.AbstractIntegrationTest;
+import com.nemonicworld.support.AppUserTestFixture;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
 import java.time.Duration;
@@ -77,7 +78,7 @@ class RelayRoomLeaveControllerIntegrationTest extends AbstractIntegrationTest {
 
     @BeforeEach
     void prepare() {
-        jdbcTemplate.update("DELETE FROM app_user");
+        new AppUserTestFixture(jdbcTemplate).deleteAll();
 
         valueOperations = createValueOperationsMock();
         redisOperations = createRedisOperationsMock();

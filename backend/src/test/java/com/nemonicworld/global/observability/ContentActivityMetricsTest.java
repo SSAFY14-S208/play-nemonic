@@ -4,15 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
-import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.relay.entity.RelayRoomStatus;
-import com.nemonicworld.relay.redis.RelayRoomState;
 import com.nemonicworld.relay.repository.RelayRoomRepository;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -34,35 +31,22 @@ class ContentActivityMetricsTest {
 
     @Test
     void countsRelayRoomsBeforeFinishedAsActive() {
-        given(relayRoomRepository.findAllActiveRooms()).willReturn(
-            List.of(relayRoom("RWAIT", RelayRoomStatus.WAITING), relayRoom("RPLAY", RelayRoomStatus.PLAYING),
-                relayRoom("RFINZ", RelayRoomStatus.FINALIZING), relayRoom("RFINI", RelayRoomStatus.FINISHED)));
+        given(relayRoomRepository.countActiveRoomsByStatuses(
+            Set.of(RelayRoomStatus.WAITING, RelayRoomStatus.PLAYING, RelayRoomStatus.FINALIZING))).willReturn(3L);
 
         assertThat(activeRooms("relay")).isEqualTo(3.0);
     }
 
     @Test
     void countsFlipbookRoomsBeforeFinishedAsActive() {
-        given(flipbookRoomRepository.findAllActiveRooms()).willReturn(List.of(
-            flipbookRoom("FWAIT", FlipbookRoomStatus.WAITING), flipbookRoom("FPLAY", FlipbookRoomStatus.PLAYING),
-            flipbookRoom("FFINZ", FlipbookRoomStatus.FINALIZING), flipbookRoom("FFINI", FlipbookRoomStatus.FINISHED)));
+        given(flipbookRoomRepository.countActiveRoomsByStatuses(
+            Set.of(FlipbookRoomStatus.WAITING, FlipbookRoomStatus.PLAYING, FlipbookRoomStatus.FINALIZING)))
+            .willReturn(3L);
 
         assertThat(activeRooms("flipbook")).isEqualTo(3.0);
     }
 
     private double activeRooms(String contentType) {
         return registry.get("nemonic.content.active.rooms").tag("content_type", contentType).gauge().value();
-    }
-
-    private RelayRoomState relayRoom(String roomCode, RelayRoomStatus status) {
-        LocalDateTime now = LocalDateTime.now();
-
-        return new RelayRoomState(roomCode, status, "host-user-uuid", 45, 2, 6, null, List.of(), now, now);
-    }
-
-    private FlipbookRoomState flipbookRoom(String roomCode, FlipbookRoomStatus status) {
-        LocalDateTime now = LocalDateTime.now();
-
-        return new FlipbookRoomState(roomCode, status, "host-user-uuid", 45, 2, 6, List.of(), now, now);
     }
 }

@@ -11,17 +11,15 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomMutationLockRepository;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
 import com.nemonicworld.flipbook.repository.FlipbookRoomTimeUpNotificationRepository;
-import com.nemonicworld.flipbook.repository.FlipbookSubmissionLockRepository;
+import com.nemonicworld.flipbook.service.game.FlipbookRoundAdvanceResult;
+import com.nemonicworld.flipbook.service.game.FlipbookRoundTransitionUseCase;
+import com.nemonicworld.flipbook.service.game.FlipbookRoomRoundAdvanceService;
 import com.nemonicworld.flipbook.service.support.FlipbookInviteMetadataSyncService;
 import com.nemonicworld.flipbook.service.support.FlipbookRoomPolicy;
-import com.nemonicworld.flipbook.service.finalization.FlipbookRoomFinalizationTriggerService;
-import com.nemonicworld.flipbook.service.game.FlipbookRoundAdvanceResult;
-import com.nemonicworld.flipbook.service.game.FlipbookRoomRoundAdvanceService;
 import com.nemonicworld.flipbook.websocket.FlipbookRoomEventPublisher;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -41,35 +39,35 @@ public class FlipbookRoomTimeoutService {
 
     private final FlipbookRoomRepository flipbookRoomRepository;
     private final FlipbookRoomTimeUpNotificationRepository flipbookRoomTimeUpNotificationRepository;
-    private final FlipbookSubmissionLockRepository flipbookSubmissionLockRepository;
     private final FlipbookRoomMutationLockRepository flipbookRoomMutationLockRepository;
     private final FlipbookRoomRoundAdvanceService flipbookRoomRoundAdvanceService;
+    private final FlipbookFrameAutoSubmitUseCase flipbookFrameAutoSubmitUseCase;
+    private final FlipbookRoundTransitionUseCase flipbookRoundTransitionUseCase;
     private final FlipbookRoomEventPublisher flipbookRoomEventPublisher;
     private final FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService;
-    private final FlipbookRoomFinalizationTriggerService flipbookRoomFinalizationTriggerService;
     private final int scanLimit;
     private final Duration autoSubmitGrace;
     private final Duration roomMutationLockTtl;
 
     public FlipbookRoomTimeoutService(FlipbookRoomRepository flipbookRoomRepository,
         FlipbookRoomTimeUpNotificationRepository flipbookRoomTimeUpNotificationRepository,
-        FlipbookSubmissionLockRepository flipbookSubmissionLockRepository,
         FlipbookRoomMutationLockRepository flipbookRoomMutationLockRepository,
         FlipbookRoomRoundAdvanceService flipbookRoomRoundAdvanceService,
+        FlipbookFrameAutoSubmitUseCase flipbookFrameAutoSubmitUseCase,
+        FlipbookRoundTransitionUseCase flipbookRoundTransitionUseCase,
         FlipbookRoomEventPublisher flipbookRoomEventPublisher,
         FlipbookInviteMetadataSyncService flipbookInviteMetadataSyncService,
-        FlipbookRoomFinalizationTriggerService flipbookRoomFinalizationTriggerService,
         @Value("${nemonic.flipbook.timeout.scan-limit:100}") int scanLimit,
         @Value("${nemonic.flipbook.timeout.auto-submit-grace-ms:5000}") long autoSubmitGraceMs,
         @Value("${nemonic.flipbook.room-mutation-lock-ttl-ms:5000}") long roomMutationLockTtlMs) {
         this.flipbookRoomRepository = flipbookRoomRepository;
         this.flipbookRoomTimeUpNotificationRepository = flipbookRoomTimeUpNotificationRepository;
-        this.flipbookSubmissionLockRepository = flipbookSubmissionLockRepository;
         this.flipbookRoomMutationLockRepository = flipbookRoomMutationLockRepository;
         this.flipbookRoomRoundAdvanceService = flipbookRoomRoundAdvanceService;
+        this.flipbookFrameAutoSubmitUseCase = flipbookFrameAutoSubmitUseCase;
+        this.flipbookRoundTransitionUseCase = flipbookRoundTransitionUseCase;
         this.flipbookRoomEventPublisher = flipbookRoomEventPublisher;
         this.flipbookInviteMetadataSyncService = flipbookInviteMetadataSyncService;
-        this.flipbookRoomFinalizationTriggerService = flipbookRoomFinalizationTriggerService;
         this.scanLimit = scanLimit;
         this.autoSubmitGrace = Duration.ofMillis(Math.max(0L, autoSubmitGraceMs));
         this.roomMutationLockTtl = Duration.ofMillis(Math.max(1L, roomMutationLockTtlMs));
@@ -173,10 +171,11 @@ public class FlipbookRoomTimeoutService {
             }
 
             Integer currentRound = roomState.currentRound();
-            AutoSubmitUpdate autoSubmitUpdate = autoSubmitPendingAssignments(roomState, currentRound, processedAt);
+            FlipbookFrameAutoSubmitUpdate autoSubmitUpdate = flipbookFrameAutoSubmitUseCase
+                .autoSubmitPendingAssignments(roomState, currentRound, processedAt);
             FlipbookRoomState submittedRoomState = autoSubmitUpdate.autoSubmissions().isEmpty()
                 ? roomState
-                : roomState.withAssignments(autoSubmitUpdate.updatedAssignments(), processedAt);
+                : roomState.withAssignments(autoSubmitUpdate.assignments(), processedAt);
             FlipbookRoundAdvanceResult advanceResult = flipbookRoomRoundAdvanceService
                 .advanceRoundIfCompleted(submittedRoomState, currentRound, processedAt);
 
@@ -234,43 +233,6 @@ public class FlipbookRoomTimeoutService {
             .findFirst().orElse(null);
     }
 
-    private AutoSubmitUpdate autoSubmitPendingAssignments(FlipbookRoomState roomState, int currentRound,
-        LocalDateTime submittedAt) {
-        List<FlipbookFrameAssignment> updatedAssignments = new ArrayList<>(roomState.assignments().size());
-        List<FlipbookFrameAutoSubmissionResult> autoSubmissions = new ArrayList<>();
-
-        for (FlipbookFrameAssignment assignment : roomState.assignments()) {
-            if (assignment.round() == currentRound && assignment.status() == FlipbookFrameAssignmentStatus.PENDING
-                && !isSubmissionLocked(roomState, assignment)) {
-                FlipbookFrameAssignment autoSubmittedAssignment = autoSubmitAssignment(assignment, submittedAt);
-                updatedAssignments.add(autoSubmittedAssignment);
-                autoSubmissions.add(new FlipbookFrameAutoSubmissionResult(roomState.roomCode(),
-                    findNickname(roomState, assignment.assignedUserUuid()), autoSubmittedAssignment));
-            } else {
-                updatedAssignments.add(assignment);
-            }
-        }
-
-        return new AutoSubmitUpdate(updatedAssignments, autoSubmissions);
-    }
-
-    private FlipbookFrameAssignment autoSubmitAssignment(FlipbookFrameAssignment assignment,
-        LocalDateTime submittedAt) {
-        return new FlipbookFrameAssignment(assignment.flipbookIndex(), assignment.frameIndex(), assignment.round(),
-            assignment.assignedUserUuid(), FlipbookFrameAssignmentStatus.AUTO_SUBMITTED, null, null, true, true,
-            submittedAt);
-    }
-
-    private boolean isSubmissionLocked(FlipbookRoomState roomState, FlipbookFrameAssignment assignment) {
-        return flipbookSubmissionLockRepository.isSubmissionLocked(roomState.roomCode(), assignment.flipbookIndex(),
-            assignment.frameIndex(), assignment.round(), assignment.assignedUserUuid());
-    }
-
-    private String findNickname(FlipbookRoomState roomState, String userUuid) {
-        return roomState.participants().stream().filter(participant -> participant.userUuid().equals(userUuid))
-            .map(FlipbookRoomParticipant::nickname).findFirst().orElse(null);
-    }
-
     private void publishTimeoutEvents(FlipbookRoomTimeoutResult result) {
         for (FlipbookFrameAutoSubmissionResult autoSubmission : result.autoSubmissions()) {
             flipbookRoomEventPublisher.publishFrameAutoSubmitted(autoSubmission.roomCode(), autoSubmission.nickname(),
@@ -282,28 +244,7 @@ public class FlipbookRoomTimeoutService {
                     "reason", "timeout"));
         }
 
-        FlipbookRoundAdvanceResult advanceResult = result.advanceResult();
-        if (advanceResult == null || !advanceResult.advanced()) {
-            return;
-        }
-
-        if (advanceResult.allRoundsCompleted()) {
-            flipbookRoomEventPublisher.publishAllRoundsCompleted(result.roomCode(), advanceResult.roomState().status(),
-                advanceResult.roomState().updatedAt());
-            FlipbookRoomEventLogger.websocketBusiness("flipbook_all_rounds_completed",
-                metadata("room_id", result.roomCode(), "room_status", advanceResult.roomState().status(),
-                    "total_rounds", advanceResult.roomState().totalRounds()));
-            flipbookRoomFinalizationTriggerService.triggerFinalizationAsync(result.roomCode());
-        } else {
-            flipbookRoomEventPublisher.publishRoundStarted(result.roomCode(), result.previousRound(),
-                advanceResult.nextRound(), advanceResult.nextRoundStartedAt(), advanceResult.nextRoundDeadlineAt());
-            FlipbookRoomEventLogger.websocketBusiness("flipbook_round_started",
-                metadata("room_id", result.roomCode(), "previous_round", result.previousRound(), "round",
-                    advanceResult.nextRound(), "round_deadline_at", advanceResult.nextRoundDeadlineAt()));
-        }
-    }
-
-    private record AutoSubmitUpdate(List<FlipbookFrameAssignment> updatedAssignments,
-        List<FlipbookFrameAutoSubmissionResult> autoSubmissions) {
+        flipbookRoundTransitionUseCase.publishTransitionEvents(result.roomCode(), result.previousRound(),
+            result.advanceResult());
     }
 }

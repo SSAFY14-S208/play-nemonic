@@ -1,10 +1,12 @@
 package com.nemonicworld.flipbook.repository;
 
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
+import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 진행 중 플립북 방 상태 저장소가 제공해야 하는 동작입니다.
@@ -39,6 +41,21 @@ public interface FlipbookRoomRepository {
      * 조회합니다.
      */
     List<FlipbookRoomState> findAllActiveRooms();
+
+    /**
+     * 백오피스와 메트릭 수집에서 필요한 상태의 활성 플립북 방만 조회합니다.
+     */
+    List<FlipbookRoomState> findActiveRoomsByStatuses(Set<FlipbookRoomStatus> statuses);
+
+    /**
+     * 백오피스 목록 조회용으로 상태 필터와 페이지 범위를 반영해 활성 플립북 방을 조회합니다.
+     */
+    FlipbookActiveRoomPage findActiveRoomsByStatuses(Set<FlipbookRoomStatus> statuses, int page, int size);
+
+    /**
+     * 메트릭 수집용으로 상태 필터에 해당하는 활성 플립북 방 수만 조회합니다.
+     */
+    long countActiveRoomsByStatuses(Set<FlipbookRoomStatus> statuses);
 
     /**
      * 게임 중 재접속 유예가 만료된 참여자가 있는 방을 조회합니다.

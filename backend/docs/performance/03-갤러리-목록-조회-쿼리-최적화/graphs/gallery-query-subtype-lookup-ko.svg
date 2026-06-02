@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="480.0" y="42.0" text-anchor="middle" font-size="26" font-weight="700" fill="#111827" font-family="Arial, sans-serif">목록 조회 1회당 subtype lookup</text>
+<text transform="rotate(-90 30 264.0)" x="30.0" y="264.0" text-anchor="middle" font-size="15" font-weight="400" fill="#475569" font-family="Arial, sans-serif">lookup count</text>
+<line x1="104" y1="444.0" x2="908" y2="444.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="90.0" y="449.0" text-anchor="end" font-size="13" font-weight="400" fill="#64748b" font-family="Arial, sans-serif">0.00</text>
+<line x1="104" y1="372.0" x2="908" y2="372.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="90.0" y="377.0" text-anchor="end" font-size="13" font-weight="400" fill="#64748b" font-family="Arial, sans-serif">100,000</text>
+<line x1="104" y1="300.0" x2="908" y2="300.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="90.0" y="305.0" text-anchor="end" font-size="13" font-weight="400" fill="#64748b" font-family="Arial, sans-serif">200,000</text>
+<line x1="104" y1="228.0" x2="908" y2="228.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="90.0" y="233.0" text-anchor="end" font-size="13" font-weight="400" fill="#64748b" font-family="Arial, sans-serif">300,000</text>
+<line x1="104" y1="156.0" x2="908" y2="156.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="90.0" y="161.0" text-anchor="end" font-size="13" font-weight="400" fill="#64748b" font-family="Arial, sans-serif">400,000</text>
+<line x1="104" y1="84.0" x2="908" y2="84.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="90.0" y="89.0" text-anchor="end" font-size="13" font-weight="400" fill="#64748b" font-family="Arial, sans-serif">500,000</text>
+<line x1="104" y1="444" x2="908" y2="444" stroke="#334155" stroke-width="1.5"/>
+<rect x="161.0" y="440.4" width="72.0" height="3.6" rx="4" fill="#ef4444"/>
+<rect x="243.0" y="443.9" width="72.0" height="0.1" rx="4" fill="#2563eb"/>
+<text x="197.0" y="432.4" text-anchor="middle" font-size="12" font-weight="400" fill="#991b1b" font-family="Arial, sans-serif">5,000</text>
+<text x="279.0" y="435.9" text-anchor="middle" font-size="12" font-weight="400" fill="#1e3a8a" font-family="Arial, sans-serif">100</text>
+<text x="238.0" y="472.0" text-anchor="middle" font-size="14" font-weight="400" fill="#334155" font-family="Arial, sans-serif">1,000</text>
+<rect x="429.0" y="408.0" width="72.0" height="36.0" rx="4" fill="#ef4444"/>
+<rect x="511.0" y="443.9" width="72.0" height="0.1" rx="4" fill="#2563eb"/>
+<text x="465.0" y="400.0" text-anchor="middle" font-size="12" font-weight="400" fill="#991b1b" font-family="Arial, sans-serif">50,000</text>
+<text x="547.0" y="435.9" text-anchor="middle" font-size="12" font-weight="400" fill="#1e3a8a" font-family="Arial, sans-serif">100</text>
+<text x="506.0" y="472.0" text-anchor="middle" font-size="14" font-weight="400" fill="#334155" font-family="Arial, sans-serif">10,000</text>
+<rect x="697.0" y="264.0" width="72.0" height="180.0" rx="4" fill="#ef4444"/>
+<rect x="779.0" y="443.9" width="72.0" height="0.1" rx="4" fill="#2563eb"/>
+<text x="733.0" y="256.0" text-anchor="middle" font-size="12" font-weight="400" fill="#991b1b" font-family="Arial, sans-serif">250,000</text>
+<text x="815.0" y="435.9" text-anchor="middle" font-size="12" font-weight="400" fill="#1e3a8a" font-family="Arial, sans-serif">100</text>
+<text x="774.0" y="472.0" text-anchor="middle" font-size="14" font-weight="400" fill="#334155" font-family="Arial, sans-serif">50,000</text>
+<rect x="352.0" y="493" width="18" height="18" rx="4" fill="#ef4444"/>
+<text x="382.0" y="508.0" text-anchor="start" font-size="14" font-weight="400" fill="#243142" font-family="Arial, sans-serif">개선 전</text>
+<rect x="500.0" y="493" width="18" height="18" rx="4" fill="#2563eb"/>
+<text x="530.0" y="508.0" text-anchor="start" font-size="14" font-weight="400" fill="#243142" font-family="Arial, sans-serif">개선 후</text>
+</svg>

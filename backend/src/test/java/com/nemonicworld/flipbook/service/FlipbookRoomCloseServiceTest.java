@@ -17,7 +17,9 @@ import com.nemonicworld.flipbook.redis.FlipbookRoomParticipant;
 import com.nemonicworld.flipbook.redis.FlipbookRoomState;
 import com.nemonicworld.flipbook.redis.FlipbookRoomStatus;
 import com.nemonicworld.flipbook.repository.FlipbookRoomRepository;
+import com.nemonicworld.flipbook.service.close.FlipbookFinishedRoomCloseUseCase;
 import com.nemonicworld.flipbook.service.close.FlipbookRoomCloseCommand;
+import com.nemonicworld.flipbook.service.close.FlipbookRoomCloseEventSupport;
 import com.nemonicworld.flipbook.service.close.FlipbookRoomCloseProcessResult;
 import com.nemonicworld.flipbook.service.close.FlipbookRoomCloseResult;
 import com.nemonicworld.flipbook.service.close.FlipbookRoomCloseService;
@@ -59,9 +61,12 @@ class FlipbookRoomCloseServiceTest {
 
     @BeforeEach
     void setUp() {
-        flipbookRoomCloseService = new FlipbookRoomCloseService(flipbookRoomRepository,
-            new FlipbookRoomCloseCommand(flipbookRoomRepository, flipbookInviteMetadataSyncService),
-            flipbookRoomEventPublisher, CLOSE_DELAY_SECONDS, SCAN_LIMIT);
+        FlipbookRoomCloseCommand closeCommand = new FlipbookRoomCloseCommand(flipbookRoomRepository,
+            flipbookInviteMetadataSyncService);
+        FlipbookRoomCloseEventSupport closeEventSupport = new FlipbookRoomCloseEventSupport(flipbookRoomEventPublisher);
+        FlipbookFinishedRoomCloseUseCase finishedRoomCloseUseCase = new FlipbookFinishedRoomCloseUseCase(
+            flipbookRoomRepository, closeCommand, closeEventSupport, CLOSE_DELAY_SECONDS, SCAN_LIMIT);
+        flipbookRoomCloseService = new FlipbookRoomCloseService(finishedRoomCloseUseCase);
     }
 
     @Test

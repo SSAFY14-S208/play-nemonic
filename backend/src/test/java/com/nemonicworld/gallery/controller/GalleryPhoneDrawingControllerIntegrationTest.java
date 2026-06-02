@@ -10,10 +10,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nemonicworld.common.header.AnonymousUserHeaders;
+import com.nemonicworld.support.AppUserTestFixture;
+import com.nemonicworld.support.ArtifactGalleryTestFixture;
+import com.nemonicworld.support.ArtifactSubtypeTestFixture;
+import com.nemonicworld.support.CommunityMemoTestFixture;
+import com.nemonicworld.support.FileUploadTestFixture;
 import com.nemonicworld.support.IntegrationTest;
 import com.nemonicworld.user.entity.AppUser;
 import com.nemonicworld.user.repository.UserRepository;
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
@@ -47,104 +51,24 @@ class GalleryPhoneDrawingControllerIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
+    private FileUploadTestFixture fileUploadFixture;
+
     @BeforeEach
     void prepareTables() {
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS artifact (
-                id UUID PRIMARY KEY,
-                kind VARCHAR(32) NOT NULL,
-                source_room_id VARCHAR(64) NULL,
-                thumbnail_url VARCHAR(200) NOT NULL,
-                meta TEXT NOT NULL DEFAULT '{}',
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS gallery (
-                id UUID PRIMARY KEY,
-                user_id UUID NOT NULL,
-                artifact_id UUID NOT NULL,
-                deleted_at TIMESTAMP NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS fortune_artifact (
-                artifact_id UUID PRIMARY KEY,
-                description VARCHAR(1000) NOT NULL DEFAULT '{}',
-                fortune_image_url VARCHAR(200) NULL,
-                user_id UUID NULL,
-                fortune_date DATE NULL
-            )
-            """);
-        jdbcTemplate.execute(
-            "ALTER TABLE fortune_artifact ADD COLUMN IF NOT EXISTS description VARCHAR(1000) NOT NULL DEFAULT '{}'");
-        jdbcTemplate.execute("ALTER TABLE fortune_artifact ADD COLUMN IF NOT EXISTS user_id UUID");
-        jdbcTemplate.execute("ALTER TABLE fortune_artifact ADD COLUMN IF NOT EXISTS fortune_date DATE");
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS relay_drawing_artifact (
-                artifact_id UUID PRIMARY KEY,
-                combined_preview_url VARCHAR(200) NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS flipbook_artifact (
-                artifact_id UUID PRIMARY KEY,
-                gif_url VARCHAR(200) NULL,
-                first_image VARCHAR(200) NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS infinite_canvas_artifact (
-                artifact_id UUID PRIMARY KEY,
-                canvas_image_url VARCHAR(200) NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS phone_artifact (
-                artifact_id UUID PRIMARY KEY,
-                phone_image_url VARCHAR(200) NOT NULL
-            )
-            """);
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS community_memo (
-                id UUID PRIMARY KEY,
-                user_id UUID NOT NULL,
-                artifact_id UUID NULL,
-                body_image_url VARCHAR(1000) NULL,
-                thumbnail_image_url VARCHAR(1000) NULL,
-                deleted_at TIMESTAMP NULL
-            )
-            """);
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS body_image_url VARCHAR(1000)");
-        jdbcTemplate.execute("ALTER TABLE community_memo ADD COLUMN IF NOT EXISTS thumbnail_image_url VARCHAR(1000)");
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS file_upload (
-                id UUID PRIMARY KEY,
-                user_id UUID NOT NULL,
-                purpose VARCHAR(32) NOT NULL,
-                original_file_name VARCHAR(255) NOT NULL,
-                content_type VARCHAR(100) NOT NULL,
-                byte_size BIGINT NOT NULL,
-                object_key TEXT NOT NULL,
-                status VARCHAR(32) NOT NULL,
-                expires_at TIMESTAMP NOT NULL,
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL,
-                deleted_at TIMESTAMP NULL
-            )
-            """);
+        ArtifactGalleryTestFixture artifactGalleryFixture = new ArtifactGalleryTestFixture(jdbcTemplate);
+        artifactGalleryFixture.ensureRelayArtifactTables();
+        ArtifactSubtypeTestFixture artifactSubtypeFixture = new ArtifactSubtypeTestFixture(jdbcTemplate);
+        artifactSubtypeFixture.ensureSubtypeTables();
+        CommunityMemoTestFixture communityMemoFixture = new CommunityMemoTestFixture(jdbcTemplate);
+        communityMemoFixture.ensureMemoTable();
+        fileUploadFixture = new FileUploadTestFixture(jdbcTemplate);
+        fileUploadFixture.ensureTable();
 
-        jdbcTemplate.update("DELETE FROM fortune_artifact");
-        jdbcTemplate.update("DELETE FROM relay_drawing_artifact");
-        jdbcTemplate.update("DELETE FROM flipbook_artifact");
-        jdbcTemplate.update("DELETE FROM infinite_canvas_artifact");
-        jdbcTemplate.update("DELETE FROM phone_artifact");
-        jdbcTemplate.update("DELETE FROM community_memo");
-        jdbcTemplate.update("DELETE FROM gallery");
-        jdbcTemplate.update("DELETE FROM artifact");
-        jdbcTemplate.update("DELETE FROM file_upload");
-        jdbcTemplate.update("DELETE FROM app_user");
+        communityMemoFixture.deleteMemoRows();
+        artifactSubtypeFixture.deleteSubtypeRows();
+        artifactGalleryFixture.deleteRelayArtifactRows();
+        fileUploadFixture.deleteAll();
+        new AppUserTestFixture(jdbcTemplate).deleteAll();
     }
 
     @Test
@@ -369,30 +293,10 @@ class GalleryPhoneDrawingControllerIntegrationTest {
 
     private UUID insertFileUpload(UUID userUuid, String purpose, String status, String objectKey,
         LocalDateTime deletedAt) {
-        UUID fileId = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.now().minusMinutes(1).truncatedTo(ChronoUnit.SECONDS);
-        Timestamp deletedTimestamp = deletedAt == null ? null : Timestamp.valueOf(deletedAt);
 
-        jdbcTemplate.update("""
-            INSERT INTO file_upload (
-                id,
-                user_id,
-                purpose,
-                original_file_name,
-                content_type,
-                byte_size,
-                object_key,
-                status,
-                expires_at,
-                created_at,
-                updated_at,
-                deleted_at
-            )
-            VALUES (?, ?, ?, 'drawing.png', 'image/png', 1024, ?, ?, ?, ?, ?, ?)
-            """, fileId, userUuid, purpose, objectKey, status, Timestamp.valueOf(now.plusMinutes(10)),
-            Timestamp.valueOf(now), Timestamp.valueOf(now), deletedTimestamp);
-
-        return fileId;
+        return fileUploadFixture.insert(userUuid, purpose, "drawing.png", "image/png", 1024, objectKey, status,
+            now.plusMinutes(10), now, now, deletedAt);
     }
 
     private String saveRequestBody(UUID imageFileId, UUID thumbnailFileId, String metaJson) {
