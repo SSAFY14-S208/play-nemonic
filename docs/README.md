@@ -1,4 +1,4 @@
-# Service Showcase Captures
+# Service Captures
 
 MangoSleave Nemonic demo site screenshots for portfolio, presentation, and handoff materials.
 
