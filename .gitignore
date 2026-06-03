@@ -36,5 +36,8 @@ frontend/tmp-*.png
 frontend/output/
 frontend/public/models/isometric-girl-room-mouse-atlas.glb
 
+# Showcase capture originals
+docs/showcase/_video-originals/
+
 # Python 캐시 (blender 스크립트)
 __pycache__/

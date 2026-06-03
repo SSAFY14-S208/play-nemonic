@@ -1,0 +1,27 @@
+# Service Showcase Captures
+
+MangoSleave Nemonic demo site screenshots for portfolio, presentation, and handoff materials.
+
+Image files are committed with ASCII slugs to keep Git diffs and MR reviews readable across macOS and GitLab. Original full-length videos are kept locally under `docs/showcase/_video-originals/` and excluded from Git because they are large.
+
+## Feature Folders
+
+| Feature | Folder | Notes |
+| --- | --- | --- |
+| 네모닉 체험관 | `nemonic-experience/` | Printer entry, output, gallery output, phone modal flow |
+| 무한캔버스 | `infinite-canvas/` | Lobby, room creation, drawing, multi-user canvas, AI sticker, screenshot flow |
+| 백오피스 | `backoffice/` | Dashboard, statistics, AI prompt, OCR, community, CS inquiry, audit/admin screens |
+| 오늘의 운세 | `daily-fortune/` | Entry screen |
+| 우당탕 릴레이 드로잉 | `relay-drawing/` | Entry, lobby, QR invite, guide, game, result, room-close screens across devices |
+| 커뮤니티보드 | `community-board/` | Board list, memo create/detail/share/print/report/delete, phone gallery flow |
+| 플립북 | `flipbook/` | Entry, lobby, QR/link share, guide, canvas, result, phone modal flow |
+
+## Naming Rule
+
+Files follow this pattern:
+
+```text
+NN_screen-or-flow-description.png
+```
+
+The numeric prefix preserves the demo flow order inside each feature folder.
