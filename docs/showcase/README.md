@@ -2,7 +2,7 @@
 
 MangoSleave Nemonic demo site screenshots for portfolio, presentation, and handoff materials.
 
-Image files are committed with ASCII slugs to keep Git diffs and MR reviews readable across macOS and GitLab. Original full-length videos are kept locally under `docs/showcase/_video-originals/` and excluded from Git because they are large.
+Image and video files are committed with ASCII slugs to keep Git diffs and MR reviews readable across macOS and GitLab. Full-length videos live in the matching feature folders and are tracked with Git LFS because they are large.
 
 ## Feature Folders
 
@@ -18,10 +18,17 @@ Image files are committed with ASCII slugs to keep Git diffs and MR reviews read
 
 ## Naming Rule
 
-Files follow this pattern:
+Image files follow this pattern:
 
 ```text
 NN_screen-or-flow-description.png
 ```
 
 The numeric prefix preserves the demo flow order inside each feature folder.
+
+Video files follow this pattern:
+
+```text
+video_description.mp4
+video_description.mov
+```
