@@ -524,7 +524,7 @@ function createBucketFillObject({
   let candidateMaxY = pointerPosition.y
 
   for (const object of objects) {
-    if (object.type === 'fill' || object.type === 'text') continue
+    if (object.type === 'fill' || object.type === 'text' || object.type === 'image') continue
     const bounds = getCachedObjectBounds(object)
     if (!bounds) continue
     const entry = { object, bounds }
@@ -603,7 +603,6 @@ function createBucketFillObject({
   const pending = new Int32Array(pixelCount)
   let pendingCount = 0
   let filledPixelCount = 0
-  let touchesBoundary = false
   let filledMinX = rawWidth
   let filledMinY = rawHeight
   let filledMaxX = 0
@@ -628,7 +627,7 @@ function createBucketFillObject({
     const x = currentPixelIndex % rawWidth
     const y = Math.floor(currentPixelIndex / rawWidth)
     if (x === 0 || y === 0 || x === rawWidth - 1 || y === rawHeight - 1) {
-      touchesBoundary = true
+      return null
     }
 
     fillPixels[pixelOffset] = selectedFillColor.red
@@ -647,7 +646,7 @@ function createBucketFillObject({
     if (y < rawHeight - 1) enqueuePixel(currentPixelIndex + rawWidth)
   }
 
-  if (filledPixelCount === 0 || touchesBoundary) return null
+  if (filledPixelCount === 0) return null
 
   for (let dilationPass = 0; dilationPass < BUCKET_FILL_DILATION_PASSES; dilationPass++) {
     const newlyFilledIndexes: number[] = []
