@@ -1266,7 +1266,7 @@ export function useInfinityEvents({
   }
 
   const onStageClick = (
-    e: Konva.KonvaEventObject<MouseEvent>,
+    e: Konva.KonvaEventObject<MouseEvent | TouchEvent>,
     toolSnapshot: InfinityToolKey,
   ) => {
     const stage = e.target.getStage()
