@@ -2,9 +2,9 @@
 
 import { useEffect } from 'react'
 
-import { useClientAlive } from '@/shared/hooks/useClientAlive'
-import { usePageTracking } from '@/shared/hooks/usePageTracking'
-import { useWebVitals } from '@/shared/hooks/useWebVitals'
+import { useClientAlive, usePageTracking, useWebVitals } from '@/shared/hooks'
+
+
 import {
   destroyLogger,
   flushWithBeacon,

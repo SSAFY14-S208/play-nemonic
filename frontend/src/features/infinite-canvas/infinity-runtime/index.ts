@@ -1,2 +1,5 @@
 export { InfinityCanvasPage } from './InfinityCanvasPage'
 export { InfinityRoomPage } from './InfinityRoomPage'
+export * from './constants'
+export * from './infinityCanvasStore'
+export * from './infinityObjectUtils'

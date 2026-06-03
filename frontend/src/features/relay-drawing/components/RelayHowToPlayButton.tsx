@@ -4,7 +4,7 @@ import Image from 'next/image'
 
 import { cn } from '@/shared/libs'
 
-import helpIcon from '../assets/how-to-play.png'
+import { helpIcon } from '@/features/relay-drawing/assets'
 import { useRelayHowToPlayStore } from '../stores'
 
 // 게임 설명 모달 트리거 버튼. 모달 자체는 RelayHowToPlayModalHost가 단일

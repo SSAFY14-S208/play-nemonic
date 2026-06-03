@@ -14,13 +14,8 @@ import { useFunnelEntry } from '@/shared/hooks'
 import { completeFunnelStep } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 
-import { INFINITE_CANVAS_COLOR_OPTIONS } from '../constants'
-import {
-  buildInfiniteCanvasRoomPath,
-  normalizeInfiniteCanvasInviteCode,
-  resolveInfiniteCanvasInviteRoomPath,
-  saveInfiniteCanvasCreatedRoomSnapshot,
-} from '../utils'
+import { INFINITE_CANVAS_COLOR_OPTIONS } from '..'
+import { buildInfiniteCanvasRoomPath, normalizeInfiniteCanvasInviteCode, resolveInfiniteCanvasInviteRoomPath, saveInfiniteCanvasCreatedRoomSnapshot } from '../utils'
 
 const DEFAULT_SELECTED_COLOR = INFINITE_CANVAS_COLOR_OPTIONS[4].value
 

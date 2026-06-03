@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 
-import type { InfinityObject } from '../constants'
+import type { InfinityObject } from '..'
 
 interface InfinitySnapshot {
   objects: InfinityObject[]

@@ -1,11 +1,8 @@
-import { useEffect, useMemo, useRef } from 'react'
-import type { MutableRefObject } from 'react'
+import { useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import { useAnimations, useGLTF } from '@react-three/drei'
-import { useThree } from '@react-three/fiber'
-import type { ThreeElements, ThreeEvent } from '@react-three/fiber'
+import { useThree, type ThreeElements, type ThreeEvent } from '@react-three/fiber'
 import { RigidBody } from '@react-three/rapier'
 import * as THREE from 'three'
-import type { AnimationAction } from 'three'
 import { useButtonMeshHighlight } from '../hooks'
 
 const MODEL_PATH = '/models/nemonic-printer.glb'
@@ -32,7 +29,7 @@ interface PrintLabelMaterialUserData {
 let fallbackPaperTexture: THREE.DataTexture | null = null
 
 type NemonicPrinterMeshProps = ThreeElements['group'] & {
-  actionsRef?: MutableRefObject<Record<string, AnimationAction | null>>
+  actionsRef?: MutableRefObject<Record<string, THREE.AnimationAction | null>>
   baseColorOverride?: string
   baseColorOverrideMaterialNames?: readonly string[]
   highlightStrength?: 'default' | 'strong'

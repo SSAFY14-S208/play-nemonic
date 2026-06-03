@@ -6,7 +6,7 @@ import { cva } from "class-variance-authority";
 
 import { cn } from "@/shared/libs";
 
-import type { AdminNavItem } from "../../constants";
+import type { AdminNavItem } from '../../constants';
 
 const itemVariants = cva(
   "flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 transition-colors",

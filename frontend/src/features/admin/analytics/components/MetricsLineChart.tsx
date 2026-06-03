@@ -12,7 +12,7 @@ import {
 } from 'recharts'
 import type { Formatter } from 'recharts/types/component/DefaultTooltipContent'
 
-import { METRICS_COLORS } from '../constants'
+import { METRICS_COLORS } from '..'
 import type { TimelineRow } from '../hooks'
 
 type Props = {

@@ -1,23 +1,25 @@
 import type { HowToPlayPanel, HowToPlayVisualImage } from '@/shared/components'
 
-import drawingExampleBody from '../assets/drawing-2-body.png'
-import drawingExampleFace from '../assets/drawing-2-face.png'
-import drawingExampleLegs from '../assets/drawing-2-leg.png'
+import {
+  drawing2Body,
+  drawing2Face,
+  drawing2Leg,
+} from '@/features/relay-drawing/assets'
 
 const FACE_EXAMPLE: HowToPlayVisualImage = {
-  src: drawingExampleFace,
+  src: drawing2Face,
   alt: '얼굴 프레임에 그려진 캐릭터 얼굴 예시',
   label: '얼굴',
 }
 
 const BODY_EXAMPLE: HowToPlayVisualImage = {
-  src: drawingExampleBody,
+  src: drawing2Body,
   alt: '몸통 프레임에 이어 그린 캐릭터 몸 예시',
   label: '몸',
 }
 
 const LEGS_EXAMPLE: HowToPlayVisualImage = {
-  src: drawingExampleLegs,
+  src: drawing2Leg,
   alt: '다리 프레임에 이어 그린 캐릭터 다리 예시',
   label: '다리',
 }

@@ -1,6 +1,6 @@
 import { Line } from "react-konva";
 
-import { INFINITY_LINE_TENSION, type InfinityLine } from "../../constants";
+import { INFINITY_LINE_TENSION, type InfinityLine } from '../..';
 import {
   OBJECT_DRAG_DISTANCE,
   flattenPoints,

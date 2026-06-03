@@ -18,12 +18,7 @@ import type {
   CommunityMemoLayoutRequest,
   CommunityMemoReportReason,
 } from '@/shared/types'
-import {
-  isCommunityAnimatedImageUrl,
-  preloadCommunityMemoSounds,
-  playCommunityMemoAttachSound,
-  playCommunityMemoDetachSound,
-} from '../utils'
+import { isCommunityAnimatedImageUrl, preloadCommunityMemoSounds, playCommunityMemoAttachSound, playCommunityMemoDetachSound } from '../utils'
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 type MemoPlaybackImageUrlMap = Record<string, string>

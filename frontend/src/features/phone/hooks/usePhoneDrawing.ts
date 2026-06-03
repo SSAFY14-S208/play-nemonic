@@ -6,19 +6,10 @@ import type Konva from 'konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import { ApiError } from '@/shared/apis'
 import {
-  writeCommunityCanvasHandoffDraft,
-  writeNemonicRoomPrintDraft,
-} from '@/shared/utils'
-import {
-  PHONE_BRUSH_SIZES,
-  PHONE_DRAWING_COLORS,
-  PHONE_DRAWING_PAPER_COLOR,
-} from '../constants'
-import { usePhoneStore } from '../phoneStore'
-import type {
-  PhoneDrawingToolKey,
-  PhoneDrawLine,
-} from '../types'
+  writeCommunityCanvasHandoffDraft, writeNemonicRoomPrintDraft, } from '@/shared/utils'
+import { PHONE_BRUSH_SIZES, PHONE_DRAWING_COLORS, PHONE_DRAWING_PAPER_COLOR } from '../constants'
+import { usePhoneStore, type PhoneDrawingToolKey, type PhoneDrawLine } from '..'
+
 import { dataUrlToBlob, uploadDrawingArtifact } from '../utils'
 
 function createPhoneLineId() {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Image as KonvaImage } from "react-konva";
 
-import type { InfinityFill } from "../../constants";
+import type { InfinityFill } from '../..';
 import { drawImageAlphaHitRegion } from "./imageHitRegion";
 import { OBJECT_DRAG_DISTANCE } from "./shapes.types";
 
@@ -16,6 +16,20 @@ interface KonvaFillProps {
 }
 
 const fillImageCache = new Map<string, HTMLImageElement>();
+const MAX_FILL_IMAGE_CACHE_SIZE = 160;
+
+function cacheFillImage(imageDataUrl: string, image: HTMLImageElement) {
+  if (fillImageCache.has(imageDataUrl)) {
+    fillImageCache.delete(imageDataUrl);
+  }
+
+  fillImageCache.set(imageDataUrl, image);
+  while (fillImageCache.size > MAX_FILL_IMAGE_CACHE_SIZE) {
+    const oldestImageDataUrl = fillImageCache.keys().next().value;
+    if (!oldestImageDataUrl) break;
+    fillImageCache.delete(oldestImageDataUrl);
+  }
+}
 
 export function KonvaFill({
   fill,
@@ -38,13 +52,21 @@ export function KonvaFill({
   useEffect(() => {
     const cachedImage = fillImageCache.get(fill.imageDataUrl);
     if (cachedImage) {
-      return;
+      let cancelled = false;
+      void Promise.resolve().then(() => {
+        if (!cancelled) {
+          setLoadedImage({ imageDataUrl: fill.imageDataUrl, element: cachedImage });
+        }
+      });
+      return () => {
+        cancelled = true;
+      };
     }
 
     let cancelled = false;
     const image = new window.Image();
     image.onload = () => {
-      fillImageCache.set(fill.imageDataUrl, image);
+      cacheFillImage(fill.imageDataUrl, image);
       if (!cancelled) {
         setLoadedImage({ imageDataUrl: fill.imageDataUrl, element: image });
       }

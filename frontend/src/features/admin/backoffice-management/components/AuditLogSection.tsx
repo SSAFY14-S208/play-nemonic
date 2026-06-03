@@ -6,11 +6,8 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/shared/libs'
 import { formatKoreanDateTime } from '@/shared/utils'
 
-import { AUDIT_EVENT_LABEL_MAP } from '../constants'
-import {
-  type AuditLogEntry,
-  useBackofficeAuditLogs,
-} from '../hooks/useBackofficeAuditLogs'
+import { AUDIT_EVENT_LABEL_MAP } from '..'
+import { useBackofficeAuditLogs, type AuditLogEntry } from '../hooks'
 
 import { AuditLogFilterBar } from './AuditLogFilterBar'
 import { AuditLogResultBadge } from './AuditLogResultBadge'

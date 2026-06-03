@@ -3,26 +3,12 @@
 import { useEffect, useState } from 'react'
 
 import {
-  postAdminLogsDistinctCount,
-  postAdminLogsFieldSummary,
-  postAdminLogsHistogram,
-  postAdminMetricsQuery,
-  postAdminMetricsQueryRange,
-} from '@/shared/apis'
+  postAdminLogsDistinctCount, postAdminLogsFieldSummary, postAdminLogsHistogram, postAdminMetricsQuery, postAdminMetricsQueryRange, } from '@/shared/apis'
 import type {
-  AdminLogsTimeRange,
-  AdminMetricsQueryRangeResponse,
-  AdminMetricsQueryResponse,
-  AdminMetricsSeriesRange,
-  AdminMetricsTemplateId,
-  AdminMetricsTimeRange,
-} from '@/shared/types'
+  AdminLogsTimeRange, AdminMetricsQueryRangeResponse, AdminMetricsQueryResponse, AdminMetricsSeriesRange, AdminMetricsTemplateId, AdminMetricsTimeRange, } from '@/shared/types'
 
-import { rateWindowFor, stepFor } from '../constants'
-import type {
-  MetricsAsyncState,
-  MetricsTimeRangePresetKey,
-} from '../types'
+import { rateWindowFor, stepFor } from '..'
+import type { MetricsAsyncState, MetricsTimeRangePresetKey } from '../types'
 
 // 23 panel의 데이터 fetch 훅. Hybrid 데이터 소스:
 //   - Prometheus 프록시 (`/admin/metrics/*`) : 시스템 메트릭, HTTP, host 리소스

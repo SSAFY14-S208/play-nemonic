@@ -3,9 +3,9 @@
 import Image from 'next/image'
 import { useState } from 'react'
 
-import { INFINITE_CANVAS_COLOR_OPTIONS } from '../constants'
+import { INFINITE_CANVAS_COLOR_OPTIONS } from '..'
 import { useInfiniteCanvasEntry } from '../hooks'
-import { InfinityNicknameModal } from '../infinity-runtime/components/InfinityNicknameModal'
+import { InfinityNicknameModal } from '../infinity-runtime/components'
 import InfiniteCanvasActionButton from './InfiniteCanvasActionButton'
 import InfiniteCanvasColorPicker from './InfiniteCanvasColorPicker'
 import InfiniteCanvasInviteModal from './InfiniteCanvasInviteModal'

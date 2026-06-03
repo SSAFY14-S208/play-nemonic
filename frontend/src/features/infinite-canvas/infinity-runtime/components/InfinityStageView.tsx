@@ -5,17 +5,9 @@ import type Konva from 'konva'
 import { Camera, Copy, Link2, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import { useInfinityAiSticker, useInfinityDrawing, type useInfinityCanvasRoom } from '../hooks'
-import type { InfinityObject } from '../constants'
-import {
-  isInfinityObject,
-  toInfinityObjects,
-} from '../infinityObjectUtils'
-import { INFINITY_CANVAS_BACKGROUND_LAYER_ID, InfinityCanvasStage } from './InfinityCanvasStage'
-import type {
-  InfinityLockedElementView,
-  InfinityRemoteDraftObjectView,
-  InfinityRemoteCursorView,
-} from './InfinityCanvasStage'
+import { isInfinityObject, toInfinityObjects, type InfinityObject } from '..'
+
+import { INFINITY_CANVAS_BACKGROUND_LAYER_ID, InfinityCanvasStage, type InfinityLockedElementView, type InfinityRemoteDraftObjectView, type InfinityRemoteCursorView } from './InfinityCanvasStage'
 import {
   InfinityCaptureOverlay,
   type InfinityCaptureRatio,

@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 
-import { AUTO_REFRESH_INTERVAL_MS } from '../constants'
+import { AUTO_REFRESH_INTERVAL_MS } from '..'
 
 // 30초 주기 자동 갱신 + 페이지 가시성 체크.
 //

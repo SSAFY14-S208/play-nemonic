@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Image as KonvaImage } from "react-konva";
 import type Konva from "konva";
 
-import type { InfinityImage } from "../../constants";
+import type { InfinityImage } from '../..';
 import { drawImageAlphaHitRegion } from "./imageHitRegion";
 import { OBJECT_DRAG_DISTANCE } from "./shapes.types";
 
@@ -27,6 +27,8 @@ interface KonvaImageObjectProps {
 
 const imageElementCache = new Map<string, HTMLImageElement>();
 const stickerImageElementCache = new Map<string, HTMLImageElement>();
+const MAX_IMAGE_ELEMENT_CACHE_SIZE = 120;
+const MAX_STICKER_IMAGE_ELEMENT_CACHE_SIZE = 120;
 const STICKER_BACKGROUND_ALPHA_THRESHOLD = 190;
 const STICKER_BACKGROUND_FRINGE_ALPHA_THRESHOLD = 235;
 const STICKER_BACKGROUND_FRINGE_PASSES = 2;
@@ -44,6 +46,24 @@ function isAiStickerObject(imageObject: InfinityImage) {
     imageObject.id.startsWith("ai-sticker-") ||
     imageObject.objectKey?.includes("/ai-stickers/") === true
   );
+}
+
+function cacheImageElement(
+  cache: Map<string, HTMLImageElement>,
+  src: string,
+  image: HTMLImageElement,
+  maxSize: number,
+) {
+  if (cache.has(src)) {
+    cache.delete(src);
+  }
+
+  cache.set(src, image);
+  while (cache.size > maxSize) {
+    const oldestSrc = cache.keys().next().value;
+    if (!oldestSrc) break;
+    cache.delete(oldestSrc);
+  }
 }
 
 function isStickerBackgroundPixel(pixels: Uint8ClampedArray, pixelIndex: number) {
@@ -228,11 +248,21 @@ export function KonvaImageObject({
 
   useEffect(() => {
     const cachedImage = imageElementCache.get(imageObject.src);
-    if (cachedImage) return;
+    if (cachedImage) {
+      let cancelled = false;
+      void Promise.resolve().then(() => {
+        if (!cancelled) {
+          setLoadedImage({ src: imageObject.src, element: cachedImage });
+        }
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
 
     let cancelled = false;
     void loadCanvasImageFromSrc(imageObject.src).then((image) => {
-      imageElementCache.set(imageObject.src, image);
+      cacheImageElement(imageElementCache, imageObject.src, image, MAX_IMAGE_ELEMENT_CACHE_SIZE);
       if (!cancelled) {
         setLoadedImage({ src: imageObject.src, element: image });
       }
@@ -246,13 +276,33 @@ export function KonvaImageObject({
   }, [imageObject.src]);
 
   useEffect(() => {
-    if (!shouldSanitizeSticker || !sourceImageElement || stickerImageElementCache.has(imageObject.src)) {
+    if (!shouldSanitizeSticker) {
       return;
     }
 
+    const cachedStickerImage = stickerImageElementCache.get(imageObject.src);
+    if (cachedStickerImage) {
+      let cancelled = false;
+      void Promise.resolve().then(() => {
+        if (!cancelled) {
+          setLoadedImage({ src: imageObject.src, element: cachedStickerImage });
+        }
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (!sourceImageElement) return;
+
     let cancelled = false;
     void createSanitizedStickerImage(sourceImageElement).then((sanitizedImage) => {
-      stickerImageElementCache.set(imageObject.src, sanitizedImage);
+      cacheImageElement(
+        stickerImageElementCache,
+        imageObject.src,
+        sanitizedImage,
+        MAX_STICKER_IMAGE_ELEMENT_CACHE_SIZE,
+      );
       if (!cancelled) {
         setLoadedImage({ src: imageObject.src, element: sanitizedImage });
       }

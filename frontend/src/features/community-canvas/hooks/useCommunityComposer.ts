@@ -12,7 +12,7 @@ import {
   postFilePresign,
 } from '@/shared/apis'
 import { DRAWING_COLORS, DEFAULT_DRAWING_STROKE_WIDTH } from '@/shared/constants'
-import { useDrawingBoard } from '@/shared/hooks/useDrawingBoard'
+import { useDrawingBoard } from '@/shared/hooks'
 import type {
   CommunityMemoCreateRequest,
   CommunityMemoDetailResponse,
@@ -27,14 +27,7 @@ import {
   stopNemonicPrintVibration,
   type CommunityCanvasHandoffDraft,
 } from '@/shared/utils'
-import {
-  DEFAULT_COMMUNITY_MEMO_COLOR,
-  COMMUNITY_SNAPSHOT_CONTENT_TYPE,
-  exportDirectCommunitySnapshot,
-  exportGalleryCommunitySnapshot,
-  hasDirectSnapshotContent,
-  playCommunityMemoAttachSound,
-} from '../utils'
+import { DEFAULT_COMMUNITY_MEMO_COLOR, COMMUNITY_SNAPSHOT_CONTENT_TYPE, exportDirectCommunitySnapshot, exportGalleryCommunitySnapshot, hasDirectSnapshotContent, playCommunityMemoAttachSound } from '../utils'
 import type { CommunityMemoLayoutDraft } from './useCommunityCanvas'
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'

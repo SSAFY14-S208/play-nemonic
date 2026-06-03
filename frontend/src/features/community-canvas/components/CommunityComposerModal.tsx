@@ -25,10 +25,7 @@ import { cn } from '@/shared/libs'
 import type { DrawingToolKey, MemoSourceType } from '@/shared/types'
 import { PostItNote } from '@/shared/components/PostItNote'
 import { COMMUNITY_COMPOSER_BOARD_SIZE, type useCommunityComposer } from '../hooks'
-import {
-  COMMUNITY_MEMO_COLOR_OPTIONS,
-  DEFAULT_COMMUNITY_MEMO_COLOR,
-} from '../utils'
+import { COMMUNITY_MEMO_COLOR_OPTIONS, DEFAULT_COMMUNITY_MEMO_COLOR } from '../utils'
 import { CommunityGalleryPicker } from './CommunityGalleryPicker'
 import {
   useCommunityCompactViewport,

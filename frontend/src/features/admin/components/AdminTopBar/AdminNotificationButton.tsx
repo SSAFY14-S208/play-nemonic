@@ -4,7 +4,7 @@ import { Bell } from "lucide-react";
 
 import { cn } from "@/shared/libs";
 
-import { useNotificationStore } from "../../stores";
+import { useNotificationStore } from '../../stores';
 
 export function AdminNotificationButton() {
   const { hasUnread, openModal } = useNotificationStore();

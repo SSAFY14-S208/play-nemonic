@@ -2,8 +2,7 @@
 // 결과 단계(reveal) 메타와 mock fallback은 자동 카메라 메타포 시퀀스 도입과 함께 제거됨.
 // useRelayResult 훅이 서버 응답(parts[].drawerNickname)으로 segments를 직접 생성한다.
 
-import { Download, Send, Share2 } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { Download, Send, Share2, type LucideIcon } from 'lucide-react'
 
 import type { RelayRoundKey } from './rounds'
 

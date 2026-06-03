@@ -5,10 +5,7 @@ import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLigh
 import { HUB_GAMES } from '@/shared/constants'
 import { useHubGameStore } from '@/shared/stores'
 import { ROOM_PREVIEW_SCALE } from '../constants'
-import {
-  type RoomPreviewLightDebugVector3,
-  useRoomPreviewLightDebugStore,
-} from '../light-debug/roomPreviewLightDebugStore'
+import { useRoomPreviewLightDebugStore, type RoomPreviewLightDebugVector3 } from '../light-debug'
 
 export type RoomPreviewBlenderAreaLight = {
   color: [number, number, number]

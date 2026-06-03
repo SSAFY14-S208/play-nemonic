@@ -9,17 +9,9 @@ import { useFunnelEntry } from '@/shared/hooks'
 import { logEvent } from '@/shared/libs'
 import { useUserStore } from '@/shared/stores'
 
-import { FORTUNE_EMPTY_BIRTH_INFO, FORTUNE_RESET_QUERY_PARAM } from '../constants'
-import { useFortuneSessionStore } from '../fortuneSessionStore'
-import {
-  canUseLocalFortuneFallback,
-  clearStoredFortune,
-  createBirthInfoFromProfile,
-  getKoreanDateKey,
-  getTodayFortuneResult,
-  readStoredFortune,
-  resolveFortuneErrorMessage,
-} from '../utils'
+import { FORTUNE_EMPTY_BIRTH_INFO, FORTUNE_RESET_QUERY_PARAM, useFortuneSessionStore, canUseLocalFortuneFallback, clearStoredFortune, createBirthInfoFromProfile, getKoreanDateKey, getTodayFortuneResult, readStoredFortune, resolveFortuneErrorMessage } from '..'
+
+
 
 const USER_STORE_HYDRATION_FALLBACK_DELAY_MS = 1500
 

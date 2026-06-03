@@ -2,8 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import type { CSSProperties } from 'react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
 import { useNemonicPrintVibration } from '@/shared/hooks'
@@ -15,7 +14,7 @@ import {
   FORTUNE_PRINT_VIDEO_PATH,
   FORTUNE_REDUCED_MOTION_DURATION_SECONDS,
 } from './constants'
-import { useFortuneSessionStore } from './fortuneSessionStore'
+import { useFortuneSessionStore } from './fortuneStore'
 import { useFortuneReducedMotion } from './hooks'
 
 interface FortuneVisualProps {

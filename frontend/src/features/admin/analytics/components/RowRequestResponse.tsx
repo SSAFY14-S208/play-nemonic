@@ -1,15 +1,7 @@
 'use client'
 
-import { LATENCY_QUANTILE_COLORS, METRICS_COLORS } from '../constants'
-import {
-  seriesRangeToRows,
-  useNginxActiveConnections,
-  useNginxRequestRate,
-  useSpringHttpErrorRatio,
-  useSpringHttpLatency,
-  useSpringHttpRps,
-  type MetricsVizArgs,
-} from '../hooks'
+import { LATENCY_QUANTILE_COLORS, METRICS_COLORS } from '..'
+import { seriesRangeToRows, useNginxActiveConnections, useNginxRequestRate, useSpringHttpErrorRatio, useSpringHttpLatency, useSpringHttpRps, type MetricsVizArgs } from '../hooks'
 
 import { ChartFrame } from './ChartFrame'
 import { MetricsLineChart } from './MetricsLineChart'

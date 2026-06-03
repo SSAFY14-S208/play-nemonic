@@ -1,6 +1,5 @@
 import type { CSSProperties } from 'react'
-import type { ExternalToast } from 'sonner'
-import { toast } from 'sonner'
+import { toast, type ExternalToast } from 'sonner'
 
 import type { GameLobbyTheme } from './GameLobbyLayout.types'
 

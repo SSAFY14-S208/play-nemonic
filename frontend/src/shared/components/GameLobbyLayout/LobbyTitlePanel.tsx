@@ -1,7 +1,6 @@
 'use client'
 
-import Image from 'next/image'
-import type { StaticImageData } from 'next/image'
+import Image, { type StaticImageData } from 'next/image'
 
 import type { GameLobbyTheme } from './GameLobbyLayout.types'
 import { LobbyShareButtons } from './LobbyShareButtons'

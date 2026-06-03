@@ -4,10 +4,7 @@ import Image from 'next/image'
 import { PostItNote } from '@/shared/components/PostItNote'
 import { cn } from '@/shared/libs'
 import type { CommunityMemoItemResponse } from '@/shared/types'
-import {
-  getCommunityMemoColor,
-  getStaticCommunityMemoImageUrl,
-} from '../utils'
+import { getCommunityMemoColor, getStaticCommunityMemoImageUrl } from '../utils'
 
 const MEMO_LAYER_BASE_Z_INDEX = 9_100
 const ACTIVE_MEMO_LAYER_BASE_Z_INDEX = 9_500

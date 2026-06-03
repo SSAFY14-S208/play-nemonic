@@ -3,14 +3,9 @@
 import { useCallback } from 'react'
 import { useUserStore } from '@/shared/stores'
 import type {
-  DrawingLine,
-  FlipbookClientMessage,
-  FlipbookDrawingAssignment,
-  FlipbookSessionSettings,
-  FlipbookSessionSnapshot,
-} from '@/shared/types'
-import { FLIPBOOK_ROOM_CODE } from '../constants'
-import { useFlipbookRealtimeStore } from '../flipbookRealtimeStore'
+  DrawingLine, FlipbookClientMessage, FlipbookDrawingAssignment, FlipbookSessionSettings, FlipbookSessionSnapshot, } from '@/shared/types'
+import { FLIPBOOK_ROOM_CODE, useFlipbookRealtimeStore } from '..'
+
 import { createFlipbookRequestId } from '../utils'
 
 export function useFlipbookRealtimeActions() {

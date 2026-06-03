@@ -4,7 +4,8 @@ import { useEffect } from "react";
 
 import { usePhoneLauncherStore } from "@/shared/stores";
 
-import { RelayBoothView, RelayFloatingControls } from "./components";
+import { RelayFloatingControls } from './components';
+import { RelayBoothView } from './views';
 import "./relay-drawing.css";
 
 // 라우트: /relay-drawing

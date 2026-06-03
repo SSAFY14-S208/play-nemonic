@@ -1,6 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import type { ThreeEvent } from '@react-three/fiber'
-import { useThree } from '@react-three/fiber'
+import { useThree, type ThreeEvent } from '@react-three/fiber'
 import { useRouter } from 'next/navigation'
 import CommunityCanvasWhiteboardPreviewMesh from '@/worlds/hub/objects/CommunityCanvasWhiteboardPreviewMesh'
 import { useMonitorGameSelector } from '@/worlds/hub/objects/hooks'

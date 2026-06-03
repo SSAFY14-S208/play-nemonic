@@ -1,17 +1,4 @@
-import {
-  BarChart3,
-  BookOpen,
-  FileText,
-  Image as ImageIcon,
-  Infinity as InfinityIcon,
-  Layers,
-  LayoutDashboard,
-  MessageSquare,
-  Pencil,
-  Shield,
-  Sliders,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { BarChart3, BookOpen, FileText, Image as ImageIcon, Infinity as InfinityIcon, Layers, LayoutDashboard, MessageSquare, Pencil, Shield, Sliders, type LucideIcon } from "lucide-react";
 import type { AdminRole } from "@/shared/types";
 
 export type AdminNavItem = {

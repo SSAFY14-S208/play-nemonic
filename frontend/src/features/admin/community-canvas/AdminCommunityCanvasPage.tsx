@@ -9,14 +9,7 @@ import { useAdminAuthStore } from '@/shared/stores'
 import { canMutateBackoffice, formatKoreanDateTime } from '@/shared/utils'
 
 import { AdminReadOnlyNotice } from '../components'
-import {
-  MemoDetailModal,
-  MemoFilterBar,
-  MemoPagination,
-  MemoReasonModal,
-  type MemoReasonAction,
-  MemoStatusBadge,
-} from './components'
+import { MemoDetailModal, MemoFilterBar, MemoPagination, MemoReasonModal, MemoStatusBadge, type MemoReasonAction } from './components'
 import { useAdminCommunityMemos, useMemoDetail } from './hooks'
 
 const SOURCE_LABEL: Record<string, string> = {

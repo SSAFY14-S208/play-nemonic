@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { useFrame, useLoader, useThree } from '@react-three/fiber'
-import type { ThreeEvent } from '@react-three/fiber'
+import { useFrame, useLoader, useThree, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import {
   HUB_PEGBOARD_SURFACE,

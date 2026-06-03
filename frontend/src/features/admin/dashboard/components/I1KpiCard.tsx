@@ -1,6 +1,6 @@
 'use client'
 
-import { CHART_STATUS_COLORS } from '../constants'
+import { CHART_STATUS_COLORS } from '..'
 import type { AnalyticsKpiState, I1KpiData } from '../types'
 
 import { AnalyticsKpiCard } from './AnalyticsKpiCard'

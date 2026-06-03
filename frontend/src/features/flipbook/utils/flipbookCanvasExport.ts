@@ -1,9 +1,6 @@
 import type { DrawingLine } from '@/shared/types'
 import { renderLinesToRasterCanvas } from '@/shared/utils'
-import {
-  FLIPBOOK_BACKGROUND_COLOR,
-  FLIPBOOK_BOARD_SIZE,
-} from '../constants'
+import { FLIPBOOK_BACKGROUND_COLOR, FLIPBOOK_BOARD_SIZE } from '../constants'
 
 export const FLIPBOOK_FILE_CONTENT_TYPE = 'image/png'
 export const FLIPBOOK_FILE_PURPOSE = 'FLIPBOOK'

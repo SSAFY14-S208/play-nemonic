@@ -1,20 +1,11 @@
 'use client'
 
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis, } from 'recharts'
 import type { Formatter } from 'recharts/types/component/DefaultTooltipContent'
 
-import { CHART_FUNNEL_COLORS, CHART_STATUS_COLORS } from '../constants'
+import { CHART_FUNNEL_COLORS, CHART_STATUS_COLORS } from '..'
 import type { AnalyticsDrillDownState, AnalyticsKpiState } from '../types'
-import type { I2Bucket } from '../hooks/useAnalyticsCharts'
+import type { I2Bucket } from '../hooks'
 
 import { ChartFrame } from './ChartFrame'
 
