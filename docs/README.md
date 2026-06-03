@@ -4,6 +4,12 @@ MangoSleave Nemonic demo site screenshots for portfolio, presentation, and hando
 
 Image and video files are committed with ASCII slugs to keep Git diffs and MR reviews readable across macOS and GitLab. Full-length videos live in the matching feature folders and are tracked with Git LFS because they are large.
 
+## Top-Level Assets
+
+| Asset | Notes |
+| --- | --- |
+| `system-overview.png` | Overall system structure diagram |
+
 ## Feature Folders
 
 | Feature | Folder | Notes |
