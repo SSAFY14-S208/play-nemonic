@@ -1,8 +1,6 @@
-import { useEffect, useRef } from 'react'
-import type { MutableRefObject } from 'react'
+import { useEffect, useRef, type MutableRefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import type { AnimationAction } from 'three'
 import { useNemonicPrintVibration } from '@/shared/hooks'
 import { useHubPrintStore } from '@/shared/stores'
 import { trackHubInvalidate } from '@/shared/utils'
@@ -21,7 +19,7 @@ function playPrintSound() {
 }
 
 function playFallbackPrintAnimation(
-  actions: Record<string, AnimationAction | null>,
+  actions: Record<string, THREE.AnimationAction | null>,
 ) {
   FALLBACK_PRINT_ANIMATION_NAMES.forEach((animationName) => {
     const action = actions[animationName]
@@ -35,7 +33,7 @@ function playFallbackPrintAnimation(
 }
 
 export function useNemonicPrinterStation(
-  actionsRef: MutableRefObject<Record<string, AnimationAction | null>>,
+  actionsRef: MutableRefObject<Record<string, THREE.AnimationAction | null>>,
 ) {
   const activeRequestIdRef = useRef<string | null>(null)
   const printStartedAtRef = useRef<number | null>(null)

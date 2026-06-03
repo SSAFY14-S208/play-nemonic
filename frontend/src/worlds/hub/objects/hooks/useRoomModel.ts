@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import type { AnimationAction } from 'three'
 import { HUB_PERFORMANCE_PROFILES } from '@/shared/constants'
 import { useHubPrintStore } from '@/shared/stores'
 import type { HubPerformanceMode } from '@/shared/types'
@@ -407,7 +406,7 @@ function hideStaticPrinterPaper(scene: THREE.Object3D) {
 }
 
 function resetRoomPrintAnimations(
-  actions: Record<string, AnimationAction | null>,
+  actions: Record<string, THREE.AnimationAction | null>,
 ) {
   ROOM_PRINT_ANIMATION_NAMES.forEach((animationName) => {
     const action = actions[animationName]
@@ -743,7 +742,7 @@ function configureRoomMesh(
 export function useRoomModel(
   scene: THREE.Object3D,
   animations: THREE.AnimationClip[],
-  actions: Record<string, AnimationAction | null>,
+  actions: Record<string, THREE.AnimationAction | null>,
   performanceMode: HubPerformanceMode,
 ) {
   const activeAnimationRequestIdRef = useRef<string | null>(null)

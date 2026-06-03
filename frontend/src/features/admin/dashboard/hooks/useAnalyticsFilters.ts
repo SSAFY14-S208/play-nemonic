@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react'
 
 import type { AdminLogsFilter, AdminLogsTimeRange } from '@/shared/types'
 
-import { TIME_RANGE_PRESETS } from '../constants'
+import { TIME_RANGE_PRESETS } from '..'
 import type { AnalyticsFiltersState, LogsTimeRangePresetKey } from '../types'
 
 // 필터 바 상태 + 백엔드 호출용 timeRange / service filters 파생.

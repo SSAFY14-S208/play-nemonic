@@ -7,7 +7,7 @@ import { ApiError, postArtifactShare } from '@/shared/apis'
 import { logEvent } from '@/shared/libs'
 import { shareExternalImage, type ExternalImageShareResult } from '@/shared/utils'
 
-import { useFortuneSessionStore } from '../fortuneSessionStore'
+import { useFortuneSessionStore } from '..'
 
 const FORTUNE_SHARE_TEXT = '네모닉 운세 결과를 공유해요.'
 const DEFAULT_SHARE_ERROR_MESSAGE = '운세 공유 정보를 만들 수 없어요.'

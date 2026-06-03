@@ -1,26 +1,14 @@
 'use client'
 
-import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { ReactElement, RefObject } from 'react'
+import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement, type RefObject } from 'react'
 import { Stage, Layer, Rect, Ellipse, Line, Transformer, Label, Tag, Text, Circle, Path, Group } from 'react-konva'
 import Konva from 'konva'
 
-import { INFINITY_LINE_TENSION } from '../constants'
-import type { InfinityImage, InfinityLine, InfinityObject, InfinityShape, InfinityText as InfinityTextObject, InfinityToolKey } from '../constants'
+import { INFINITY_LINE_TENSION, sortInfinityObjectsByLayer, type InfinityImage, type InfinityLine, type InfinityObject, type InfinityShape, type InfinityText as InfinityTextObject, type InfinityToolKey } from '..'
+
 import type { useInfinityDrawing } from '../hooks'
-import { sortInfinityObjectsByLayer } from '../infinityObjectUtils'
-import {
-  CursorPreview,
-  DotGridShape,
-  KonvaFill,
-  KonvaEllipse,
-  KonvaImageObject,
-  KonvaLine,
-  KonvaRect,
-  KonvaText,
-  OBJECT_DRAG_DISTANCE,
-  SelectionBox,
-} from './stage'
+
+import { CursorPreview, DotGridShape, KonvaFill, KonvaEllipse, KonvaImageObject, KonvaLine, KonvaRect, KonvaText, OBJECT_DRAG_DISTANCE, SelectionBox } from './stage'
 
 type DrawingState = ReturnType<typeof useInfinityDrawing>
 
@@ -1311,7 +1299,8 @@ export function InfinityCanvasStage({
       ref={stageRef}
       width={width}
       height={height}
-      style={{ cursor: getCursorStyle(tool) }}
+      className="touch-none"
+      style={{ cursor: getCursorStyle(tool), touchAction: "none" }}
       onDragEnd={(e) => {
         if (e.target === e.target.getStage()) {
           onStageDragEnd();
@@ -1331,7 +1320,27 @@ export function InfinityCanvasStage({
         const targetIsStage = e.target === stage;
         onStageMouseDown(stage, toolRef.current, targetIsStage);
       }}
+      onTouchStart={(e) => {
+        e.evt.preventDefault();
+        const stage = e.target.getStage();
+        if (!stage) return;
+        const targetIsStage = e.target === stage;
+        onStageMouseDown(stage, toolRef.current, targetIsStage);
+      }}
       onMouseMove={(e) => {
+        const stage = e.target.getStage();
+        if (!stage) return;
+        onStageMouseMove(stage, toolRef.current);
+        const pointerPosition = stage.getRelativePointerPosition();
+        if (!pointerPosition) return;
+        onCursorMove({
+          x: pointerPosition.x,
+          y: pointerPosition.y,
+          zoom: scaleRef.current,
+        });
+      }}
+      onTouchMove={(e) => {
+        e.evt.preventDefault();
         const stage = e.target.getStage();
         if (!stage) return;
         onStageMouseMove(stage, toolRef.current);
@@ -1347,7 +1356,17 @@ export function InfinityCanvasStage({
         stopWheelButtonPanning();
         onStageMouseUp(toolRef.current);
       }}
+      onTouchEnd={(e) => {
+        e.evt.preventDefault();
+        stopWheelButtonPanning();
+        onStageMouseUp(toolRef.current);
+      }}
       onMouseLeave={() => {
+        stopWheelButtonPanning();
+        onStageMouseLeave(toolRef.current);
+      }}
+      onTouchCancel={(e: Konva.KonvaEventObject<TouchEvent>) => {
+        e.evt.preventDefault();
         stopWheelButtonPanning();
         onStageMouseLeave(toolRef.current);
       }}
@@ -1355,6 +1374,7 @@ export function InfinityCanvasStage({
       onContextMenu={(e) => e.evt.preventDefault()}
       onWheel={onStageWheel}
       onClick={(e) => onStageClick(e, toolRef.current)}
+      onTap={(e) => onStageClick(e, toolRef.current)}
     >
       {/* Layer 0 — 캔버스 배경 */}
       <Layer id={INFINITY_CANVAS_BACKGROUND_LAYER_ID} listening={false}>

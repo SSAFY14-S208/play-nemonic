@@ -4,8 +4,7 @@ import { useMemo } from "react";
 
 import { useAdminAuthStore } from "@/shared/stores";
 
-import { ADMIN_NAVIGATION } from "../../constants";
-import type { AdminNavGroup } from "../../constants";
+import { ADMIN_NAVIGATION, type AdminNavGroup } from '../../constants';
 import { AdminSidebarGroup } from "./AdminSidebarGroup";
 
 export function AdminSidebar() {

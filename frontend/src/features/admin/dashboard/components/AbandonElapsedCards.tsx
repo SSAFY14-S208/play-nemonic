@@ -1,8 +1,8 @@
 'use client'
 
-import { CHART_STATUS_COLORS } from '../constants'
+import { CHART_STATUS_COLORS } from '..'
 import type { AnalyticsDrillDownState, AnalyticsKpiState } from '../types'
-import type { I13Phase } from '../hooks/useAnalyticsCharts'
+import type { I13Phase } from '../hooks'
 
 import { ChartFrame } from './ChartFrame'
 

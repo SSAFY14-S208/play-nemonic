@@ -1,15 +1,6 @@
 import { Copy, RotateCcw } from 'lucide-react'
 import type { ChangeEvent } from 'react'
-import type {
-  RoomPreviewHitboxVectorAxis,
-  RoomPreviewHitboxVectorField,
-  RoomPreviewHubHitboxTarget,
-  useRoomPreviewHubHitboxCalibration,
-} from '../useRoomPreviewHubHitboxCalibration'
-import {
-  ROOM_PREVIEW_HUB_HITBOX_LABELS,
-  ROOM_PREVIEW_HUB_HITBOX_TARGETS,
-} from '../useRoomPreviewHubHitboxCalibration'
+import { ROOM_PREVIEW_HUB_HITBOX_LABELS, ROOM_PREVIEW_HUB_HITBOX_TARGETS, type RoomPreviewHitboxVectorAxis, type RoomPreviewHitboxVectorField, type RoomPreviewHubHitboxTarget, type useRoomPreviewHubHitboxCalibration } from '../useRoomPreviewHubHitboxCalibration'
 
 export type RoomPreviewHubHitboxCalibration = ReturnType<
   typeof useRoomPreviewHubHitboxCalibration

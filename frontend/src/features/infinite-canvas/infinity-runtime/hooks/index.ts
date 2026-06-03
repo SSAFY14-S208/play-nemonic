@@ -1,4 +1,5 @@
 export { useInfinityDrawing } from './useInfinityDrawing'
+export type { InfinityTextEditorCommitValue, InfinityTextEditorState } from './useInfinityDrawing'
 export { useInfinityAiSticker } from './useInfinityAiSticker'
 export { useInfinityBooth } from './useInfinityBooth'
 export { useInfinityCanvasRoom } from './useInfinityCanvasRoom'

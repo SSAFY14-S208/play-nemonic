@@ -2,12 +2,8 @@ import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import Image from 'next/image'
 import { motion } from 'motion/react'
 import { cn } from '@/shared/libs'
-import {
-  HUB_ROOM_REVEAL_DURATION_MS,
-  PERCENT_FADE_OUT_DURATION_MS,
-  useHubLoadingOverlay,
-} from './hooks'
-import styles from './HubLoadingOverlay.module.css'
+import { HUB_ROOM_REVEAL_DURATION_MS, PERCENT_FADE_OUT_DURATION_MS, useHubLoadingOverlay } from './hooks'
+import './HubLoadingOverlay.css'
 
 const HUB_LOADING_PRIMARY_COLOR = '#f49cc8'
 const HUB_LOADING_PRIMARY_HOVER_COLOR = '#ed86bd'
@@ -92,13 +88,24 @@ function HubLoadingOverlayContent({
         <>
           <div
             aria-hidden
-            className={styles.roomRevealCurtain}
+            className="hlo-curtain"
             data-hub-room-reveal-curtain="true"
           />
-          <div
+          <motion.div
             aria-hidden
-            className={styles.roomRevealRing}
+            className="absolute left-1/2 top-1/2 z-20 aspect-square pointer-events-none rounded-full border border-[rgb(255_255_255_/_64%)] shadow-[0_0_30px_8px_rgb(255,255,255,0.42),inset_0_0_28px_rgb(255,255,255,0.24)] -translate-x-1/2 -translate-y-1/2"
             data-hub-room-reveal-ring="true"
+            initial={{ width: '0.001rem', opacity: 0 }}
+            animate={{
+              width: ['0.001rem', '9.5rem', '320vmax'],
+              opacity: [0, 0.95, 0.56, 0],
+            }}
+            transition={{
+              duration: HUB_ROOM_REVEAL_DURATION_MS / 1000,
+              ease: [0.16, 1, 0.3, 1],
+              width: { times: [0, 0.12, 1] },
+              opacity: { times: [0, 0.12, 0.62, 1] },
+            }}
           />
         </>
       )}

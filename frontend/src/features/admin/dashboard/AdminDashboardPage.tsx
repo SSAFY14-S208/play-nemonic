@@ -2,42 +2,9 @@
 
 import { useMemo } from 'react'
 
-import {
-  AbandonElapsedCards,
-  AnalyticsFilterBar,
-  AnalyticsSection,
-  ContentCompletionChart,
-  DrillDownPanel,
-  DwellTimeBar,
-  EntryChannelDonut,
-  EntryTimelineChart,
-  FunnelAbandonChart,
-  I11KpiCard,
-  I12KpiCard,
-  I1KpiCard,
-  PendingVizCard,
-  PhoneOfficialStoreTimelineChart,
-  ShareRateDonut,
-  VizCard,
-} from './components'
+import { AbandonElapsedCards, AnalyticsFilterBar, AnalyticsSection, ContentCompletionChart, DrillDownPanel, DwellTimeBar, EntryChannelDonut, EntryTimelineChart, FunnelAbandonChart, I11KpiCard, I12KpiCard, I1KpiCard, PendingVizCard, PhoneOfficialStoreTimelineChart, ShareRateDonut, VizCard } from './components'
 import { SECTION_META, VIZ_META } from './constants'
-import {
-  useAnalyticsAutoRefresh,
-  useAnalyticsDrillDown,
-  useAnalyticsFilters,
-  useI10EntryChannelTimeline,
-  useI11Kpi,
-  useI12Kpi,
-  useI13AbandonElapsed,
-  useI14PhoneOfficialStoreClicks,
-  useI1Kpi,
-  useI2ContentCompletion,
-  useI3FunnelAbandon,
-  useI5EntryTimeline,
-  useI6ShareRate,
-  useI7EntryChannel,
-  useI9DwellTime,
-} from './hooks'
+import { useAnalyticsAutoRefresh, useAnalyticsDrillDown, useAnalyticsFilters, useI10EntryChannelTimeline, useI13AbandonElapsed, useI14PhoneOfficialStoreClicks, useI2ContentCompletion, useI3FunnelAbandon, useI5EntryTimeline, useI6ShareRate, useI7EntryChannel, useI9DwellTime, useI11Kpi, useI12Kpi, useI1Kpi } from './hooks'
 import type { VizId, VizSection } from './types'
 
 // 백오피스 대시보드 페이지 — Grafana iframe 대체본.

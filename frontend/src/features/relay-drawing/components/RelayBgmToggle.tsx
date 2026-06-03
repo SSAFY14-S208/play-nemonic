@@ -4,8 +4,7 @@ import Image from 'next/image'
 
 import { cn } from '@/shared/libs'
 
-import soundMutedIcon from '../assets/sound-muted.png'
-import soundOnIcon from '../assets/sound-on.png'
+import { soundMutedIcon, soundOnIcon } from '@/features/relay-drawing/assets'
 import { useRelayBgmStore } from '../stores'
 
 // BGM mute 토글 버튼. relay-drawing 레이아웃 우상단에 floating으로 배치된다.

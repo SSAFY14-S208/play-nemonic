@@ -5,12 +5,7 @@ import { useEffect, useState } from 'react'
 import { postAdminLogsDistinctCount, postAdminLogsSearch } from '@/shared/apis'
 import type { AdminLogsFilter, AdminLogsTimeRange } from '@/shared/types'
 
-import type {
-  AnalyticsKpiState,
-  I1KpiData,
-  I11KpiData,
-  I12KpiData,
-} from '../types'
+import type { AnalyticsKpiState, I1KpiData, I11KpiData, I12KpiData } from '../types'
 
 // I1·I11·I12 KPI 데이터 fetch.
 //

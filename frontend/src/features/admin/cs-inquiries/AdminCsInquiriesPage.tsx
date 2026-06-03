@@ -14,13 +14,7 @@ import { useAdminAuthStore } from '@/shared/stores'
 import { canMutateBackoffice, formatKoreanDateTime } from '@/shared/utils'
 
 import { AdminReadOnlyNotice } from '../components'
-import {
-  InquiryDetailModal,
-  InquiryFilterBar,
-  InquiryPagination,
-  InquiryReplyModal,
-  InquiryStatusBadge,
-} from './components'
+import { InquiryDetailModal, InquiryFilterBar, InquiryPagination, InquiryReplyModal, InquiryStatusBadge } from './components'
 import { useAdminInquiries, useInquiryDetail } from './hooks'
 
 function formatDate(value: string | null): string {

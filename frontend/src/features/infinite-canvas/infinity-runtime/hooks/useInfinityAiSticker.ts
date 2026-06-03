@@ -5,7 +5,7 @@ import type Konva from 'konva'
 import { HTTPError, TimeoutError } from 'ky'
 import { toast } from 'sonner'
 import { ApiError, postInfiniteCanvasAiSticker } from '@/shared/apis'
-import type { InfinityImage, InfinityObject } from '../constants'
+import type { InfinityImage, InfinityObject } from '..'
 import type { ApiResponse, InfiniteCanvasAiStickerCreateResponse } from '@/shared/types'
 
 interface UseInfinityAiStickerParams {

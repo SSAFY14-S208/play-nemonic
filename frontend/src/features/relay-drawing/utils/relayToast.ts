@@ -1,6 +1,5 @@
 import type { CSSProperties } from "react";
-import type { ExternalToast } from "sonner";
-import { toast } from "sonner";
+import { toast, type ExternalToast } from "sonner";
 
 // 릴레이 드로잉 전용 토스트 스타일.
 // RelayButton primary 변형(bg-relay-accent + text-relay-ink)과 톤을 맞춘다.

@@ -11,8 +11,8 @@ import {
 } from "react";
 import { phoneIconEdit, phoneProfileAvatar } from "@/shared/assets";
 import { cn, logEvent } from "@/shared/libs";
-import { PHONE_APP_SHORTCUTS, PHONE_COLORS } from "../constants";
-import { usePhoneStore } from "../phoneStore";
+import { PHONE_APP_SHORTCUTS, PHONE_COLORS } from '../constants';
+import { usePhoneStore } from '..';
 
 const FALLBACK_NICKNAME = "게스트";
 const NICKNAME_MAX_LENGTH = 10;

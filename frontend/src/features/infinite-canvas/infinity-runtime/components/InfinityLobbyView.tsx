@@ -6,8 +6,8 @@ import { Button } from '@/shared/components'
 import { GameHeroSectionLayout } from '@/shared/layouts'
 import { cn } from '@/shared/libs'
 
-import { INFINITY_ANIMALS, INFINITY_COLORS } from '../constants'
-import { useInfinityCanvasStore } from '../infinityCanvasStore'
+import { INFINITY_ANIMALS, INFINITY_COLORS, useInfinityCanvasStore } from '..'
+
 
 export function InfinityLobbyView() {
   const { myAnimal, myColor, participants, setMyAnimal, setMyColor, setPhase } =

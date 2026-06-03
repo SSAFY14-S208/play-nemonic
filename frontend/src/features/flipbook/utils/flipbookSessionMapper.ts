@@ -1,14 +1,5 @@
-import type {
-  DrawingLine,
-  FlipbookDrawingAssignment,
-  FlipbookFramePayload,
-  FlipbookSessionSettings,
-  FlipbookSessionSnapshot,
-} from '@/shared/types'
-import {
-  FLIPBOOK_ROOM_CODE,
-  FLIPBOOK_TOPIC,
-} from '../constants'
+import type { DrawingLine, FlipbookDrawingAssignment, FlipbookFramePayload, FlipbookSessionSettings, FlipbookSessionSnapshot, } from '@/shared/types'
+import { FLIPBOOK_ROOM_CODE, FLIPBOOK_TOPIC } from '../constants'
 import type {
   FlipbookFrame,
   FlipbookParticipant,

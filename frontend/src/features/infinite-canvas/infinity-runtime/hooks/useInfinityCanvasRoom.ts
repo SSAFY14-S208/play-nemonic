@@ -36,7 +36,7 @@ import type {
   InfiniteCanvasStateResponse,
 } from '@/shared/types'
 import { takeInfiniteCanvasCreatedRoomSnapshot } from '../../utils'
-import { INFINITY_COLORS } from '../constants'
+import { INFINITY_COLORS } from '..'
 import { useInfinityRealtimeConnection } from './useInfinityRealtimeConnection'
 
 const INFINITE_CANVAS_FILE_CONTENT_TYPE = 'image/png'
@@ -254,10 +254,11 @@ function applyOperationsToElements(
       continue
     }
 
-    if (!operation.elementId) continue
+    const elementId = getOperationElementId(operation)
+    if (!elementId) continue
 
     if (operation.operationType === 'DELETE_ELEMENT') {
-      elementById.delete(operation.elementId)
+      elementById.delete(elementId)
       continue
     }
 
@@ -268,10 +269,10 @@ function applyOperationsToElements(
     ) {
       if (!operation.element) continue
       const nextElement = operation.element
-      if (!elementById.has(operation.elementId)) {
-        elementOrder.push(operation.elementId)
+      if (!elementById.has(elementId)) {
+        elementOrder.push(elementId)
       }
-      elementById.set(operation.elementId, nextElement)
+      elementById.set(elementId, nextElement)
     }
   }
 
@@ -314,7 +315,7 @@ function compactPendingOperations(operations: InfiniteCanvasOperationRequest[]) 
       continue
     }
 
-    const elementId = operation.elementId?.trim()
+    const elementId = getOperationElementId(operation)
     if (!elementId) {
       compactedOperations.push(operation)
       continue

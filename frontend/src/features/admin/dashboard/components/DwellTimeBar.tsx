@@ -11,9 +11,9 @@ import {
 } from 'recharts'
 import type { Formatter } from 'recharts/types/component/DefaultTooltipContent'
 
-import { CHART_STATUS_COLORS } from '../constants'
+import { CHART_STATUS_COLORS } from '..'
 import type { AnalyticsDrillDownState, AnalyticsKpiState } from '../types'
-import type { I9Bucket } from '../hooks/useAnalyticsCharts'
+import type { I9Bucket } from '../hooks'
 
 import { ChartFrame } from './ChartFrame'
 

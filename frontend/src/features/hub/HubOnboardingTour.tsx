@@ -10,7 +10,35 @@ import { AnimatePresence, motion } from 'motion/react'
 import { cn } from '@/shared/libs'
 import { useHubOnboardingStore, useHubRoomStore } from '@/shared/stores'
 import type { HubFocusKey } from '@/shared/types'
-import styles from './HubOnboardingTour.module.css'
+import './hub.css'
+
+const styles = {
+  root: 'hot-root',
+  backdrop: 'hot-backdrop',
+  panel: 'hot-panel',
+  accentBar: 'hot-accent-bar',
+  panelHeader: 'hot-panel-header',
+  skipButton: 'hot-skip-button',
+  stepRail: 'hot-step-rail',
+  stepRailItem: 'hot-step-rail-item',
+  stepRailDot: 'hot-step-rail-dot',
+  stepRailLabel: 'hot-step-rail-label',
+  stepRailItemCurrent: 'hot-step-rail-item-current',
+  stepRailItemCompleted: 'hot-step-rail-item-completed',
+  stepRailTrack: 'hot-step-rail-track',
+  stepBody: 'hot-step-body',
+  title: 'hot-title',
+  description: 'hot-description',
+  highlightList: 'hot-highlight-list',
+  highlightItem: 'hot-highlight-item',
+  highlightBullet: 'hot-highlight-bullet',
+  footer: 'hot-footer',
+  keyboardHint: 'hot-keyboard-hint',
+  keycap: 'hot-keycap',
+  navButton: 'hot-nav-button',
+  navButtonGhost: 'hot-nav-button-ghost',
+  navButtonPrimary: 'hot-nav-button-primary',
+}
 
 /** Where the panel sits on screen.
  * - `centered`: 화면 정중앙 + 약한 백드롭. 첫인상이 임팩트 있게 들어오는 welcome 단계용.

@@ -13,30 +13,10 @@ import { cn, logEvent } from "@/shared/libs";
 import { usePhoneLauncherStore } from "@/shared/stores";
 import { writeCommunityCanvasHandoffDraft } from "@/shared/utils";
 
-import {
-  FORTUNE_DIALOGUES,
-  FortuneBackToggle,
-  FortuneBgmToggle,
-  FortuneBirthForm,
-  FortuneDialoguePanel,
-  FortuneDrawPanel,
-  FortuneEntrySpotlightCover,
-  FortuneErrorView,
-  FortuneLimitNotice,
-  FortuneLoadingView,
-  FortuneMagicBackdrop,
-  FortunePrintStatus,
-  FortuneResultCard,
-} from "./components";
-import { useFortuneSessionStore } from "./fortuneSessionStore";
+import { FortuneDialoguePanel, FORTUNE_DIALOGUES, FortuneBackToggle, FortuneBgmToggle, FortuneBirthForm, FortuneDrawPanel, FortuneEntrySpotlightCover, FortuneErrorView, FortuneLimitNotice, FortuneLoadingView, FortuneMagicBackdrop, FortunePrintStatus, FortuneResultCard } from './components';
+import { useFortuneSessionStore } from './fortuneStore'
 import FortuneVisual from "./FortuneVisual";
-import {
-  useFortuneActions,
-  useFortuneAudio,
-  useFortuneBgm,
-  useFortuneReducedMotion,
-  useFortuneSessionHydration,
-} from "./hooks";
+import { useFortuneActions, useFortuneAudio, useFortuneBgm, useFortuneReducedMotion, useFortuneSessionHydration } from './hooks';
 import { createFortuneCommunityImageDataUrl } from "./utils";
 
 const LAST_DIALOGUE_INDEX = FORTUNE_DIALOGUES.length - 1;

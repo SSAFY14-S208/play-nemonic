@@ -9,9 +9,37 @@ import { useNemonicPrintVibration } from '@/shared/hooks'
 import { cn } from '@/shared/libs'
 import { playBrowserAudio, preloadBrowserAudio } from '@/shared/utils'
 
-import { FLIPBOOK_SOUND_PATHS } from '../../constants'
+import { FLIPBOOK_SOUND_PATHS } from '../..'
 import { useFlipbookPrintReveal } from '../../hooks'
-import styles from './FlipbookPrintResultStage.module.css'
+import './FlipbookPrintResultStage.css'
+
+const styles = {
+  stage: 'fprs-stage',
+  scene: 'fprs-scene',
+  background: 'fprs-background',
+  topFurniture: 'fprs-top-furniture',
+  leftFurniture: 'fprs-left-furniture',
+  boardLayer: 'fprs-board-layer',
+  boardImage: 'fprs-board-image',
+  attachedPaperFrame: 'fprs-attached-paper-frame',
+  printerLayer: 'fprs-printer-layer',
+  deviceImage: 'fprs-device-image',
+  slotPrintMask: 'fprs-slot-print-mask',
+  outputSlot: 'fprs-output-slot',
+  participantPanel: 'fprs-participant-panel',
+  participantPanelImage: 'fprs-participant-panel-image',
+  participantPanelHeader: 'fprs-participant-panel-header',
+  participantListViewport: 'fprs-participant-list-viewport',
+  participantListItem: 'fprs-participant-list-item',
+  participantSelectButton: 'fprs-participant-select-button',
+  skipPlaybackButton: 'fprs-skip-playback-button',
+  skipPlaybackButtonImage: 'fprs-skip-playback-button-image',
+  skipPlaybackButtonText: 'fprs-skip-playback-button-text',
+  frameArtistBadge: 'fprs-frame-artist-badge',
+  frameArtistBadgeImage: 'fprs-frame-artist-badge-image',
+  frameArtistBadgeLabel: 'fprs-frame-artist-badge-label',
+  frameArtistBadgeName: 'fprs-frame-artist-badge-name',
+}
 
 export interface FlipbookPrintFrame {
   id: string

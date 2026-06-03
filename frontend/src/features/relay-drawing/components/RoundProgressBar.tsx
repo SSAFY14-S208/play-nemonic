@@ -2,7 +2,7 @@
 
 import { Fragment } from "react";
 import { cn } from "@/shared/libs";
-import { RELAY_ROUNDS, RELAY_ROUND_ORDER } from "../constants";
+import { RELAY_ROUNDS, RELAY_ROUND_ORDER } from '../constants';
 import { useRelayDrawingStore } from "../stores";
 
 export default function RoundProgressBar() {

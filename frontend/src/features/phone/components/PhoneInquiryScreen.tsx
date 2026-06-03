@@ -3,7 +3,7 @@
 import { ArrowLeft } from 'lucide-react'
 import { PHONE_INQUIRY_TYPE_OPTIONS } from '../constants'
 import { usePhoneInquiry } from '../hooks'
-import { usePhoneStore } from '../phoneStore'
+import { usePhoneStore } from '..'
 
 const CONTENT_MAX_LENGTH = 500
 

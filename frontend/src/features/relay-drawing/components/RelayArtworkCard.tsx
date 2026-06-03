@@ -4,15 +4,17 @@ import { motion, type Variants } from "motion/react";
 
 import { cn } from "@/shared/libs";
 
-import drawing1Body from "../assets/drawing-1-body.png";
-import drawing1Face from "../assets/drawing-1-face.png";
-import drawing1Leg from "../assets/drawing-1-leg.png";
-import drawing2Body from "../assets/drawing-2-body.png";
-import drawing2Face from "../assets/drawing-2-face.png";
-import drawing2Leg from "../assets/drawing-2-leg.png";
-import drawing3Body from "../assets/drawing-3-body.png";
-import drawing3Face from "../assets/drawing-3-face.png";
-import drawing3Leg from "../assets/drawing-3-leg.png";
+import {
+  drawing1Body,
+  drawing1Face,
+  drawing1Leg,
+  drawing2Body,
+  drawing2Face,
+  drawing2Leg,
+  drawing3Body,
+  drawing3Face,
+  drawing3Leg,
+} from "@/features/relay-drawing/assets";
 
 import RelayLabelCard from "./RelayLabelCard";
 

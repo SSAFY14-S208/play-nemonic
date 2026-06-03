@@ -3,14 +3,10 @@
 import { useMemo, useState } from 'react'
 import Image from 'next/image'
 
-import { GameLobbyLayout, HowToPlayModal, PhoneLauncherButton } from '@/shared/components'
-import type { GameLobbyTheme, LobbyParticipant } from '@/shared/components'
+import { GameLobbyLayout, HowToPlayModal, PhoneLauncherButton, type GameLobbyTheme, type LobbyParticipant } from '@/shared/components'
 import type { FlipbookConnectionStatus } from '@/shared/types'
 
-import {
-  FLIPBOOK_HOW_TO_PLAY_PANELS,
-  FLIPBOOK_SOUND_PATHS,
-} from '../constants'
+import { FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '..'
 import { useFlipbookEntranceBgm } from '../hooks'
 import type { FlipbookParticipant, FlipbookTimeLimitSeconds } from '../types'
 

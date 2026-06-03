@@ -1,22 +1,19 @@
 'use client'
 
-import { useEffect, useRef, useState, type RefObject } from 'react'
-import Image from 'next/image'
-import Lottie from 'lottie-react'
 import { KeyRound, Sparkles, X } from 'lucide-react'
 import { motion } from 'motion/react'
+import Image from 'next/image'
+import { useEffect, useRef, useState, type RefObject } from 'react'
+import Lottie from 'lottie-react'
 import { downArrowAnimation } from '@/shared/assets'
 import { HowToPlayModal, PhoneLauncherButton } from '@/shared/components'
+import { FLIPBOOK_HOW_TO_PLAY_PANELS, FLIPBOOK_SOUND_PATHS } from '../constants'
 import {
   useFlipbookEntranceBgm,
   useFlipbookEntranceIntro,
   useFlipbookEntrancePreload,
   useFlipbookEntranceWheelFrames,
 } from '../hooks'
-import {
-  FLIPBOOK_HOW_TO_PLAY_PANELS,
-  FLIPBOOK_SOUND_PATHS,
-} from '../constants'
 
 interface FlipbookEntranceViewProps {
   roomCodeDraft: string

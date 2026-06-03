@@ -2,21 +2,9 @@
 
 import { useMemo } from 'react'
 
-import {
-  AnalyticsSection,
-  MetricsFilterBar,
-  RowContentActivity,
-  RowHostResources,
-  RowRequestResponse,
-  RowServiceStatus,
-  RowUserActivity,
-} from './components'
+import { AnalyticsSection, MetricsFilterBar, RowContentActivity, RowHostResources, RowRequestResponse, RowServiceStatus, RowUserActivity } from './components'
 import { ROW_META } from './constants'
-import {
-  useMetricsAutoRefresh,
-  useMetricsFilters,
-  type MetricsVizArgs,
-} from './hooks'
+import { useMetricsAutoRefresh, useMetricsFilters, type MetricsVizArgs } from './hooks'
 
 // 백오피스 통계 및 분석 페이지 — Grafana iframe 대체본.
 //

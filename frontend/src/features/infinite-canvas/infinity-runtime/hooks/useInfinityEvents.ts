@@ -4,17 +4,7 @@ import { useRef } from 'react'
 import type Konva from 'konva'
 import type { InfiniteCanvasOperationRequest } from '@/shared/types'
 
-import {
-  type InfinityFill,
-  type InfinityLine,
-  type InfinityObject,
-  type InfinityShape,
-  type InfinityText,
-  type InfinityToolKey,
-  INFINITY_TEXT_DEFAULT_COLOR,
-  INFINITY_TEXT_DEFAULT_FONT_FAMILY,
-  INFINITY_TEXT_DEFAULT_FONT_SIZE,
-} from '../constants'
+import { INFINITY_TEXT_DEFAULT_COLOR, INFINITY_TEXT_DEFAULT_FONT_FAMILY, INFINITY_TEXT_DEFAULT_FONT_SIZE, type InfinityFill, type InfinityLine, type InfinityObject, type InfinityShape, type InfinityText, type InfinityToolKey } from '..'
 function generateId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID()
@@ -41,6 +31,10 @@ const BUCKET_FILL_DILATION_COLOR_TOLERANCE = 96
 const BUCKET_FILL_HIT_PADDING = 20
 const BUCKET_FILL_IMAGE_PADDING = 2
 const BUCKET_FILL_WEBP_QUALITY = 0.82
+const BUCKET_FILL_TARGET_DATA_URL_LENGTH = 48_000
+const BUCKET_FILL_MIN_ENCODED_SIZE = 96
+const BUCKET_FILL_ENCODE_SCALES = [1, 0.75, 0.5, 0.35, 0.25, 0.18, 0.125, 0.08] as const
+const BUCKET_FILL_WEBP_QUALITIES = [BUCKET_FILL_WEBP_QUALITY, 0.68, 0.52, 0.38] as const
 const SHAPE_PREVIEW_MIN_DELTA = 0.5
 interface Bounds {
   x: number
@@ -278,18 +272,90 @@ function getCachedObjectBounds(object: InfinityObject): Bounds | null {
   return bounds
 }
 
-function createFillImageDataUrl(fillCanvas: HTMLCanvasElement) {
-  const pngDataUrl = fillCanvas.toDataURL('image/png')
-  const webpDataUrl = fillCanvas.toDataURL('image/webp', BUCKET_FILL_WEBP_QUALITY)
+function encodeCanvasDataUrl(
+  canvas: HTMLCanvasElement,
+  type: 'image/png' | 'image/webp',
+  quality?: number,
+) {
+  try {
+    const dataUrl = canvas.toDataURL(type, quality)
+    if (type === 'image/webp' && !dataUrl.startsWith('data:image/webp')) {
+      return null
+    }
+    return dataUrl
+  } catch {
+    return null
+  }
+}
 
-  if (
-    webpDataUrl.startsWith('data:image/webp') &&
-    webpDataUrl.length < pngDataUrl.length
-  ) {
-    return webpDataUrl
+function getBestDataUrlCandidate(canvas: HTMLCanvasElement) {
+  const pngDataUrl = encodeCanvasDataUrl(canvas, 'image/png')
+  const candidates = [
+    pngDataUrl,
+    ...BUCKET_FILL_WEBP_QUALITIES.map((quality) =>
+      encodeCanvasDataUrl(canvas, 'image/webp', quality),
+    ),
+  ].filter((dataUrl): dataUrl is string => Boolean(dataUrl))
+
+  if (candidates.length === 0) return null
+
+  const targetSizedCandidate = candidates.find(
+    (dataUrl) => dataUrl.length <= BUCKET_FILL_TARGET_DATA_URL_LENGTH,
+  )
+  if (targetSizedCandidate) return targetSizedCandidate
+
+  return candidates.reduce((shortestDataUrl, dataUrl) =>
+    dataUrl.length < shortestDataUrl.length ? dataUrl : shortestDataUrl,
+  )
+}
+
+function createScaledCanvas(sourceCanvas: HTMLCanvasElement, scale: number) {
+  const scaledWidth = Math.max(1, Math.round(sourceCanvas.width * scale))
+  const scaledHeight = Math.max(1, Math.round(sourceCanvas.height * scale))
+
+  if (scaledWidth === sourceCanvas.width && scaledHeight === sourceCanvas.height) {
+    return sourceCanvas
   }
 
-  return pngDataUrl
+  const scaledCanvas = document.createElement('canvas')
+  scaledCanvas.width = scaledWidth
+  scaledCanvas.height = scaledHeight
+  const scaledContext = scaledCanvas.getContext('2d')
+  if (!scaledContext) return null
+
+  scaledContext.imageSmoothingEnabled = true
+  scaledContext.imageSmoothingQuality = 'medium'
+  scaledContext.drawImage(sourceCanvas, 0, 0, scaledWidth, scaledHeight)
+  return scaledCanvas
+}
+
+function createFillImageDataUrl(fillCanvas: HTMLCanvasElement) {
+  let bestDataUrl = getBestDataUrlCandidate(fillCanvas)
+  if (!bestDataUrl) return ''
+  if (bestDataUrl.length <= BUCKET_FILL_TARGET_DATA_URL_LENGTH) return bestDataUrl
+
+  const sourceMaxSize = Math.max(fillCanvas.width, fillCanvas.height)
+  for (const scale of BUCKET_FILL_ENCODE_SCALES) {
+    if (scale === 1) continue
+    if (
+      sourceMaxSize * scale < BUCKET_FILL_MIN_ENCODED_SIZE &&
+      bestDataUrl.length <= BUCKET_FILL_TARGET_DATA_URL_LENGTH
+    ) {
+      break
+    }
+
+    const scaledCanvas = createScaledCanvas(fillCanvas, scale)
+    if (!scaledCanvas) continue
+
+    const candidateDataUrl = getBestDataUrlCandidate(scaledCanvas)
+    if (!candidateDataUrl) continue
+    if (candidateDataUrl.length < bestDataUrl.length) {
+      bestDataUrl = candidateDataUrl
+    }
+    if (bestDataUrl.length <= BUCKET_FILL_TARGET_DATA_URL_LENGTH) break
+  }
+
+  return bestDataUrl
 }
 
 function containsPoint(
@@ -458,7 +524,7 @@ function createBucketFillObject({
   let candidateMaxY = pointerPosition.y
 
   for (const object of objects) {
-    if (object.type === 'fill' || object.type === 'text') continue
+    if (object.type === 'fill' || object.type === 'text' || object.type === 'image') continue
     const bounds = getCachedObjectBounds(object)
     if (!bounds) continue
     const entry = { object, bounds }
@@ -537,7 +603,6 @@ function createBucketFillObject({
   const pending = new Int32Array(pixelCount)
   let pendingCount = 0
   let filledPixelCount = 0
-  let touchesBoundary = false
   let filledMinX = rawWidth
   let filledMinY = rawHeight
   let filledMaxX = 0
@@ -562,7 +627,7 @@ function createBucketFillObject({
     const x = currentPixelIndex % rawWidth
     const y = Math.floor(currentPixelIndex / rawWidth)
     if (x === 0 || y === 0 || x === rawWidth - 1 || y === rawHeight - 1) {
-      touchesBoundary = true
+      return null
     }
 
     fillPixels[pixelOffset] = selectedFillColor.red
@@ -581,7 +646,7 @@ function createBucketFillObject({
     if (y < rawHeight - 1) enqueuePixel(currentPixelIndex + rawWidth)
   }
 
-  if (filledPixelCount === 0 || touchesBoundary) return null
+  if (filledPixelCount === 0) return null
 
   for (let dilationPass = 0; dilationPass < BUCKET_FILL_DILATION_PASSES; dilationPass++) {
     const newlyFilledIndexes: number[] = []
@@ -657,6 +722,9 @@ function createBucketFillObject({
   fillCanvas.height = croppedHeight
   fillContext.putImageData(fillImageData, -cropMinX, -cropMinY)
 
+  const imageDataUrl = createFillImageDataUrl(fillCanvas)
+  if (!imageDataUrl) return null
+
   return {
     id: generateId(),
     type: 'fill',
@@ -665,7 +733,7 @@ function createBucketFillObject({
     width: croppedWidth,
     height: croppedHeight,
     color,
-    imageDataUrl: createFillImageDataUrl(fillCanvas),
+    imageDataUrl,
   }
 }
 
@@ -1276,7 +1344,7 @@ export function useInfinityEvents({
   }
 
   const onStageClick = (
-    e: Konva.KonvaEventObject<MouseEvent>,
+    e: Konva.KonvaEventObject<MouseEvent | TouchEvent>,
     toolSnapshot: InfinityToolKey,
   ) => {
     const stage = e.target.getStage()

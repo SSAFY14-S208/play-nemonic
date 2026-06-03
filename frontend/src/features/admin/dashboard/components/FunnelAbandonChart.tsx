@@ -2,9 +2,9 @@
 
 import { ChevronRight } from 'lucide-react'
 
-import { CHART_FUNNEL_COLORS, CHART_STATUS_COLORS } from '../constants'
+import { CHART_FUNNEL_COLORS, CHART_STATUS_COLORS } from '..'
 import type { AnalyticsDrillDownState, AnalyticsKpiState } from '../types'
-import type { I3Funnel } from '../hooks/useAnalyticsCharts'
+import type { I3Funnel } from '../hooks'
 
 import { ChartFrame } from './ChartFrame'
 
