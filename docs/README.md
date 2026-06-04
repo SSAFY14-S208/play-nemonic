@@ -14,6 +14,7 @@ Image and video files are committed with ASCII slugs to keep Git diffs and MR re
 
 | Feature | Folder | Notes |
 | --- | --- | --- |
+| 3D 메인룸 | `3d-main-room/` | Monitor navigation and bottom-tab interaction videos |
 | 네모닉 체험관 | `nemonic-experience/` | Printer entry, output, gallery output, phone modal flow |
 | 무한캔버스 | `infinite-canvas/` | Lobby, room creation, drawing, multi-user canvas, AI sticker, screenshot flow |
 | 백오피스 | `backoffice/` | Dashboard, statistics, AI prompt, OCR, community, CS inquiry, audit/admin screens |
