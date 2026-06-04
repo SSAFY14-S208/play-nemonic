@@ -23,6 +23,16 @@ export function isDummyResultPreviewRoute() {
   return searchParams.get('dummyResult') === '1' || searchParams.get('mockResult') === '1'
 }
 
+export function readRouteRoomCode() {
+  if (typeof window === 'undefined') return null
+  if (isDummyResultPreviewRoute()) return null
+
+  const queryRoomCode = new URLSearchParams(window.location.search).get('roomCode')
+  const normalizedRoomCode = queryRoomCode?.trim().toUpperCase() ?? ''
+
+  return normalizedRoomCode || null
+}
+
 export function markRouteRoomCodesHandled(...roomCodes: Array<string | null | undefined>) {
   roomCodes.forEach((roomCode) => {
     const normalizedRoomCode = roomCode?.trim().toUpperCase()

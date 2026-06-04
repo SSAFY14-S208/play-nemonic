@@ -15,13 +15,14 @@ import type {
   FlipbookStep,
   FlipbookTimeLimitSeconds,
 } from '../types'
-import { BLOCKED_REASON_MESSAGE, clearSubmittedDrawingLinesStorage, createFlipbookDummyResultItems, createLocalFlipbookParticipant, createPreviousFrameLinesFromAssignment, createRoomStateFromCreateResponse, getActiveFlipbookRoomCode, getAssignmentKey, getFlipbookTimeLimitOptions, getRoomParticipantCount, getSubmittedDrawingLinesKey, hasFlipbookRoomDismissed, hasConfiguredNickname, hasRouteRoomCodeHandled, isDummyResultPreviewRoute, isFlipbookAssignmentSubmitted, isSubmittedFrameForAssignment, markFlipbookRoomDismissed, markRouteRoomCodesHandled, readSubmittedDrawingLines, resetFlipbookRoomDismissed, setActiveFlipbookRoomCode, shouldIgnoreInactiveFlipbookRoom, toFlipbookTimeLimitSeconds, getFlipbookActionError, wait, writeSubmittedDrawingLines } from '../utils'
+import { BLOCKED_REASON_MESSAGE, clearSubmittedDrawingLinesStorage, createFlipbookDummyResultItems, createLocalFlipbookParticipant, createPreviousFrameLinesFromAssignment, createRoomStateFromCreateResponse, getActiveFlipbookRoomCode, getAssignmentKey, getFlipbookTimeLimitOptions, getRoomParticipantCount, getSubmittedDrawingLinesKey, hasFlipbookRoomDismissed, hasConfiguredNickname, hasRouteRoomCodeHandled, isDummyResultPreviewRoute, isFlipbookAssignmentSubmitted, isSubmittedFrameForAssignment, markFlipbookRoomDismissed, markRouteRoomCodesHandled, readRouteRoomCode, readSubmittedDrawingLines, resetFlipbookRoomDismissed, setActiveFlipbookRoomCode, shouldIgnoreInactiveFlipbookRoom, toFlipbookTimeLimitSeconds, getFlipbookActionError, wait, writeSubmittedDrawingLines } from '../utils'
 import { useFlipbookFrameUpload } from './useFlipbookFrameUpload'
 import { useFlipbookRealtimeConnection } from './useFlipbookRealtimeConnection'
 import { useFlipbookRealtimeEventHandler } from './useFlipbookRealtimeEventHandler'
 import { useFlipbookResultPresenter } from './useFlipbookResultPresenter'
 import { useFlipbookResultPolling } from './useFlipbookResultPolling'
 import { useFlipbookRoomDerivedState } from './useFlipbookRoomDerivedState'
+import { useFlipbookRouteHydration } from './useFlipbookRouteHydration'
 import { useFlipbookTimer } from './useFlipbookTimer'
 
 const SUBMITTED_ROUND_POLLING_INTERVAL_MS = 5000
@@ -152,16 +153,6 @@ export function useFlipbook({
       cancelled = true
     }
   }, [routeStep])
-
-  const readRouteRoomCode = useCallback(() => {
-    if (typeof window === 'undefined') return null
-    if (isDummyResultPreviewRoute()) return null
-
-    const queryRoomCode = new URLSearchParams(window.location.search).get('roomCode')
-    const normalizedRoomCode = queryRoomCode?.trim().toUpperCase() ?? ''
-
-    return normalizedRoomCode || null
-  }, [])
 
   const startActionRequest = useCallback(() => {
     actionRequestSequenceRef.current += 1
@@ -823,7 +814,6 @@ export function useFlipbook({
     isCurrentActionRequest,
     detachActiveRoom,
     openNicknameModal,
-    readRouteRoomCode,
     refreshRoom,
     resetRoomSession,
     roomCode,
@@ -1050,6 +1040,21 @@ export function useFlipbook({
       syncActiveRoomProgress,
     ],
   )
+
+  const requireRouteNickname = useCallback(() => {
+    openNicknameModal('enterRoom')
+  }, [openNicknameModal])
+
+  useFlipbookRouteHydration({
+    createRoomRequestInFlightRef,
+    handledRoomCodeRef: linkRoomCodeHandledRef,
+    hydrateRouteRoom,
+    nickname,
+    onRequireNickname: requireRouteNickname,
+    roomCode,
+    setRoomCodeDraft,
+    userUuid,
+  })
 
   const startGame = useCallback(async () => {
     if (!roomCode || isBusy || !canStartGame || !isWaitingRoom) return
@@ -1343,50 +1348,6 @@ export function useFlipbook({
       startActionRequest,
     ],
   )
-
-  useEffect(() => {
-    let cancelled = false
-
-    void (async () => {
-      if (isDummyResultPreviewRoute()) return
-      const targetRoomCode = readRouteRoomCode()
-      if (!targetRoomCode || cancelled) return
-      const activeRoomCode = getActiveFlipbookRoomCode()
-      if (createRoomRequestInFlightRef.current) return
-      if (activeRoomCode && activeRoomCode !== targetRoomCode) return
-
-      setRoomCodeDraft(targetRoomCode)
-
-      if (
-        !userUuid ||
-        roomCode === targetRoomCode ||
-        linkRoomCodeHandledRef.current === targetRoomCode ||
-        cancelled
-      ) {
-        return
-      }
-
-      linkRoomCodeHandledRef.current = targetRoomCode
-
-      if (!hasConfiguredNickname(nickname)) {
-        openNicknameModal('enterRoom')
-        return
-      }
-
-      await hydrateRouteRoom(targetRoomCode)
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [
-    nickname,
-    openNicknameModal,
-    hydrateRouteRoom,
-    readRouteRoomCode,
-    roomCode,
-    userUuid,
-  ])
 
   useEffect(() => {
     void (async () => {
