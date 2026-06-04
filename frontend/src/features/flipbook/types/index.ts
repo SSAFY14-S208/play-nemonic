@@ -12,3 +12,11 @@ export interface FlipbookParticipant {
 export type FlipbookTimeLimitSeconds = number
 
 export type FlipbookDrawingSubmissionState = 'drawing' | 'submitting' | 'waiting'
+
+export interface FlipbookTimeUpSubmitRequest {
+  roomCode: string
+  round: number
+  assignmentKey: string
+  roundDeadlineAt: string
+  occurredAt: string
+}

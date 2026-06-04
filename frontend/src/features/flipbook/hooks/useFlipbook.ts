@@ -13,6 +13,7 @@ import type {
 import { FLIPBOOK_BACKGROUND_COLOR, FLIPBOOK_BOARD_SIZE } from '../constants'
 import type {
   FlipbookStep,
+  FlipbookTimeUpSubmitRequest,
   FlipbookTimeLimitSeconds,
 } from '../types'
 import { BLOCKED_REASON_MESSAGE, clearSubmittedDrawingLinesStorage, createFlipbookDummyResultItems, createLocalFlipbookParticipant, createPreviousFrameLinesFromAssignment, createRoomStateFromCreateResponse, getActiveFlipbookRoomCode, getAssignmentKey, getFlipbookTimeLimitOptions, getRoomParticipantCount, getSubmittedDrawingLinesKey, hasFlipbookRoomDismissed, hasConfiguredNickname, hasRouteRoomCodeHandled, isDummyResultPreviewRoute, isFlipbookAssignmentSubmitted, isSubmittedFrameForAssignment, markFlipbookRoomDismissed, markRouteRoomCodesHandled, readRouteRoomCode, readSubmittedDrawingLines, resetFlipbookRoomDismissed, setActiveFlipbookRoomCode, shouldIgnoreInactiveFlipbookRoom, toFlipbookTimeLimitSeconds, getFlipbookActionError, wait, writeSubmittedDrawingLines } from '../utils'
@@ -23,9 +24,10 @@ import { useFlipbookResultPresenter } from './useFlipbookResultPresenter'
 import { useFlipbookResultPolling } from './useFlipbookResultPolling'
 import { useFlipbookRoomDerivedState } from './useFlipbookRoomDerivedState'
 import { useFlipbookRouteHydration } from './useFlipbookRouteHydration'
+import { useFlipbookSubmittedRoundPolling } from './useFlipbookSubmittedRoundPolling'
 import { useFlipbookTimer } from './useFlipbookTimer'
+import { useFlipbookTimeUpSubmission } from './useFlipbookTimeUpSubmission'
 
-const SUBMITTED_ROUND_POLLING_INTERVAL_MS = 5000
 const ASSIGNMENT_RETRY_DELAYS_MS = [1000, 2000, 3000, 5000]
 
 type FlipbookNicknamePendingAction = 'createRoom' | 'enterRoom'
@@ -118,13 +120,8 @@ export function useFlipbook({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUpdatingTimeLimit, startTimeLimitTransition] = useTransition()
   const [nicknameModalOpen, setNicknameModalOpen] = useState(false)
-  const [timeUpSubmitRequest, setTimeUpSubmitRequest] = useState<{
-    roomCode: string
-    round: number
-    assignmentKey: string
-    roundDeadlineAt: string
-    occurredAt: string
-  } | null>(null)
+  const [timeUpSubmitRequest, setTimeUpSubmitRequest] =
+    useState<FlipbookTimeUpSubmitRequest | null>(null)
   const [isDummyResultPreview, setIsDummyResultPreview] = useState(false)
   const isCompletingRoundRef = useRef(false)
   const linkRoomCodeHandledRef = useRef<string | null>(null)
@@ -1201,33 +1198,13 @@ export function useFlipbook({
     userUuid,
   ])
 
-  useEffect(() => {
-    let cancelled = false
-
-    void (async () => {
-      if (!timeUpSubmitRequest || !assignment) return
-      const isCurrentTimeUpRequest =
-        timeUpSubmitRequest.roomCode === roomCode &&
-        timeUpSubmitRequest.round === assignment.currentRound &&
-        timeUpSubmitRequest.assignmentKey === getAssignmentKey(assignment) &&
-        timeUpSubmitRequest.roundDeadlineAt === assignment.roundDeadlineAt
-      if (!isCurrentTimeUpRequest) {
-        if (!cancelled) {
-          setTimeUpSubmitRequest(null)
-        }
-        return
-      }
-
-      await completeRound({ keepSubmittingUntilServerAdvance: true })
-      if (!cancelled) {
-        setTimeUpSubmitRequest(null)
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [assignment, completeRound, roomCode, timeUpSubmitRequest])
+  useFlipbookTimeUpSubmission({
+    assignment,
+    completeRound,
+    roomCode,
+    setTimeUpSubmitRequest,
+    timeUpSubmitRequest,
+  })
 
   const selectTimeLimit = useCallback(
     (timeLimitSeconds: FlipbookTimeLimitSeconds) => {
@@ -1370,52 +1347,13 @@ export function useFlipbook({
     })()
   }, [currentStep, realtime.connectionStatus, roomCode, syncActiveRoomProgress])
 
-  useEffect(() => {
-    if (!roomCode || currentStep !== 'drawing' || !isRoundSubmitted) return
-    if (realtime.connectionStatus === 'connected') return
-
-    let cancelled = false
-    let pollingTimer: number | null = null
-
-    const pollSubmittedRound = async () => {
-      if (cancelled) return
-
-      try {
-        const nextRoomState = await syncActiveRoomProgress(roomCode)
-        if (cancelled) return
-
-        if (nextRoomState?.status === 'PLAYING') {
-          pollingTimer = window.setTimeout(
-            pollSubmittedRound,
-            SUBMITTED_ROUND_POLLING_INTERVAL_MS,
-          )
-        }
-      } catch {
-        if (!cancelled) {
-          pollingTimer = window.setTimeout(
-            pollSubmittedRound,
-            SUBMITTED_ROUND_POLLING_INTERVAL_MS,
-          )
-        }
-      }
-    }
-
-    void pollSubmittedRound()
-
-    return () => {
-      cancelled = true
-      if (pollingTimer !== null) {
-        window.clearTimeout(pollingTimer)
-      }
-    }
-  }, [
-    assignment,
+  useFlipbookSubmittedRoundPolling({
     currentStep,
     isRoundSubmitted,
-    realtime.connectionStatus,
+    realtimeConnectionStatus: realtime.connectionStatus,
     roomCode,
     syncActiveRoomProgress,
-  ])
+  })
 
   return {
     currentStep,

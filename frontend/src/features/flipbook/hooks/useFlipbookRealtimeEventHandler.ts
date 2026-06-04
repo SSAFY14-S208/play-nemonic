@@ -9,7 +9,7 @@ import type {
   FlipbookWsRoundTimeUpData,
   FlipbookRoomStateResponse,
 } from '@/shared/types'
-import type { FlipbookStep, FlipbookTimeLimitSeconds } from '../types'
+import type { FlipbookStep, FlipbookTimeLimitSeconds, FlipbookTimeUpSubmitRequest } from '../types'
 import { getAssignmentKey, toFlipbookTimeLimitSeconds } from '../utils'
 
 function isFlipbookAssignmentSubmitted(assignment: FlipbookAssignmentResponse | null) {
@@ -92,15 +92,7 @@ interface UseFlipbookRealtimeEventHandlerOptions {
   setSubmittedFrameCount: Dispatch<SetStateAction<number>>
   setSubmissionTotalCount: Dispatch<SetStateAction<number>>
   setSubmittedAssignmentKeys: Dispatch<SetStateAction<Set<string>>>
-  setTimeUpSubmitRequest: Dispatch<
-    SetStateAction<{
-      roomCode: string
-      round: number
-      assignmentKey: string
-      roundDeadlineAt: string
-      occurredAt: string
-    } | null>
-  >
+  setTimeUpSubmitRequest: Dispatch<SetStateAction<FlipbookTimeUpSubmitRequest | null>>
 }
 
 export function useFlipbookRealtimeEventHandler({
