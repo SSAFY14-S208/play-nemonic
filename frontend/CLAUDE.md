@@ -24,6 +24,12 @@ Identify the task type and read the corresponding file before writing any code.
 | GitLab MR title and description  | [docs/merge-request.md](docs/merge-request.md)         |
 | Logging, event tracking          | [docs/logging.md](docs/logging.md) + [docs/logging-events.md](docs/logging-events.md) |
 
+## Pre-Completion Verification (Mandatory)
+
+A Stop hook automatically runs `frontend/scripts/verify.mjs` before each response ends — this script runs `tsc --noEmit` then `eslint --max-warnings 0` on modified files. If either check fails, fix the reported errors before completing.
+
+After the automated checks pass, open [docs/checklist.md](docs/checklist.md) and verify each item that applies to your change. If any item fails, fix the code before completing.
+
 ## Stack
 
 Next.js 16 App Router · TypeScript · Tailwind CSS v4

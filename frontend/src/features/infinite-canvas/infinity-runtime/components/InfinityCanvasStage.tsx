@@ -1299,7 +1299,8 @@ export function InfinityCanvasStage({
       ref={stageRef}
       width={width}
       height={height}
-      style={{ cursor: getCursorStyle(tool) }}
+      className="touch-none"
+      style={{ cursor: getCursorStyle(tool), touchAction: "none" }}
       onDragEnd={(e) => {
         if (e.target === e.target.getStage()) {
           onStageDragEnd();
@@ -1319,7 +1320,27 @@ export function InfinityCanvasStage({
         const targetIsStage = e.target === stage;
         onStageMouseDown(stage, toolRef.current, targetIsStage);
       }}
+      onTouchStart={(e) => {
+        e.evt.preventDefault();
+        const stage = e.target.getStage();
+        if (!stage) return;
+        const targetIsStage = e.target === stage;
+        onStageMouseDown(stage, toolRef.current, targetIsStage);
+      }}
       onMouseMove={(e) => {
+        const stage = e.target.getStage();
+        if (!stage) return;
+        onStageMouseMove(stage, toolRef.current);
+        const pointerPosition = stage.getRelativePointerPosition();
+        if (!pointerPosition) return;
+        onCursorMove({
+          x: pointerPosition.x,
+          y: pointerPosition.y,
+          zoom: scaleRef.current,
+        });
+      }}
+      onTouchMove={(e) => {
+        e.evt.preventDefault();
         const stage = e.target.getStage();
         if (!stage) return;
         onStageMouseMove(stage, toolRef.current);
@@ -1335,7 +1356,17 @@ export function InfinityCanvasStage({
         stopWheelButtonPanning();
         onStageMouseUp(toolRef.current);
       }}
+      onTouchEnd={(e) => {
+        e.evt.preventDefault();
+        stopWheelButtonPanning();
+        onStageMouseUp(toolRef.current);
+      }}
       onMouseLeave={() => {
+        stopWheelButtonPanning();
+        onStageMouseLeave(toolRef.current);
+      }}
+      onTouchCancel={(e: Konva.KonvaEventObject<TouchEvent>) => {
+        e.evt.preventDefault();
         stopWheelButtonPanning();
         onStageMouseLeave(toolRef.current);
       }}
@@ -1343,6 +1374,7 @@ export function InfinityCanvasStage({
       onContextMenu={(e) => e.evt.preventDefault()}
       onWheel={onStageWheel}
       onClick={(e) => onStageClick(e, toolRef.current)}
+      onTap={(e) => onStageClick(e, toolRef.current)}
     >
       {/* Layer 0 — 캔버스 배경 */}
       <Layer id={INFINITY_CANVAS_BACKGROUND_LAYER_ID} listening={false}>

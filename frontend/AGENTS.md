@@ -24,6 +24,18 @@ Identify the task type and read the corresponding file before writing any code.
 | GitLab MR title and description  | [docs/merge-request.md](docs/merge-request.md)         |
 | Logging, event tracking          | [docs/logging.md](docs/logging.md) + [docs/logging-events.md](docs/logging-events.md) |
 
+## Pre-Completion Verification (Mandatory)
+
+Before marking any task complete, run the following commands from the `frontend/` directory and fix **all** reported errors. Do not hand off with failures.
+
+```bash
+node scripts/verify.mjs
+```
+
+This script auto-detects modified TypeScript files via `git status` and runs `tsc --noEmit` then `eslint --max-warnings 0`. Fix all reported errors before completing.
+
+After the automated checks pass, open [docs/checklist.md](docs/checklist.md) and verify each item that applies to your change. If any item fails, fix the code before completing.
+
 ## Stack
 
 Next.js 16 App Router · TypeScript · Tailwind CSS v4
