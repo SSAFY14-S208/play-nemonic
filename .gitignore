@@ -1,5 +1,8 @@
 .idea/
-.claude/
+.claude/*
+!.claude/settings.json
+!.claude/hooks
+!.claude/hooks/**
 .worktrees/
 *.iml
 .DS_Store

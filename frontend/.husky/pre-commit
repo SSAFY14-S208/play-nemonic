@@ -1,0 +1,9 @@
+#!/bin/sh
+# 스테이징된 frontend .ts/.tsx 파일이 없으면 즉시 통과 (Node.js 불필요)
+FRONTEND_TS=$(git diff --cached --name-only | grep -E '^frontend/.*\.(ts|tsx)$')
+if [ -z "$FRONTEND_TS" ]; then
+  exit 0
+fi
+
+# 프론트 파일이 있을 때만 검증 실행
+node frontend/scripts/verify.mjs
