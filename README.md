@@ -258,7 +258,7 @@ drawing / fortune / flipbook / relay
 
 ## 관측 가능성과 운영 백오피스
 
-![시스템 개요](./docs/system-overview.png)
+[로그 파이프라인 구성도 보기](./docs/log-pipeline.html)
 
 - 프론트엔드 행동 로그와 백엔드 API/도메인 이벤트를 분리 수집해 중복 이벤트를 줄였습니다.
 - Fluent Bit, Kafka, OpenSearch, Dashboards 기반 로그 파이프라인으로 접속, 전환, 오류, 감사 로그를 분석합니다.
