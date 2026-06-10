@@ -21,7 +21,6 @@
 - [시스템 아키텍처](#시스템-아키텍처)
 - [프로젝트 구조](#프로젝트-구조)
 - [기술 스택](#기술-스택)
-- [로컬 실행 방법](#로컬-실행-방법)
 
 # 기획 배경
 
@@ -232,25 +231,15 @@ PLAY NEMONIC은 네모닉 기기의 출력 경험을 웹으로 옮긴 Phygital �
 
 ## 산출물 · 갤러리 · 커뮤니티 게시 파이프라인
 
-```text
-drawing / fortune / flipbook / relay
-        │
-        ▼
-   artifact 생성
-        │
-        ▼
- 개인 갤러리 저장
-        │
-        ├── 공유 링크 / 이미지 조회
-        │
-        └── 커뮤니티 보드에 메모로 출력
-```
+[Artifact 파이프라인 구성도 보기](./docs/artifact-pipeline.html)
 
 - 사용자가 만든 결과물은 `artifact`로 관리되어 갤러리에서 다시 조회할 수 있습니다.
 - 이미지 파일은 presigned URL로 MinIO에 직접 업로드하고, 서버는 파일 확정과 메타데이터를 관리합니다.
 - 커뮤니티 게시 시에는 원본 artifact와 게시용 이미지 스냅샷을 분리해, 같은 결과물을 여러 방식으로 게시할 수 있습니다.
 
 ## AI 모더레이션과 콘텐츠 안전성
+
+![OCR 결과 상세](./docs/backoffice/09_ocr-result-detail.png)
 
 - 커뮤니티 메모 게시 전 텍스트와 이미지 기반 모더레이션을 수행해 부적절한 콘텐츠 노출을 줄입니다.
 - FastAPI 기반 moderation server를 별도 서비스로 운영하며, 한국어 유해 표현 모델과 OCR 설정을 분리했습니다.
@@ -360,54 +349,3 @@ S14P31S208/
   <img src="https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white"/>
   <img src="https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white"/>
 </div>
-
-# 로컬 실행 방법
-
-## Backend
-
-```bash
-cd backend
-cp .env.example .env
-docker compose -f docker-compose.local.yml up -d
-./gradlew bootRun
-```
-
-검증:
-
-```bash
-cd backend
-./gradlew --no-daemon spotlessCheck test bootJar
-```
-
-## Frontend
-
-```bash
-cd frontend
-pnpm install
-pnpm dev
-```
-
-검증:
-
-```bash
-cd frontend
-pnpm lint
-pnpm build
-```
-
-## Production Compose
-
-운영 배포는 루트의 `docker-compose.prod.yml`을 기준으로 구성됩니다.
-
-```bash
-docker compose -f docker-compose.prod.yml up -d
-```
-
-주요 서비스:
-
-- `frontend`: Next.js standalone 서비스
-- `app`: Spring Boot API 서버
-- `moderation-server`: AI 모더레이션 FastAPI 서버
-- `postgres`, `redis`, `minio`: 데이터 저장소
-- `nginx`: HTTPS 진입점과 프록시
-- `jenkins`, `registry`: CI/CD와 자체 Docker Registry
