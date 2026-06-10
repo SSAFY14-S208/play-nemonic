@@ -1,760 +1,413 @@
-# nemonic Logging Infrastructure
+# PLAY NEMONIC
 
-EC2 단일 호스트의 모든 Docker 컨테이너 로그를 수집·파싱·인덱싱하여 OpenSearch
-Dashboards에서 시각화하는 종합 로그 분석 플랫폼.
+> ### "하드웨어의 한계를 넘어, 웹에서 네모닉을 직접 경험합니다"
+>
+> 네모닉의 출력, 점착, 활용 경험을 3D 공간과 인터랙티브 콘텐츠로 옮겨
+> 실물 기기가 없어도 누구나 즐길 수 있게 만든 Phygital 인터랙티브 사이트
+>
+- **서비스명**: PLAY NEMONIC
+- **개발 기간**: 2026.04.06 ~ 2026.06.04
+- **개발 인원**: 6명 (FE 3, BE 3)
+- **서비스 목적**: 실제 네모닉 기기가 없어도 웹에서 출력 경험과 콘텐츠 활용성을 체험할 수 있는 사이트
 
----
+![썸네일](./docs/thumb.png)
 
-## 1. Stack
+# 목차
 
-```
-[All containers stdout]
+- [기획 배경](#기획-배경)
+- [서비스 소개](#서비스-소개)
+- [주요 화면 및 기능 소개](#주요-화면-및-기능-소개)
+- [프로젝트 핵심 기술](#프로젝트-핵심-기술)
+- [시스템 아키텍처](#시스템-아키텍처)
+- [프로젝트 구조](#프로젝트-구조)
+- [기술 스택](#기술-스택)
+- [로컬 실행 방법](#로컬-실행-방법)
+
+# 기획 배경
+
+네모닉은 디지털 데이터를 물리적인 점착 메모와 라벨로 즉시 변환하는 IoT 출력 디바이스입니다. 잉크가 필요 없는 감열식 출력, 점착 메모와 라벨을 오가는 폼팩터, 업무 도구와 교육 솔루션으로 확장되는 생태계를 갖추고 있지만, 실물 기기가 없는 사용자는 네모닉 특유의 즉각적이고 물리적인 경험에 접근하기 어렵습니다.
+
+PLAY NEMONIC은 이 구매 전 체험 장벽을 낮추기 위해 기획되었습니다. 실제 기기를 보유하지 않아도 웹에서 네모닉의 핵심 흐름인 `출력 → 점착 → 활용`을 경험하게 만들고, 단순 제품 소개를 넘어 사용자가 직접 만들고 공유하는 가상의 체험 공간을 제공하는 것이 목표였습니다.
+
+특히 10대와 20대 사용자가 흥미를 느낄 수 있도록 생성형 AI, 실시간 멀티플레이, 밈과 공유 중심의 콘텐츠를 결합했습니다. 이를 통해 네모닉이 가진 피지컬 출력 경험을 온라인에서도 직관적으로 이해하고, 자연스럽게 다시 방문하고 싶어지는 플레이그라운드로 확장하고자 했습니다.
+
+# 서비스 소개
+
+PLAY NEMONIC은 네모닉 기기의 출력 경험을 웹으로 옮긴 Phygital 인터랙티브 사이트입니다. 사용자는 3D 메인룸에서 콘텐츠를 선택하고, 무한캔버스, 플립북, 릴레이 드로잉, 오늘의 운세, 커뮤니티 보드 같은 콘텐츠를 즐기며 자신만의 결과물을 만들 수 있습니다.
+
+완성된 결과물은 가상 네모닉 기기를 통해 출력되는 것처럼 표현됩니다. 출력 소리, 용지가 나오는 모션, 박스를 열어 결과물을 확인하는 과정, 메모가 커뮤니티 보드에 붙어 남는 흐름을 시각과 청각 인터랙션으로 구현해 실제 기기가 없어도 네모닉을 직접 사용하는 듯한 감각을 제공합니다.
+
+즉, PLAY NEMONIC은 제품을 설명하는 페이지가 아니라 사용자가 그리고, 만들고, 뽑고, 붙이며 네모닉의 가능성을 먼저 경험하는 웹 기반 체험 사이트입니다.
+
+# 주요 화면 및 기능 소개
+
+## 3D 메인룸
+
+<table>
+  <tr>
+    <th>전체 방</th>
+    <th>콘텐츠 선택</th>
+    <th>원격 모니터 이동</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="./docs/3d-main-room/video_bottom-tab-navigation.gif" alt="3D 메인룸 전체 방" width="300"></td>
+    <td align="center"><img src="./docs/3d-main-room/video_monitor-game-navigation-alt.gif" alt="3D 메인룸 콘텐츠 선택" width="300"></td>
+    <td align="center"><img src="./docs/3d-main-room/video_remote-monitor-navigation.gif" alt="3D 메인룸 원격 모니터 이동" width="300"></td>
+  </tr>
+</table>
+
+- 사용자는 3D 방 형태의 메인룸에서 네모닉 체험 사이트에 진입합니다.
+- 모니터와 하단 탭을 통해 커뮤니티 보드, 무한캔버스, 플립북, 릴레이 드로잉, 운세, 네모닉 체험관으로 이동할 수 있습니다.
+- Three.js 기반 3D 씬으로 서비스의 첫인상을 만들고, 실제 체험 공간에 들어온 듯한 몰입감을 제공합니다.
+
+## 커뮤니티 보드
+
+<table>
+  <tr>
+    <th>커뮤니티 보드</th>
+    <th>커뮤니티 공유</th>
+    <th>공유된 사진</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="./docs/community-board/video_full-recording.gif" alt="커뮤니티 보드 전체 흐름" width="300"></td>
+    <td align="center"><img src="./docs/community-board/07_memo-share.png" alt="커뮤니티 공유" width="300"></td>
+    <td align="center"><img src="./docs/community-board/08_shared-image.png" alt="공유된 사진" width="300"></td>
+  </tr>
+</table>
+
+- 사용자는 직접 작성한 메모나 다른 콘텐츠에서 만든 결과물을 커뮤니티 보드에 붙일 수 있습니다.
+- 공용 벽의 최대 부착 가능 메모 수는 백오피스에서 조정할 수 있으며, 기본 운영값은 약 70개로 설정했습니다.
+- 커뮤니티에 붙인 메모는 공유 링크와 이미지로 외부에 공유할 수 있어, 사용자가 만든 결과물이 서비스 밖으로도 확산됩니다.
+- 게시 전 OCR/텍스트 모더레이션으로 부적절한 콘텐츠 노출을 줄이고, 신고/삭제/상세 보기 흐름을 제공합니다.
+- 결과물이 모이는 공간 자체가 전시장이 되도록, 네모닉 출력물이 벽에 남는 경험을 중심으로 설계했습니다.
+
+## 네모닉 출력 체험관
+
+![네모닉 체험관](./docs/nemonic-experience/video_full-recording.gif)
+
+- 실제 네모닉 기기가 없어도 웹에서 출력 과정을 체험할 수 있는 공간입니다.
+- 사용자는 출력 박스를 열고, 종이가 출력되는 연출과 소리를 통해 기기 사용감을 간접 경험합니다.
+- 갤러리 결과물을 다시 꺼내 출력하는 흐름을 제공해, 콘텐츠 제작과 출력 경험을 하나로 연결합니다.
+
+## 무한캔버스
+
+<table>
+  <tr>
+    <th>입장 화면</th>
+    <th>그리기</th>
+    <th>출력</th>
+    <th>AI 스티커</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="./docs/infinite-canvas/02_lobby.png" alt="무한캔버스 입장 화면" width="220"></td>
+    <td align="center"><img src="./docs/infinite-canvas/video_nemonic-drawing-demo.gif" alt="무한캔버스 그리기" width="220"></td>
+    <td align="center"><img src="./docs/infinite-canvas/video_nemonic-print-demo.gif" alt="무한캔버스 출력" width="220"></td>
+    <td align="center"><img src="./docs/infinite-canvas/07_ai-sticker-result.png" alt="무한캔버스 AI 스티커" width="220"></td>
+  </tr>
+</table>
+
+- 여러 사용자가 같은 캔버스에 접속해 실시간으로 그림을 그리고 요소를 배치할 수 있습니다.
+- WebSocket 기반 동기화로 참여자별 드로잉 상태를 공유하고, 방 상태는 Redis에 저장합니다.
+- AI 스티커 생성, 캡처, 갤러리 저장, 커뮤니티 게시 흐름으로 이어집니다.
+- 빈 방이나 방치된 방은 자동 정리되어 운영 리소스가 누적되지 않도록 설계했습니다.
+
+## 플립북
+
+<table>
+  <tr>
+    <th>입장 화면</th>
+    <th>게임 진행</th>
+    <th>결과 공개</th>
+  </tr>
+  <tr>
+    <td valign="top">
+      <p align="center">
+        <img src="./docs/flipbook/video_entry-animation.gif" alt="플립북 입장" width="300"><br/><br/>
+      </p>
+      <ul>
+        <li>참여자는 링크 또는 QR로 방에 입장해 프레임을 그립니다.</li>
+        <li>방 생성 후 참여자를 기다리는 로비 흐름을 제공합니다.</li>
+      </ul>
+    </td>
+    <td valign="top">
+      <p align="center">
+        <img src="./docs/flipbook/video_drawing-preview.gif" alt="플립북 게임 진행" width="300"><br/><br/>
+      </p>
+      <ul>
+        <li>각 참여자가 맡은 프레임을 그려 움직임의 한 장면을 완성합니다.</li>
+        <li>제출된 프레임은 순서대로 합쳐져 하나의 플립북이 됩니다.</li>
+      </ul>
+    </td>
+    <td valign="top">
+      <p align="center">
+        <img src="./docs/flipbook/video_result-share.gif" alt="플립북 결과 공개" width="300"><br/><br/>
+      </p>
+      <ul>
+        <li>완성된 플립북은 갤러리에 저장하고 공유할 수 있습니다.</li>
+        <li>네모닉 출력 체험과 연결해 결과물을 메모처럼 남길 수 있습니다.</li>
+      </ul>
+    </td>
+  </tr>
+</table>
+
+## 우당탕 릴레이 드로잉
+
+<table>
+  <tr>
+    <th>입장 화면</th>
+    <th>게임 진행</th>
+    <th>결과 화면</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="./docs/relay-drawing/video_entry-animation.gif" alt="릴레이 드로잉 입장" width="300"></td>
+    <td align="center"><img src="./docs/relay-drawing/video_gameplay-draft.gif" alt="릴레이 드로잉 게임 진행" width="300"></td>
+    <td align="center"><img src="./docs/relay-drawing/14_result-desktop.png" alt="릴레이 드로잉 결과" width="300"></td>
+  </tr>
+</table>
+
+- 참여자들이 얼굴, 몸통, 다리 파트를 나누어 그리고 다음 사람에게 캔버스를 넘깁니다.
+- 이전 파트의 일부만 보고 이어 그리기 때문에 예측할 수 없는 캐릭터가 완성됩니다.
+- 방코드, 공유 링크, QR 초대를 지원하며, 방장 이탈/참여자 재접속/자동 제출 정책을 포함합니다.
+- 최종 결과물은 갤러리에 저장되고 커뮤니티 보드 게시로 이어집니다.
+
+## 오늘의 운세
+
+![오늘의 운세](./docs/daily-fortune/video_full-recording.gif)
+
+- 사용자의 생년월일 정보를 바탕으로 프론트엔드에서 만세력 라이브러리 결과를 계산합니다.
+- 서버는 프론트엔드에서 받은 사주 데이터를 GMS API에 전달해 운세 풀이를 생성하고, 하루 1회 제한 정책을 적용합니다.
+- 운세 카드 역시 갤러리와 커뮤니티 보드로 이어져 출력 가능한 콘텐츠가 됩니다.
+
+## 백오피스
+
+<table>
+  <tr>
+    <th>대시보드</th>
+    <th>AI 프롬프트 관리</th>
+    <th>콘텐츠 파라미터 조정</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="./docs/backoffice/01_dashboard-overview.png" alt="백오피스 대시보드" width="280"></td>
+    <td align="center"><img src="./docs/backoffice/07_ai-prompt-config.png" alt="AI 프롬프트 관리" width="280"></td>
+    <td align="center"><img src="./docs/backoffice/08_content-parameters.png" alt="콘텐츠 파라미터 조정" width="280"></td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <th>활성 메모 확인</th>
+    <th>슈퍼 관리자 계정 관리</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="./docs/backoffice/10_community-management.png" alt="활성 메모 확인" width="430"></td>
+    <td align="center"><img src="./docs/backoffice/14_admin-management.png" alt="슈퍼 관리자 계정 관리" width="430"></td>
+  </tr>
+</table>
+
+- 운영자는 대시보드에서 사용자 활동, 콘텐츠 현황, 신고와 문의 상태를 확인합니다.
+- AI 프롬프트와 콘텐츠 파라미터를 백오피스에서 조정해 운영 중에도 콘텐츠 품질을 관리할 수 있습니다.
+- 활성 메모 확인, 커뮤니티 관리, 일반 관리자 계정 관리 기능을 통해 서비스 운영 권한을 분리했습니다.
+
+# 프로젝트 핵심 기술
+
+## 3D 체험 공간과 콘텐츠 라우팅
+
+![3D 메인룸](./docs/3d-main-room/video_bottom-tab-navigation.gif)
+
+- `@react-three/fiber`, `@react-three/drei`, `@react-three/rapier`를 활용해 3D 메인룸과 인터랙션을 구현했습니다.
+- 메인룸의 모니터, 오브젝트, 하단 탭을 서비스 콘텐츠 진입점으로 연결했습니다.
+- 3D 씬은 `worlds/` 단위로 분리하고, 서비스 기능은 `features/` 단위로 관리해 화면 복잡도를 낮췄습니다.
+
+## 실시간 멀티플레이 드로잉
+
+| 콘텐츠 | 실시간 처리 | 저장 방식 |
+| --- | --- | --- |
+| 무한캔버스 | WebSocket 기반 요소/드로잉 동기화 | 활성 상태 Redis, 결과물 MinIO/PostgreSQL |
+| 릴레이 드로잉 | 방/참여자/파트 진행 이벤트 동기화 | 진행 상태 Redis, 최종 산출물 PostgreSQL |
+| 플립북 | 방/라운드/제출 상태 동기화 | 프레임 업로드 후 최종 결과물 생성 |
+
+- STOMP/WebSocket을 통해 방 상태, 참여자 목록, 제출 상태, 결과 생성 흐름을 실시간으로 전달합니다.
+- Redis에는 진행 중 상태를 저장하고, 최종 산출물은 MinIO와 PostgreSQL에 분리해 저장합니다.
+- 방장 이탈, 재접속, 자동 제출, 종료 처리 등 멀티플레이에서 발생하는 예외 상황을 정책화했습니다.
+
+## 산출물 · 갤러리 · 커뮤니티 게시 파이프라인
+
+```text
+drawing / fortune / flipbook / relay
         │
         ▼
-   Fluent Bit  (호스트 모든 컨테이너 자동 수집, Lua로 container_id 추출)
+   artifact 생성
         │
         ▼
-     Kafka     (버퍼링 + 백프레셔, 단일 노드 KRaft)
+ 개인 갤러리 저장
         │
-        ▼
-   Logstash    (grok 파싱: Spring Boot 포맷, 자기 로그 drop)
+        ├── 공유 링크 / 이미지 조회
         │
-        ▼
-  OpenSearch   (인덱싱: nemonic-app-logs-YYYY.MM.dd)
-        │
-        ▼
-  Dashboards   (https://k14s208.p.ssafy.io/_dashboards)
+        └── 커뮤니티 보드에 메모로 출력
 ```
 
-### 1.1 검증된 버전 조합
+- 사용자가 만든 결과물은 `artifact`로 관리되어 갤러리에서 다시 조회할 수 있습니다.
+- 이미지 파일은 presigned URL로 MinIO에 직접 업로드하고, 서버는 파일 확정과 메타데이터를 관리합니다.
+- 커뮤니티 게시 시에는 원본 artifact와 게시용 이미지 스냅샷을 분리해, 같은 결과물을 여러 방식으로 게시할 수 있습니다.
 
-| 컴포넌트 | 이미지 | 버전 |
-| --- | --- | --- |
-| Fluent Bit | `fluent/fluent-bit` | 3.1 |
-| Kafka | `confluentinc/cp-kafka` | 7.5.4 (= Kafka 3.5) |
-| OpenSearch | `nemonic/opensearch` (= 공식 + repository-s3) | 2.15.0-s3 |
-| Dashboards | `opensearchproject/opensearch-dashboards` | 2.15.0 |
-| Logstash | `opensearchproject/logstash-oss-with-opensearch-output-plugin` | 8.9.0 |
+## AI 모더레이션과 콘텐츠 안전성
 
-### 1.2 버전 선택 이유
+- 커뮤니티 메모 게시 전 텍스트와 이미지 기반 모더레이션을 수행해 부적절한 콘텐츠 노출을 줄입니다.
+- FastAPI 기반 moderation server를 별도 서비스로 운영하며, 한국어 유해 표현 모델과 OCR 설정을 분리했습니다.
+- 신고 누적, 자동 숨김, 운영자 복원/삭제를 백오피스에서 관리할 수 있도록 설계했습니다.
 
-- **Kafka는 Confluent 7.5.4 (= 3.5)**. Logstash 8.9의 kafka-client 3.3.x가
-  Apache Kafka 3.7+ 와 호환되지 않음. consumer가 subscribe는 성공하지만
-  fetch에서 0건. Kafka 3.5는 호환 OK.
-- **`apache/kafka` 이미지는 3.7.0+ 만 제공** (3.5 태그 없음). 따라서
-  Confluent 사용. Confluent Platform의 cp-kafka는 Apache 2.0 라이선스로
-  무료 사용 가능.
-- **Bitnami Kafka 사용 금지**. 2025년 정책 변경으로 마이너 버전 태그가
-  Docker Hub에서 제거됨 (`bitnami/kafka:3.7` not found).
-- **Logstash 8.9.0이 사실상 최신**. opensearchproject 측에서 8.10+ 이미지
-  배포 안 함. `latest` 태그 의존은 재현성 깨짐.
-- **OpenSearch는 custom 이미지로 굽는다**. `repository-s3` 플러그인이 core
-  배포에 포함 안 됨. runtime 설치는 컨테이너 재생성 시 날아가서
-  `logging/opensearch/Dockerfile`에 굽는다. 빌드 시점에 설치 검증까지
-  수행하므로 런타임 디버깅이 필요 없음.
+## 관측 가능성과 운영 백오피스
 
----
+![시스템 개요](./docs/system-overview.png)
 
-## 2. File Structure
+- 프론트엔드 행동 로그와 백엔드 API/도메인 이벤트를 분리 수집해 중복 이벤트를 줄였습니다.
+- Fluent Bit, Kafka, OpenSearch, Dashboards 기반 로그 파이프라인으로 접속, 전환, 오류, 감사 로그를 분석합니다.
+- Prometheus/Grafana를 통해 서버 리소스와 WebSocket 연결 등 실시간 운영 지표를 확인합니다.
 
-레포 루트(`/opt/nemonic/infra/` = `infra/dev` 브랜치) 기준:
+# 시스템 아키텍처
 
-```
-infra/
-├── docker-compose.logging.yml       # 5-서비스 정의
-└── logging/
-    ├── README.md                    # 이 문서
-    ├── TROUBLESHOOTING.md           # 디버깅 사례 모음
-    ├── .gitignore                   # data/, *.log 제외
-    ├── fluent-bit/
-    │   ├── fluent-bit.conf          # 수집 설정
-    │   ├── parsers.conf             # Docker JSON 파서
-    │   └── extract_container_id.lua # 메타데이터 추출 스크립트
-    └── logstash/
-        ├── pipeline/main.conf       # Kafka → grok → OpenSearch
-        └── config/logstash.yml      # Logstash 시스템 설정
+![시스템 아키텍처](./docs/system-overview.png)
+
+```text
+User Browser
+  ├─ Next.js Frontend
+  │   ├─ 3D Room / Hub
+  │   ├─ Drawing Contents
+  │   └─ Admin Backoffice
+  │
+  └─ Spring Boot API
+      ├─ PostgreSQL: 영구 데이터, 산출물 메타데이터, 관리자/감사 로그
+      ├─ Redis: 실시간 방 상태, 참여자 상태, 캐시
+      ├─ MinIO: 이미지, GIF, 결과물 파일
+      ├─ FastAPI Moderation: AI 모더레이션 / OCR
+      └─ OpenSearch Pipeline: 로그 수집과 운영 분석
 ```
 
-### 2.1 Data Directory (git 관리 X)
+# 프로젝트 구조
 
-호스트 전용 영역:
-
+```text
+S14P31S208/
+├── frontend/                 # Next.js 16 서비스/백오피스 프론트엔드
+│   └── src/
+│       ├── app/              # 라우트 진입점
+│       ├── worlds/           # 3D 씬
+│       ├── features/         # 도메인 기능
+│       └── shared/           # 공용 UI, API, 상태, 유틸
+├── backend/                  # Spring Boot API 서버
+│   ├── src/main/java/com/nemonicworld/
+│   │   ├── community/        # 커뮤니티 보드
+│   │   ├── infinitecanvas/   # 무한캔버스
+│   │   ├── relay/            # 릴레이 드로잉
+│   │   ├── flipbook/         # 플립북
+│   │   ├── fortune/          # 오늘의 운세
+│   │   ├── artifact/         # 산출물/갤러리
+│   │   └── backoffice/       # 운영 백오피스
+│   └── docs/                 # API, 제품 스펙, ADR, 성능 문서
+├── ai/moderation-server/     # FastAPI 기반 콘텐츠 모더레이션 서버
+├── deploy/                   # 배포 스크립트와 Nginx 설정
+├── logging/                  # Fluent Bit/Kafka/OpenSearch 로그 파이프라인
+├── monitoring/               # Prometheus/Grafana 설정
+└── docs/                     # README용 화면 캡처, GIF, 썸네일
 ```
-/opt/nemonic/data/
-├── opensearch/    # 인덱스 데이터, UID 1000 소유
-├── kafka/         # 토픽 로그, UID 1000 소유
-└── fluent-bit/    # tail offset DB (sqlite), UID 0 소유
-```
 
-**반드시 git에서 분리**해야 함. 인덱스는 GB 단위로 커지고, 컨테이너가 직접
-쓰는 영역이라 권한 문제도 생김. `.gitignore`로 `data/` 패턴 차단.
+# 기술 스택
 
----
+## Frontend
 
-## 3. Operations
+<div>
+  <img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white"/>
+  <img src="https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black"/>
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white"/>
+</div>
+<div>
+  <img src="https://img.shields.io/badge/Three.js-000000?style=for-the-badge&logo=threedotjs&logoColor=white"/>
+  <img src="https://img.shields.io/badge/React_Three_Fiber-20232A?style=for-the-badge&logo=react&logoColor=61DAFB"/>
+  <img src="https://img.shields.io/badge/Konva-0D83CD?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/Zustand-443E38?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/STOMP-FF6F00?style=for-the-badge"/>
+</div>
 
-### 3.1 기동
+## Backend
+
+<div>
+  <img src="https://img.shields.io/badge/Spring_Boot-6DB33F?style=for-the-badge&logo=springboot&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Java_21-007396?style=for-the-badge&logo=openjdk&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Spring_Data_JPA-59666C?style=for-the-badge&logo=hibernate&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Spring_WebSocket-6DB33F?style=for-the-badge&logo=spring&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Spring_Security-6DB33F?style=for-the-badge&logo=springsecurity&logoColor=white"/>
+</div>
+<div>
+  <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Redis-FF4438?style=for-the-badge&logo=redis&logoColor=white"/>
+  <img src="https://img.shields.io/badge/MinIO-C72E49?style=for-the-badge&logo=minio&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Flyway-CC0200?style=for-the-badge&logo=flyway&logoColor=white"/>
+</div>
+
+## AI / Observability / Infra
+
+<div>
+  <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white"/>
+  <img src="https://img.shields.io/badge/OpenSearch-005EB8?style=for-the-badge&logo=opensearch&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Kafka-231F20?style=for-the-badge&logo=apachekafka&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Fluent_Bit-49BDA5?style=for-the-badge"/>
+</div>
+<div>
+  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Jenkins-D24939?style=for-the-badge&logo=jenkins&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white"/>
+</div>
+
+# 로컬 실행 방법
+
+## Backend
 
 ```bash
-cd /opt/nemonic/infra
-docker compose -f docker-compose.logging.yml up -d
+cd backend
+cp .env.example .env
+docker compose -f docker-compose.local.yml up -d
+./gradlew bootRun
 ```
 
-자동 기동 순서 (depends_on + healthcheck 기반):
-
-1. Kafka, OpenSearch (병렬)
-2. Dashboards (OpenSearch healthy 후)
-3. Logstash (Kafka + OpenSearch healthy 후)
-4. Fluent Bit (Kafka healthy 후)
-
-총 부팅 시간 약 90초 (OpenSearch가 가장 오래 걸림).
-
-### 3.2 정지
+검증:
 
 ```bash
-docker compose -f docker-compose.logging.yml down
+cd backend
+./gradlew --no-daemon spotlessCheck test bootJar
 ```
 
-데이터는 호스트(`/opt/nemonic/data/`)에 보존됨. **`down -v` 사용 금지** (볼륨
-삭제로 인덱스 날아감).
-
-### 3.3 상태 확인
+## Frontend
 
 ```bash
-# 컨테이너 상태 + healthcheck
-docker compose -f docker-compose.logging.yml ps
-
-# 개별 로그 (실시간)
-docker logs -f nemonic-logging-<service>
-# service: kafka, opensearch, dashboards, logstash, fluent-bit
+cd frontend
+pnpm install
+pnpm dev
 ```
 
-### 3.4 사전 요구사항 (1회 셋업)
-
-처음 EC2에 배포할 때:
+검증:
 
 ```bash
-# 1. 데이터 디렉토리 생성 + 권한
-sudo mkdir -p /opt/nemonic/data/{opensearch,kafka,fluent-bit}
-sudo chown -R 1000:1000 /opt/nemonic/data/opensearch
-sudo chown -R 1000:1000 /opt/nemonic/data/kafka
-# fluent-bit은 root(0:0)로 둠 - Fluent Bit 컨테이너가 root로 실행
-
-# 2. OpenSearch 커널 파라미터
-sudo sysctl -w vm.max_map_count=262144
-echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
-
-# 3. OpenSearch config 디렉토리 영속화 (snapshot S3 키 저장용 keystore)
-#    - 파일 단위 마운트는 keystore의 atomic rename(mv)을 막는다 (TROUBLESHOOTING #14).
-#    - 디렉토리 단위로 마운트하되, 이미지 default를 잃지 않도록 사전 추출 필수.
-sudo mkdir -p /opt/nemonic/data/opensearch-config
-TEMP_ID=$(docker create nemonic/opensearch:2.15.0-s3)
-sudo docker cp ${TEMP_ID}:/usr/share/opensearch/config/. \
-  /opt/nemonic/data/opensearch-config/
-docker rm ${TEMP_ID}
-sudo chown -R 1000:1000 /opt/nemonic/data/opensearch-config
+cd frontend
+pnpm lint
+pnpm build
 ```
 
----
+## Production Compose
 
-## 4. Healthchecks
-
-모든 healthcheck는 **`127.0.0.1`** 사용. `localhost`는 alpine musl libc가
-IPv6 (`::1`)로 우선 해석하는데, IPv4-only 서비스에서 connection refused 발생.
-
-| 서비스 | 검증 명령 |
-| --- | --- |
-| kafka | `kafka-broker-api-versions --bootstrap-server 127.0.0.1:9092` |
-| opensearch | `curl http://127.0.0.1:9200/_cluster/health` (green/yellow) |
-| dashboards | `curl http://127.0.0.1:5601/_dashboards/api/status` |
-| logstash | `curl http://127.0.0.1:9600/_node/stats/pipelines/main` |
-| fluent-bit | `curl http://127.0.0.1:2020/api/v1/metrics` |
-
----
-
-## 5. Verification (데이터 흐름 추적)
-
-문제 생겼을 때 단계별 진단. 각 단계가 OK면 다음 단계로.
-
-### 5.1 Fluent Bit (수집)
+운영 배포는 루트의 `docker-compose.prod.yml`을 기준으로 구성됩니다.
 
 ```bash
-FB_IP=$(docker inspect nemonic-logging-fluent-bit \
-  --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
-curl -s http://$FB_IP:2020/api/v1/metrics | python3 -m json.tool
+docker compose -f docker-compose.prod.yml up -d
 ```
 
-봐야 할 값:
-- `input.tail.0.records`: 수집한 라인 수
-- `output.kafka.0.proc_records`: Kafka로 보낸 수
-- `output.kafka.0.errors`: 0이어야 정상
-- `output.kafka.0.dropped_records`: 0이어야 정상
-
-### 5.2 Kafka (버퍼)
-
-```bash
-# 토픽의 메시지 수
-docker exec nemonic-logging-kafka kafka-get-offsets \
-  --bootstrap-server 127.0.0.1:9092 --topic nemonic-logs
-
-# 결과: nemonic-logs:0:N (N이 메시지 수)
-
-# Consumer group lag
-docker exec nemonic-logging-kafka kafka-consumer-groups \
-  --bootstrap-server 127.0.0.1:9092 --describe --group logstash-nemonic-v4
-```
-
-봐야 할 값:
-- `LOG-END-OFFSET` (Fluent Bit이 누적한 양)
-- `CURRENT-OFFSET` (Logstash가 읽은 위치)
-- `LAG` = 차이. 일정 수준 유지되면 정상, 계속 커지면 Logstash 처리 부족.
-
-### 5.3 Logstash (파싱)
-
-```bash
-docker exec nemonic-logging-logstash \
-  curl -s http://127.0.0.1:9600/_node/stats/pipelines/main \
-  | grep -oE '"events":\{[^}]+\}'
-```
-
-결과 예: `"events":{"in":1234,"out":1230,"filtered":1230}`
-
-- `in` > 0이면 Kafka에서 받는 중
-- `out` ≈ `in`이면 OpenSearch까지 잘 흐름
-- `filtered`는 grok 등 필터 처리량
-
-### 5.4 OpenSearch (인덱싱)
-
-```bash
-# 인덱스 목록
-docker exec nemonic-logging-opensearch \
-  curl -s "http://127.0.0.1:9200/_cat/indices?v"
-
-# 문서 수
-docker exec nemonic-logging-opensearch \
-  curl -s "http://127.0.0.1:9200/nemonic-app-logs-*/_count?pretty"
-
-# 샘플 문서 (파싱 확인용)
-docker exec nemonic-logging-opensearch \
-  curl -s "http://127.0.0.1:9200/nemonic-app-logs-*/_search?size=1&pretty"
-```
-
-### 5.5 컨테이너별 로그 분포
-
-```bash
-docker exec nemonic-logging-opensearch \
-  curl -s -X POST "http://127.0.0.1:9200/nemonic-app-logs-*/_search?pretty" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "size": 0,
-    "aggs": {
-      "containers": {
-        "terms": {"field": "container_id.keyword", "size": 20}
-      }
-    }
-  }'
-```
-
-각 컨테이너에서 얼마나 로그가 들어오는지 한눈에.
-
----
-
-## 6. Access (외부)
-
-### 6.1 URL
-
-```
-https://k14s208.p.ssafy.io/_dashboards/
-```
-
-### 6.2 인증
-
-HTTP BasicAuth (nginx 레벨). 비밀번호 파일은 git 추적 X.
-
-```bash
-# 새 사용자 추가
-sudo htpasswd /opt/nemonic/infra/deploy/nginx/.htpasswd_dashboards <username>
-
-# 첫 사용자 + 파일 생성
-sudo htpasswd -c /opt/nemonic/infra/deploy/nginx/.htpasswd_dashboards admin
-```
-
-`.htpasswd_dashboards`는 nginx 컨테이너에 read-only 마운트됨
-(`docker-compose.prod.yml`의 nginx volumes 참조).
-
-### 6.3 첫 사용 (Index Pattern 등록)
-
-Dashboards 첫 접속 시:
-
-1. 좌측 메뉴 ☰ → **Stack Management** → **Index Patterns**
-2. **Create index pattern**
-3. Name: `nemonic-app-logs-*`
-4. Time field: `@timestamp`
-5. Create
-
-이후 **Discover** 메뉴에서 로그 검색 가능.
-
----
-
-## 7. Logged Fields (Spring Boot 예시)
-
-Logstash grok이 Spring Boot 로그를 다음 필드로 분해:
-
-| 필드 | 예시 | 출처 |
-| --- | --- | --- |
-| `@timestamp` | `2026-04-28T04:33:23.173Z` | grok이 Spring Boot 로그에서 추출 |
-| `log_level` | `INFO`, `WARN`, `ERROR` | grok |
-| `pid` | `7` | grok |
-| `application` | `backend` | grok (`[backend]` 부분) |
-| `thread` | `main`, `nio-8080-exec-1` | grok |
-| `logger` | `com.nemonicworld.BackendApplication` | grok |
-| `log_message` | `Started BackendApplication...` | grok |
-| `tags` | `["spring_boot"]` | grok 성공 시 부착 |
-| `container_id` | `f44537001a48e878` | Fluent Bit Lua 추출 |
-| `log_tag` | `docker.var.lib.docker.containers...` | Fluent Bit Lua |
-| `hostname` | `<fluent-bit 컨테이너 hostname>` | record_modifier |
-| `stream` | `stdout` 또는 `stderr` | Docker JSON |
-| `message` | 원본 로그 줄 | Fluent Bit |
-
-비-Spring Boot 컨테이너 (nginx, postgres 등)는 grok 실패 →
-`tags: ["_grokparsefailure_spring"]`. 이 자체는 정상이며, 나중에 컨테이너별
-grok 패턴을 추가하면 분해 가능.
-
----
-
-## 8. Search Examples
-
-### Spring Boot 로그만
-
-```
-tags : "spring_boot"
-```
-
-### 특정 컨테이너 로그
-
-```
-container_id : "f44537001a48*"
-```
-
-### 에러 레벨
-
-```
-log_level : "ERROR"
-```
-
-### 복합
-
-```
-tags : "spring_boot" AND log_level : ("WARN" OR "ERROR")
-```
-
----
-
-## 9. Troubleshooting
-
-문제 생기면 먼저 [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) 확인. 이 인프라
-구축 과정에서 만난 25개 함정의 원인과 해결책 정리.
-
----
-
-## 10. Snapshot Management (Phase 3)
-
-장기 보관은 OpenSearch 클러스터가 아닌 **MinIO**로 분리. 인덱스는 일정 기간이
-지나면 snapshot 후 클러스터에서 삭제, MinIO에는 더 오래 보관 (시점별 복원
-가능).
-
-### 10.1 구성 요소
-
-| 요소 | 값 |
-| --- | --- |
-| MinIO 컨테이너 | `nemonic-prod-minio-1` (운영용 MinIO 공유) |
-| 네트워크 | `nemonic-prod_cicd-net` (OpenSearch와 동일) |
-| 전용 bucket | `nemonic-logs-snapshots` (운영 bucket과 분리) |
-| Repository name | `nemonic-logs-repo` |
-| 키 위치 | OpenSearch keystore (`s3.client.default.{access,secret}_key`) |
-
-키는 환경변수가 아닌 keystore에 저장 — `docker inspect`로 노출 안 됨.
-keystore는 `/opt/nemonic/data/opensearch-config/opensearch.keystore`로 영속화
-(이유는 TROUBLESHOOTING #14 참조).
-
-### 10.2 1회 셋업 (이미 완료, 새 환경 셋업 시 참고)
-
-```bash
-# (사전: bucket 생성)
-set -a; source /opt/nemonic/shared/.env.prod; set +a
-docker run --rm \
-  --network nemonic-prod_cicd-net \
-  -e MC_HOST_minio="http://${MINIO_ROOT_USER}:${MINIO_ROOT_PASSWORD}@minio:9000" \
-  minio/mc \
-  mb --ignore-existing minio/nemonic-logs-snapshots
-
-# (keystore에 키 등록 — printf로 stdin 파이프, secret 채팅·history 노출 방지)
-printf '%s' "$MINIO_ROOT_USER" | docker exec -i nemonic-logging-opensearch \
-  /usr/share/opensearch/bin/opensearch-keystore add --stdin --force s3.client.default.access_key
-printf '%s' "$MINIO_ROOT_PASSWORD" | docker exec -i nemonic-logging-opensearch \
-  /usr/share/opensearch/bin/opensearch-keystore add --stdin --force s3.client.default.secret_key
-
-# (reload — 재기동 없이 메모리에 새 키 로드)
-docker exec nemonic-logging-opensearch \
-  curl -s -X POST "http://127.0.0.1:9200/_nodes/reload_secure_settings"
-
-# (repository 등록)
-docker exec nemonic-logging-opensearch \
-  curl -s -X PUT "http://127.0.0.1:9200/_snapshot/nemonic-logs-repo" \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "type": "s3",
-    "settings": {
-      "bucket": "nemonic-logs-snapshots",
-      "endpoint": "minio:9000",
-      "protocol": "http",
-      "path_style_access": true
-    }
-  }'
-
-# (verify)
-docker exec nemonic-logging-opensearch \
-  curl -s -X POST "http://127.0.0.1:9200/_snapshot/nemonic-logs-repo/_verify"
-```
-
-### 10.3 수동 snapshot
-
-```bash
-docker exec nemonic-logging-opensearch \
-  curl -s -X PUT "http://127.0.0.1:9200/_snapshot/nemonic-logs-repo/<snapshot-name>?wait_for_completion=true" \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "indices": "biz-events-*,system-logs-*,error-logs-*",
-    "include_global_state": false
-  }'
-```
-
-응답에서 `"state": "SUCCESS"` + `shards.successful` ≥ 1 이면 OK.
-
-### 10.4 MinIO 객체 확인
-
-```bash
-set -a; source /opt/nemonic/shared/.env.prod; set +a
-docker run --rm \
-  --network nemonic-prod_cicd-net \
-  -e MC_HOST_minio="http://${MINIO_ROOT_USER}:${MINIO_ROOT_PASSWORD}@minio:9000" \
-  minio/mc \
-  ls --recursive minio/nemonic-logs-snapshots/
-```
-
-### 10.5 자동 스케줄 (SM policy)
-
-수동 snapshot 외에 **매일 자정 KST 자동 snapshot + 90일 retention**을
-OpenSearch SM(Snapshot Management) policy로 운영. ISM과 짝꿍 — 클러스터에서는
-ISM이 인덱스 종류별 보관 기간 후 삭제, MinIO에서는 SM이 90일치 snapshot 보관.
-
-| 항목 | 값 |
-| --- | --- |
-| Policy name | `nemonic-daily-snapshot` |
-| Snapshot 이름 패턴 | `nemonic-daily-snapshot-yyyy-MM-dd-HH-mm-<uniq>` |
-| Creation cron | `0 0 * * *` (Asia/Seoul) — 매일 자정 |
-| Deletion cron | `30 0 * * *` (Asia/Seoul) — 매일 0:30 retention 검사 |
-| Retention | `max_age: 90d`, `min_count: 5` (안전망) |
-| Indices | `biz-events-*,system-logs-*,error-logs-*` (access는 단명 14d라 제외) |
-
-정의: [logging/opensearch/sm/nemonic-daily-snapshot.json](./logging/opensearch/sm/nemonic-daily-snapshot.json)
-
-#### 등록
-
-```bash
-cat logging/opensearch/sm/nemonic-daily-snapshot.json | \
-  docker exec -i nemonic-logging-opensearch \
-  curl -s -X POST "http://127.0.0.1:9200/_plugins/_sm/policies/nemonic-daily-snapshot" \
-  -H 'Content-Type: application/json' \
-  -d @-
-# → "_id": "nemonic-daily-snapshot-sm-policy", "enabled": true
-```
-
-#### 검증 (즉시)
-
-OpenSearch SM에는 강제 trigger API가 없다. 즉시 검증하려면 임시로 cron을
-**5분 후 시각**으로 변경 → 5분 대기 → snapshot 발생 확인 → 자정 cron으로
-원복. 다음 단계로 진행.
-
-```bash
-# 1) 5분 후 KST 시각으로 cron 만들기
-MIN=$(TZ=Asia/Seoul date -d "+5 min" "+%-M")
-HOUR=$(TZ=Asia/Seoul date -d "+5 min" "+%-H")
-echo "임시 cron: \"$MIN $HOUR * * *\""
-
-# 2) 현재 seq_no/primary_term 캡처 후 임시 cron으로 PUT
-SEQ_INFO=$(docker exec nemonic-logging-opensearch curl -s "http://127.0.0.1:9200/_plugins/_sm/policies/nemonic-daily-snapshot" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['_seq_no'], d['_primary_term'])")
-read SEQ TERM <<< "$SEQ_INFO"
-
-docker exec nemonic-logging-opensearch curl -s -X PUT "http://127.0.0.1:9200/_plugins/_sm/policies/nemonic-daily-snapshot?if_seq_no=$SEQ&if_primary_term=$TERM" -H 'Content-Type: application/json' -d "{\"description\":\"TEMP\",\"creation\":{\"schedule\":{\"cron\":{\"expression\":\"$MIN $HOUR * * *\",\"timezone\":\"Asia/Seoul\"}},\"time_limit\":\"1h\"},\"deletion\":{\"schedule\":{\"cron\":{\"expression\":\"59 23 * * *\",\"timezone\":\"Asia/Seoul\"}},\"condition\":{\"max_age\":\"90d\",\"min_count\":5},\"time_limit\":\"1h\"},\"snapshot_config\":{\"date_format\":\"yyyy-MM-dd-HH-mm\",\"timezone\":\"Asia/Seoul\",\"indices\":\"nemonic-app-logs-*\",\"repository\":\"nemonic-logs-repo\",\"ignore_unavailable\":\"true\",\"include_global_state\":\"false\",\"partial\":\"false\"}}"
-
-# 3) 6분 대기 후 snapshot 확인
-sleep 360
-docker exec nemonic-logging-opensearch curl -s "http://127.0.0.1:9200/_snapshot/nemonic-logs-repo/_all" | python3 -m json.tool | grep -E '"snapshot"|"state"'
-# → "snapshot": "nemonic-daily-snapshot-yyyy-MM-dd-HH-mm-<uniq>", "state": "SUCCESS"
-
-# 4) 정의 원복 (자정 cron)
-SEQ_INFO=$(docker exec nemonic-logging-opensearch curl -s "http://127.0.0.1:9200/_plugins/_sm/policies/nemonic-daily-snapshot" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['_seq_no'], d['_primary_term'])")
-read SEQ TERM <<< "$SEQ_INFO"
-cat logging/opensearch/sm/nemonic-daily-snapshot.json | docker exec -i nemonic-logging-opensearch curl -s -X PUT "http://127.0.0.1:9200/_plugins/_sm/policies/nemonic-daily-snapshot?if_seq_no=$SEQ&if_primary_term=$TERM" -H 'Content-Type: application/json' -d @-
-```
-
-> **paste 주의**: SSH 환경에 따라 `\` continuation이 깨질 수 있음. 한 줄
-> 명령으로 두는 게 안전 (TROUBLESHOOTING #18 참조).
-
----
-
-## 11. Index Lifecycle Management (Phase 3)
-
-OpenSearch ISM(Index State Management)으로 인덱스 수명을 자동 관리.
-**인덱스 4종으로 분리하여 종류별 차등 보관**. observability.md spec 기반.
-
-### 11.1 정책 4종 + 인덱스 분리
-
-| 인덱스 패턴 | hot | warm | total | 정책 ID | 비고 |
-| --- | --- | --- | --- | --- | --- |
-| `biz-events-*` | 7d | 7~90d | **90d** | `biz-events-policy` | 비즈니스 이벤트, 퍼널/전환율 |
-| `system-logs-*` | 3d | 3~30d | **30d** | `system-logs-policy` | Spring Boot INFO/WARN, postgres, redis 등 |
-| `error-logs-*` | 7d | 7~90d | **90d** | `error-logs-policy` | log_level ERROR/FATAL 또는 Exception/stack trace |
-| `access-logs-*` | 3d | 3~14d | **14d** | `access-logs-policy` | nginx HTTP access |
-
-각 정책은 `hot → warm → delete` 3-state. warm 진입 시 `force_merge: 1 segment`로
-압축. MinIO snapshot은 SM policy(§10.5)가 매일 자정 자동 처리 (access 제외).
-
-### 11.2 Logstash 분류 로직
-
-새 로그가 들어올 때마다 [logging/logstash/pipeline/main.conf](./logging/logstash/pipeline/main.conf)
-가 우선순위 순서로 분류:
-
-1. **자기 로그 drop** — Logstash 자체 코드(`[logstash.<module>]`) + 외부 라이브러리
-   (`[main][<64-hex>]`) 두 패턴, Fluent Bit (`[YYYY/MM/DD HH:MM:SS]`), log_tag
-   기반 fallback. 두 종류 다 잡아야 (TROUBLESHOOTING #20).
-2. JSON parsing 시도 (메시지가 `{`로 시작) → `event_name` 필드 있으면 → **biz-events**
-3. nginx access pattern 매칭 → date 변환(@timestamp) → **access-logs**
-4. Spring Boot pattern 매칭 → log_level 등 부여 (분류는 다음 단계에서)
-5. `log_level: ERROR/FATAL` 또는 message에 `[ERROR]`/`[FATAL]`/`Exception:`/`caused by:`/stack trace → **error-logs**
-6. fallback → **system-logs**
-
-각 도큐먼트에 `log_type: biz|access|error|system` 필드도 부여 (검색 편의).
-
-### 11.3 구성 요소
-
-| 요소 | 위치 |
-| --- | --- |
-| ISM policy 4개 | [logging/opensearch/ism/](./logging/opensearch/ism/) |
-| 인덱스 템플릿 4개 | [logging/opensearch/templates/](./logging/opensearch/templates/) |
-| Logstash 라우팅 | [logging/logstash/pipeline/main.conf](./logging/logstash/pipeline/main.conf) |
-| 공통 매핑 정책 | `dynamic: true`, `number_of_replicas: 0` (single-node), `refresh_interval: 10s`, `codec: best_compression`, `translog.durability: async` |
-
-### 11.4 1회 셋업 (이미 완료, 새 환경 셋업 시 참고)
-
-```bash
-# (1) ISM policy 4개 등록
-for p in biz-events system-logs error-logs access-logs; do
-  cat logging/opensearch/ism/${p}-policy.json | \
-    docker exec -i nemonic-logging-opensearch \
-    curl -s -X PUT "http://127.0.0.1:9200/_plugins/_ism/policies/${p}-policy" \
-    -H 'Content-Type: application/json' -d @-
-done
-
-# (2) 인덱스 템플릿 4개 등록
-for t in biz-events system-logs error-logs access-logs; do
-  cat logging/opensearch/templates/${t}-template.json | \
-    docker exec -i nemonic-logging-opensearch \
-    curl -s -X PUT "http://127.0.0.1:9200/_index_template/${t}-template" \
-    -H 'Content-Type: application/json' -d @-
-done
-```
-
-### 11.4 검증
-
-```bash
-# 부착 확인 (settings 레벨이 source of truth — TROUBLESHOOTING #16 참조)
-docker exec nemonic-logging-opensearch \
-  curl -s "http://127.0.0.1:9200/<index>/_settings?flat_settings=true" \
-  | grep policy_id
-
-# State 진행 상황 (sweeper 5분 cycle 후 채워짐)
-docker exec nemonic-logging-opensearch \
-  curl -s "http://127.0.0.1:9200/_plugins/_ism/explain/<index>?pretty"
-# → state.name (hot/warm/delete), action, step, info 보임
-```
-
-### 11.5 즉시 부착 보장
-
-`ism_template`은 sweeper cycle(5분)에 의존하므로 인덱스 생성 ~ ISM 부착
-사이에 gap이 생긴다. 인덱스 템플릿 `settings`에 `plugins.index_state_management.policy_id`를
-**명시적으로** 박아 동기 부착을 보장 (TROUBLESHOOTING #17 참조).
-
----
-
-## 12. Monitoring (Phase 3)
-
-OpenSearch Dashboards가 **로그 분석**을 담당한다면, **Prometheus + Grafana는
-실시간 시계열 메트릭** 담당. 두 도구 역할 분리.
-
-### 12.1 구성 요소
-
-| 컨테이너 | 이미지 | 용도 |
-| --- | --- | --- |
-| Prometheus | `prom/prometheus:v2.54.1` | 메트릭 수집·저장 (시계열 DB, 15일 retention) |
-| Grafana | `grafana/grafana:11.2.2` | 시각화, https://k14s208.p.ssafy.io/grafana/ |
-| node-exporter | `prom/node-exporter:v1.8.2` | 호스트 OS — CPU/Mem/Disk/Network |
-| cAdvisor | `gcr.io/cadvisor/cadvisor:v0.49.1` | 컨테이너별 메트릭 (※ 한계 있음, 12.5 참조) |
-
-정의: [docker-compose.monitoring.yml](./docker-compose.monitoring.yml),
-[monitoring/](./monitoring/)
-
-### 12.2 1회 셋업 (이미 완료, 새 환경 셋업 시 참고)
-
-```bash
-# (사전: .env에 GRAFANA_ADMIN_USER/PASSWORD 추가)
-sudo tee -a /opt/nemonic/shared/.env.prod <<EOF
-
-# Grafana
-GRAFANA_ADMIN_USER=admin
-GRAFANA_ADMIN_PASSWORD=$(openssl rand -base64 24)
-EOF
-
-# (사전: nginx BasicAuth 사용자)
-sudo htpasswd -c /opt/nemonic/infra/deploy/nginx/.htpasswd_grafana admin
-
-# (사전: 데이터 디렉토리, UID는 컨테이너 default user)
-sudo mkdir -p /opt/nemonic/data/{prometheus,grafana}
-sudo chown -R 65534:65534 /opt/nemonic/data/prometheus    # nobody
-sudo chown -R 472:472     /opt/nemonic/data/grafana       # grafana
-
-# (사전: docker compose가 .env.prod를 자동 로드하도록 symlink)
-sudo ln -sf /opt/nemonic/shared/.env.prod /opt/nemonic/infra/.env
-
-# 기동
-docker compose -f docker-compose.monitoring.yml up -d
-
-# nginx에 .htpasswd_grafana 마운트 적용 (compose 파일에 이미 정의됨)
-docker compose -f docker-compose.prod.yml up -d --no-deps --force-recreate nginx
-```
-
-### 12.3 외부 접근
-
-`https://k14s208.p.ssafy.io/grafana/`
-
-- **1차 BasicAuth** (nginx): admin / `<.htpasswd_grafana 비밀번호>`
-- **2차 Grafana 로그인**: admin / `<.env.prod의 GRAFANA_ADMIN_PASSWORD>`
-
-### 12.4 Dashboard Provisioning
-
-Prometheus datasource와 dashboard 모두 [provisioning](./monitoring/grafana/provisioning/)으로
-자동 등록 — UI에서 import 버튼 누를 필요 없음. 컨테이너 기동 시 자동 로드.
-
-| ID | 이름 | 파일 | 비고 |
-| --- | --- | --- | --- |
-| **1860** | Node Exporter Full | [node-exporter-full.json](./monitoring/grafana/provisioning/dashboards/json/node-exporter-full.json) | 호스트 OS 메트릭 (CPU/Mem/Disk/Network) ✅ |
-| 3662 | Prometheus 2.0 Stats | [prometheus-stats.json](./monitoring/grafana/provisioning/dashboards/json/prometheus-stats.json) | Prometheus 자체 모니터링 |
-| 14282 | cAdvisor exporter | (미등록) | ⚠️ 컨테이너 메트릭 — 12.5 한계 해소 후 추가 예정 |
-
-#### 신규 dashboard 추가 절차
-
-```bash
-# 1) grafana.com에서 JSON 다운로드
-curl -sSL "https://grafana.com/api/dashboards/<ID>/revisions/latest/download" \
-  -o monitoring/grafana/provisioning/dashboards/json/<name>.json
-
-# 2) datasource 변수 점검
-#    - 모던 dashboard: templating.list에 datasource 변수가 있으면 그대로 commit
-#    - 레거시 dashboard: "datasource": "${DS_FOO}" 리터럴이 박혀 있으면 'Prometheus'로 치환
-grep -oE '\$\{DS_[A-Z_]+\}' monitoring/grafana/provisioning/dashboards/json/<name>.json | sort -u
-sed -i 's/\${DS_FOO}/Prometheus/g' monitoring/grafana/provisioning/dashboards/json/<name>.json
-
-# 3) Grafana 재기동 (provisioning은 30초 polling이라 기다려도 OK)
-docker compose -f docker-compose.monitoring.yml restart grafana
-
-# 4) 외부 URL에서 확인
-#    https://k14s208.p.ssafy.io/grafana/dashboards
-```
-
-> 직접 Grafana UI에서 만든 dashboard도 export → JSON 저장 → 같은 디렉토리에
-> commit하면 git이 source of truth가 된다 (`allowUiUpdates: true`라 UI 편집은
-> 가능하지만 컨테이너 재생성 시 파일 버전으로 복원).
-
-### 12.5 ⚠️ Known Limitation — cAdvisor 컨테이너 메트릭
-
-**현재 cAdvisor v0.49.1은 Ubuntu 24의 Docker overlayfs storage driver와
-호환성 이슈가 있어 컨테이너별 메트릭이 수집되지 않는다.** 호스트 메트릭은
-정상.
-
-원인 + 해결 path는 [TROUBLESHOOTING #25](./TROUBLESHOOTING.md#25-cadvisor-v049v053--docker-overlayfs-storage-driver-호환-x)
-참조. cAdvisor v0.54.0 stable 릴리스 시 업그레이드 예정 (별도 마일스톤).
-
-당분간 컨테이너 자원 확인은:
-- 즉석: `docker stats` CLI
-- 메트릭 dashboard: 호스트 전체 메트릭(1860)으로 추적
-
-### 12.6 프론트엔드 임베드 가이드 (향후 작업용)
-
-운영 페이지에서 Grafana panel이나 OpenSearch Dashboards를 iframe으로 임베드
-가능. 실시간 갱신은 도구 자체가 처리 (별도 polling 코드 X).
-
-#### URL 구조 (Grafana)
-
-| 종류 | URL | 용도 |
-| --- | --- | --- |
-| Dashboard 전체 | `/grafana/d/<uid>/<slug>?refresh=15s&kiosk` | 한 page에 한 dashboard |
-| Panel 1개 (solo) | `/grafana/d-solo/<uid>/<slug>?panelId=N&refresh=15s` | 화면 곳곳에 panel 박기 |
-
-`<uid>`는 dashboard JSON model에서 확인. `kiosk` 파라미터로 navbar 숨김.
-`refresh=15s`로 Grafana가 iframe 안에서 15초마다 자동 polling
-(Prometheus scrape 15s와 정렬).
-
-#### iframe HTML 예시
-
-```html
-<iframe
-  src="https://k14s208.p.ssafy.io/grafana/d-solo/<uid>/cpu?orgId=1&from=now-1h&to=now&panelId=2&refresh=15s&theme=light"
-  width="100%" height="400" frameborder="0"
-></iframe>
-```
-
-#### 함정 3가지 + 우리 환경 셋업 (미래 작업 체크리스트)
-
-1. **X-Frame-Options 차단** — Grafana default가 `DENY`. compose env에 추가:
-
-   ```yaml
-   GF_SECURITY_ALLOW_EMBEDDING:    "true"
-   GF_SECURITY_COOKIE_SAMESITE:    "lax"   # cross-origin iframe에서 쿠키 보내기
-   ```
-
-2. **인증** — iframe 안에서도 Grafana 로그인 필요. 추천 패턴: **anonymous viewer + nginx BasicAuth 유지**
-
-   ```yaml
-   GF_AUTH_ANONYMOUS_ENABLED:       "true"
-   GF_AUTH_ANONYMOUS_ORG_ROLE:      "Viewer"
-   GF_AUTH_ANONYMOUS_ORG_NAME:      "Main Org."
-   ```
-
-   - nginx BasicAuth로 외부 차단 (운영자만 접근)
-   - 그 안에선 anonymous로 iframe 인증 자동 통과
-   - 보기는 가능, 편집은 불가
-
-3. **OpenSearch Dashboards 임베드** — 가능하나 까다로움 (`csp.rules` 등 설정).
-   로그 dashboard는 인터랙티브해서 임베드보다 **새 탭 링크**가 운영적으로
-   합리적. 예: "에러 알림 → [로그 보기] 버튼 → 새 탭으로 Dashboards 열기".
-
-#### 실시간 갱신 정리
-
-| 데이터 종류 | 갱신 방식 | refresh interval 권장 |
-| --- | --- | --- |
-| 시계열 메트릭 (CPU, 응답 시간) | Grafana panel `refresh=15s` 자동 polling | 15s ~ 30s |
-| 로그 count/top N | Dashboards auto-refresh | 30s ~ 1m |
-| 로그 실시간 stream | WebSocket/SSE — 별도 구현 필요 | N/A |
-
-> 폴링 간격이 Prometheus scrape interval(15s)보다 짧으면 같은 데이터 보게 됨.
-> **15s 이하는 의미 X**.
-
----
-
-## 13. Future Work
-
-| Phase | 내용 |
-| --- | --- |
-| 3 (진행 중) | ✅ MinIO snapshot repository, ✅ ISM policy + 인덱스 템플릿, ✅ SM policy (매일 자정 자동 snapshot + 90일 retention), ✅ 인덱스 분리 (biz/system/error/access) + Logstash 라우팅, ✅ Prometheus + Grafana 인프라 모니터링, ⏳ cAdvisor v0.54+ 업그레이드 (#25), ⏳ 본격 대시보드 + Saved Search (biz-events 도입 후) |
-| 4 | 재사용 라이브러리 추출 (Java/JS/Python), 운영 문서 |
+주요 서비스:
+
+- `frontend`: Next.js standalone 서비스
+- `app`: Spring Boot API 서버
+- `moderation-server`: AI 모더레이션 FastAPI 서버
+- `postgres`, `redis`, `minio`: 데이터 저장소
+- `nginx`: HTTPS 진입점과 프록시
+- `jenkins`, `registry`: CI/CD와 자체 Docker Registry
