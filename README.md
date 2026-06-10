@@ -231,7 +231,7 @@ PLAY NEMONIC은 네모닉 기기의 출력 경험을 웹으로 옮긴 Phygital �
 
 ## 산출물 · 갤러리 · 커뮤니티 게시 파이프라인
 
-[Artifact 파이프라인 구성도 보기](./docs/artifact-pipeline.html)
+![Artifact 파이프라인](./docs/artifact.jpeg)
 
 - 사용자가 만든 결과물은 `artifact`로 관리되어 갤러리에서 다시 조회할 수 있습니다.
 - 이미지 파일은 presigned URL로 MinIO에 직접 업로드하고, 서버는 파일 확정과 메타데이터를 관리합니다.
@@ -247,7 +247,7 @@ PLAY NEMONIC은 네모닉 기기의 출력 경험을 웹으로 옮긴 Phygital �
 
 ## 관측 가능성과 운영 백오피스
 
-[로그 파이프라인 구성도 보기](./docs/log-pipeline.html)
+![로그 파이프라인 구성도](./docs/log_pipeline_architecture.jpeg)
 
 - 프론트엔드 행동 로그와 백엔드 API/도메인 이벤트를 분리 수집해 중복 이벤트를 줄였습니다.
 - Fluent Bit, Kafka, OpenSearch, Dashboards 기반 로그 파이프라인으로 접속, 전환, 오류, 감사 로그를 분석합니다.
